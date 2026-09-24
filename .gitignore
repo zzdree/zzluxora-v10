@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.spec
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# PyCharm / VSCode
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Project generated
+logs/
+output/
+temp/
+*.zlx.bak

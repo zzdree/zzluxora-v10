@@ -1,0 +1,16 @@
+{
+  "id": "generic_par_rgbw_8ch",
+  "name": "Generic PAR LED RGBW (8 Channel)",
+  "manufacturer": "Generic",
+  "channel_count": 8,
+  "channels": [
+    {"index": 1, "type": "dimmer", "label": "Master Dimmer", "default_value": 255, "min_value": 0, "max_value": 255},
+    {"index": 2, "type": "strobe", "label": "Strobe", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 3, "type": "red", "label": "Red", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 4, "type": "green", "label": "Green", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 5, "type": "blue", "label": "Blue", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 6, "type": "white", "label": "White", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 7, "type": "macro", "label": "Color Macro", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 8, "type": "speed", "label": "Macro Speed", "default_value": 0, "min_value": 0, "max_value": 255}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "generic_par_rgbw_4ch",
+  "name": "Generic PAR LED RGBW (4 Channel)",
+  "manufacturer": "Generic",
+  "channel_count": 4,
+  "channels": [
+    {"index": 1, "type": "red", "label": "Red", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 2, "type": "green", "label": "Green", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 3, "type": "blue", "label": "Blue", "default_value": 0, "min_value": 0, "max_value": 255},
+    {"index": 4, "type": "white", "label": "White", "default_value": 0, "min_value": 0, "max_value": 255}
+  ]
+}
