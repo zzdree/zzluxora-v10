@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Workspace>
+<Workspace CurrentWindow="VirtualConsole">
+ <Creator>
+  <Name>Q Light Controller Plus</Name>
+  <Version>4.12.7</Version>
+  <Author>Andreas Restuawanta Christwara - ZZLUXORA</Author>
+ </Creator>
+ <Engine>
+  <!-- 4 Units of PAR LED RGBW (4 Channels Each) -->
+  <Fixture>
+   <Manufacturer>Generic</Manufacturer>
+   <Model>Generic RGBW</Model>
+   <Mode>RGBW</Mode>
+   <ID>0</ID>
+   <Name>PAR LED 1 (Stage Left)</Name>
+   <Universe>0</Universe>
+   <Address>0</Address>
+   <Channels>4</Channels>
+  </Fixture>
+  <Fixture>
+   <Manufacturer>Generic</Manufacturer>
+   <Model>Generic RGBW</Model>
+   <Mode>RGBW</Mode>
+   <ID>1</ID>
+   <Name>PAR LED 2 (Center Left)</Name>
+   <Universe>0</Universe>
+   <Address>4</Address>
+   <Channels>4</Channels>
+  </Fixture>
+  <Fixture>
+   <Manufacturer>Generic</Manufacturer>
+   <Model>Generic RGBW</Model>
+   <Mode>RGBW</Mode>
+   <ID>2</ID>
+   <Name>PAR LED 3 (Center Right)</Name>
+   <Universe>0</Universe>
+   <Address>8</Address>
+   <Channels>4</Channels>
+  </Fixture>
+  <Fixture>
+   <Manufacturer>Generic</Manufacturer>
+   <Model>Generic RGBW</Model>
+   <Mode>RGBW</Mode>
+   <ID>3</ID>
+   <Name>PAR LED 4 (Stage Right)</Name>
+   <Universe>0</Universe>
+   <Address>12</Address>
+   <Channels>4</Channels>
+  </Fixture>
+
+  <!-- InputOutputMap: Universe 1 with ArtNet 127.0.0.1 & Passthrough -->
+  <InputOutputMap>
+   <Universe Name="Universe 1" ID="0" Passthrough="True">
+    <Input Plugin="ArtNet" Line="0" Profile="None"/>
+   </Universe>
+   <Universe Name="Universe 2" ID="1" Passthrough="False"/>
+   <Universe Name="Universe 3" ID="2" Passthrough="False"/>
+   <Universe Name="Universe 4" ID="3" Passthrough="False"/>
+  </InputOutputMap>
+ </Engine>
+
+ <VirtualConsole>
+  <Frame Caption="ZZLUXORA Art-Net DMX Monitor Console">
+   <Appearance>
+    <FrameStyle>Sunken</FrameStyle>
+    <ForegroundColor>Default</ForegroundColor>
+    <BackgroundColor>4279243031</BackgroundColor>
+    <BackgroundImage>None</BackgroundImage>
+    <Font>Default</Font>
+   </Appearance>
+   <WindowState Width="1240" X="10" Y="10" Height="420" Visible="True"/>
+   <AllowChildren>True</AllowChildren>
+   <AllowResize>True</AllowResize>
+   <Slider Caption="P1 Red" InvertedAppearance="false">
+    <WindowState Width="68" X="15" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="0"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="0">0</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P1 Green" InvertedAppearance="false">
+    <WindowState Width="68" X="89" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="1"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="0">1</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P1 Blue" InvertedAppearance="false">
+    <WindowState Width="68" X="163" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="2"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="0">2</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P1 White" InvertedAppearance="false">
+    <WindowState Width="68" X="237" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="3"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="0">3</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P2 Red" InvertedAppearance="false">
+    <WindowState Width="68" X="311" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="4"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="1">0</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P2 Green" InvertedAppearance="false">
+    <WindowState Width="68" X="385" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="5"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="1">1</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P2 Blue" InvertedAppearance="false">
+    <WindowState Width="68" X="459" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="6"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="1">2</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P2 White" InvertedAppearance="false">
+    <WindowState Width="68" X="533" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="7"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="1">3</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P3 Red" InvertedAppearance="false">
+    <WindowState Width="68" X="607" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="8"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="2">0</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P3 Green" InvertedAppearance="false">
+    <WindowState Width="68" X="681" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="9"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="2">1</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P3 Blue" InvertedAppearance="false">
+    <WindowState Width="68" X="755" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="10"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="2">2</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P3 White" InvertedAppearance="false">
+    <WindowState Width="68" X="829" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="11"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="2">3</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P4 Red" InvertedAppearance="false">
+    <WindowState Width="68" X="903" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="12"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="3">0</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P4 Green" InvertedAppearance="false">
+    <WindowState Width="68" X="977" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="13"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="3">1</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P4 Blue" InvertedAppearance="false">
+    <WindowState Width="68" X="1051" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="14"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="3">2</Channel>
+    </Level>
+   </Slider>
+   <Slider Caption="P4 White" InvertedAppearance="false">
+    <WindowState Width="68" X="1125" Y="30" Height="340" Visible="True"/>
+    <Appearance>
+     <FrameStyle>Sunken</FrameStyle>
+     <ForegroundColor>Default</ForegroundColor>
+     <BackgroundColor>Default</BackgroundColor>
+     <BackgroundImage>None</BackgroundImage>
+     <Font>Default</Font>
+    </Appearance>
+    <Input Universe="0" Channel="15"/>
+    <SliderMode ValueDisplayStyle="Exact">Level</SliderMode>
+    <Level HighLimit="255" LowLimit="0" Value="0">
+     <Channel Fixture="3">3</Channel>
+    </Level>
+   </Slider>
+  </Frame>
+  <Properties>
+   <Size Width="1920" Height="1080"/>
+   <GrandMaster ChannelMode="Intensity" ValueMode="Reduce" SliderMode="Normal"/>
+  </Properties>
+ </VirtualConsole>
+ <SimpleDesk>
+  <Engine/>
+ </SimpleDesk>
+</Workspace>
