@@ -92,9 +92,9 @@ def main() -> None:
         # Check if PySide6 is available for GUI
         try:
             from PySide6.QtWidgets import QApplication
-            from ui.main_window import ZZLuxoraMainWindow
+            from ui.main_window import MainWindow
             app = QApplication(sys.argv)
-            window = ZZLuxoraMainWindow()
+            window = MainWindow()
             window.show()
             sys.exit(app.exec())
         except ImportError:
