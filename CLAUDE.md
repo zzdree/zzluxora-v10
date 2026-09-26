@@ -123,23 +123,33 @@ zzluxora_v10/
 ## 🚀 6. Status Pengembangan Terkini & Roadmap Agent
 
 ### Status Komponen:
-- **Core Audio Engine (`core/`):** **TUNTAS 100%**
+- **Core Audio Engine (`core/`):** **TUNTAS 100% & TERVERIFIKASI**
   - Implementasi: `fft_engine.py`, `feature_extractor.py`, `emotion_model.py`, `color_engine.py`, `artnet_sender.py`, `models.py`, `project_io.py`.
   - Verifikasi: 11 unit tests standar (`tests/test_*.py`) lulus 100% tanpa error.
   - Sesuai dengan formulasi matematis naskah skripsi Bab 2 & Bab 3 (`script_andreas_v4.docx`).
 - **Naskah Proposal (`script/`):** **TUNTAS 100%**
   - Berkas: `script_andreas_v4.docx` (2.58 MB) memuat 8 gambar teknis IEEE, 20 rumus Cambria Math, 33 referensi IEEE.
   - Dosen Pembimbing resmi: Mario Norman Syah, S.Pd., M.Eng. (NIP: 199304212024061001).
+- **UI/UX Console Panggung (`ui/`):** **TUNTAS & TERSTRUKTUR MODULAR**
+  - Layer antarmuka PySide6 / PyQt6 telah diimplementasikan mengacu pada `feedback_v1.txt` & `feedback_v2.txt` tanpa splashscreen:
+    * `styles.py`: Skema warna gelap industri (`#0e1013`), token warna kanal DMX, dan CSS/QSS styling.
+    * `icons.py`: Generator ikon prosedural / SVG (lampu, play/pause, blackout, hamburger, dimmer, strobe).
+    * `main_window.py`: Jendela utama, header bar terintegrasi, menu bar File/View/Help, status Art-Net, dan master blackout.
+    * `sidebar.py`: Navigasi hamburger responsif dengan watermark transparan saat project kosong.
+    * `panels/address_tab.py`: Grid DMX 512 kanal (24 kolom horizontal, scroll vertikal, visualisasi fungsi kanal).
+    * `panels/analyze_tab.py`: Integrasi AudioLoader, pemutar musik, visualisasi spektrum STFT, dan pemetaan afektif Russell 2D.
+    * `panels/scenes_tab.py` & `chase_tab.py`: Pengelompokan cue musik (Verse, Chorus, Bridge) dan timing engine.
+    * `panels/page_tab.py`: Virtual executor buttons untuk live worship playback.
+    * `panels/mixer_tab.py`: 513 slider fader fisik (1 Master + 512 DMX channels 0–255) dengan fader cap grandMA style.
+    * `panels/preview_tab.py`: Panggung 2D tampak depan dengan rendering cahaya PAR LED dinamis (RGBW glow).
+    * `panels/output_tab.py`: Pengaturan jaringan Art-Net UDP 6454 (Localhost, ESP32 AP 192.168.4.1, Custom IP).
+    * `panels/fixture_editor.py` & `fixture_list.py`: Pengelola profil fixture lampu JSON dan drawer perpustakaan lampu.
 
-### Prioritas Pekerjaan Selanjutnya (UI/UX Console Implementation):
-Membangun layer antarmuka PySide6 pada folder `ui/` mengacu pada `feedback_v2.txt` dan visualizer grandMA3:
-1. `ui/styles.py`: Skema warna gelap industri (*industrial dark theme*), token warna kanal DMX, dan CSS/QSS styling.
-2. `ui/icons.py`: Generator ikon prosedural / SVG (lampu, play/pause, blackout, hamburger, dimmer, strobe).
-3. `ui/main_window.py`: Jendela utama, header bar terintegrasi, menu bar File/View/Help, status Art-Net, dan master blackout.
-4. `ui/sidebar.py`: Navigasi hamburger responsif dengan watermark transparan saat project kosong.
-5. `ui/panels/address_tab.py`: Grid DMX 512 kanal (24 kolom horizontal, scroll vertikal, visualisasi fungsi kanal).
-6. `ui/panels/analyze_tab.py`: Integrasi AudioLoader, pemutar musik, visualisasi spektrum STFT, dan pemetaan afektif Russell 2D.
-7. `ui/panels/mixer_tab.py`: 513 slider fader fisik (1 Master + 512 DMX channels 0–255) dengan fader cap grandMA style.
-8. `ui/panels/preview_tab.py`: Panggung 2D tampak depan dengan rendering cahaya PAR LED dinamis (RGBW glow).
-9. `ui/panels/output_tab.py`: Pengaturan jaringan Art-Net UDP 6454 (Localhost, ESP32 AP 192.168.4.1, Custom IP).
-10. `ui/panels/fixture_editor.py` & `fixture_list.py`: Pengelola profil fixture lampu JSON dan patching.
+### Lingkungan Pengujian Simulasi QLC+ (Dual-Version di Linux Mint):
+- **QLC+ v4 (4.14.4 Stable):** `qlc+4` atau `qlcplus4` (native apt).
+- **QLC+ v5 (5.2.2 Beta 3D):** `qlc+5` atau `qlcplus5` (di `/opt/qlcplus5/`).
+- **Pengujian SITL:** Skrip `tools/qlc_bridge_test.py` dan workspace template `fixtures/qlcplus_template.qxw`.
+
+### Prioritas Pekerjaan Selanjutnya:
+1. Mengintegrasikan penyesuaian baru dari **Feedback v3** saat user telah menyusunnya.
+2. Integrasi playback audio stream real-time dengan streaming DMX langsung ke QLC+.
