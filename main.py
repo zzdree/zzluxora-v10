@@ -89,16 +89,18 @@ def main() -> None:
     if args.cli or "DISPLAY" not in os.environ:
         run_cli_demo(target_ip=args.ip, duration=args.duration)
     else:
-        # Check if PySide6 is available for GUI
+        # Check if Qt (PySide6 or PyQt6) is available for GUI
         try:
-            from PySide6.QtWidgets import QApplication
+            from ui.qt_compat import QApplication, HAS_QT
+            if not HAS_QT:
+                raise ImportError("No Qt binding available")
             from ui.main_window import MainWindow
             app = QApplication(sys.argv)
             window = MainWindow()
             window.show()
             sys.exit(app.exec())
-        except ImportError:
-            print("PySide6 not installed in current environment. Running CLI engine mode...")
+        except ImportError as e:
+            print(f"Qt GUI runtime not available ({e}). Running CLI engine mode...")
             run_cli_demo(target_ip=args.ip, duration=args.duration)
 
 

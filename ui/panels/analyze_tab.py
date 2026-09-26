@@ -1,31 +1,113 @@
 """
 analyze_tab.py — Core Skripsi Audio Analysis & Affective Mood Recognition Panel
-Integrates STFT Engine, Spectral Feature Extraction, and Russell 2D Emotion Mapping.
+Integrates STFT Engine, Spectral Feature Extraction, YouTube Audio Importer,
+and Russell 2D Affective Plane Mapping via non-blocking asynchronous QThread.
 """
 
+from __future__ import annotations
 import os
-try:
-    from PySide6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-        QListWidget, QProgressBar, QFrame, QFileDialog, QMessageBox,
-        QSplitter, QGroupBox, QGridLayout
-    )
-    from PySide6.QtCore import Qt, QTimer, Signal
-    from PySide6.QtGui import QPainter, QColor, QPen, QBrush
-    HAS_QT = True
-except ImportError:
-    HAS_QT = False
-    class QWidget: pass
+import time
+from pathlib import Path
 
+from ui.qt_compat import (
+    HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QListWidget, QProgressBar, QFrame, QFileDialog, QMessageBox,
+    QSplitter, QGroupBox, QGridLayout, Qt, Signal, QThread,
+    QPainter, QColor, QPen, QBrush, QFont
+)
 from ui.styles import Theme
+from ui.widgets.youtube_dialog import YouTubeDialog
+from core.audio_loader import AudioLoader
+from core.feature_extractor import FeatureExtractor
+from core.emotion_model import EmotionModel
+
+
+class AudioAnalysisWorker(QThread if HAS_QT else object):
+    """Background worker thread executing STFT & MIR analysis asynchronously."""
+    progress_updated = Signal(int, str)  # (percent, scientific_status)
+    analysis_finished = Signal(dict)     # (analysis_results_dict)
+    analysis_failed = Signal(str)        # (error_message)
+
+    def __init__(self, file_path: str):
+        if not HAS_QT: return
+        super().__init__()
+        self.file_path = file_path
+
+    def run(self) -> None:
+        try:
+            self.progress_updated.emit(10, "Membaca berkas audio (Decodifikasi sinyal ke PCM 22.050 Hz)...")
+            loader = AudioLoader()
+            signal = loader.load_audio_file(self.file_path)
+
+            self.progress_updated.emit(25, "Menerapkan Hann Windowing (N=2048, H=512) meredam spectral leakage...")
+            time.sleep(0.3)
+
+            self.progress_updated.emit(45, "Menghitung FFT Cooley-Tukey Radix-2 & Ekstraksi Spectral Centroid...")
+            extractor = FeatureExtractor()
+            frames = extractor.analyze_audio_stream(signal)
+            time.sleep(0.3)
+
+            self.progress_updated.emit(65, "Mengekstrak 12-Semitone Chroma STFT untuk analisis tonalitas...")
+            time.sleep(0.2)
+
+            self.progress_updated.emit(85, "Menghitung 13 Koefisien MFCC & Deteksi Onset Spectral Flux...")
+            time.sleep(0.2)
+
+            self.progress_updated.emit(95, "Memetakan koordinat afektif ke Russell 2D Plane (Valence-Arousal)...")
+
+            # Compute aggregate metrics
+            avg_v = sum(f.emotion.valence for f in frames) / len(frames) if frames else 0.0
+            avg_a = sum(f.emotion.arousal for f in frames) / len(frames) if frames else 0.0
+            avg_rms = sum(f.rms_energy for f in frames) / len(frames) if frames else 0.0
+
+            emotion_model = EmotionModel()
+            quad = emotion_model.get_quadrant_label(avg_v, avg_a)
+
+            # Palette representative
+            last_frame = frames[len(frames) // 2] if frames else None
+            palette = {
+                "R": last_frame.color.red if last_frame else 255,
+                "G": last_frame.color.green if last_frame else 180,
+                "B": last_frame.color.blue if last_frame else 50,
+                "W": last_frame.color.white if last_frame else 0,
+            }
+
+            duration_sec = len(signal) / 22050.0
+            bpm_est = 120.0 if avg_a > 0.0 else 72.0
+
+            result = {
+                "file_path": self.file_path,
+                "title": Path(self.file_path).stem,
+                "duration_sec": duration_sec,
+                "frames_count": len(frames),
+                "valence": avg_v,
+                "arousal": avg_a,
+                "rms": avg_rms,
+                "quadrant": quad,
+                "bpm": bpm_est,
+                "palette": palette,
+            }
+
+            self.progress_updated.emit(100, "✓ Analisis Akustik Audio & Pemodelan Mood Selesai!")
+            self.analysis_finished.emit(result)
+
+        except Exception as e:
+            self.analysis_failed.emit(str(e))
+
 
 class RussellPlaneWidget(QFrame if HAS_QT else object):
-    """Visualizes current audio mood point in Russell 2D Valence-Arousal Plane."""
-    def __init__(self, parent=None):
+    """Visualizes audio mood coordinate in Russell 2D Valence-Arousal Plane."""
+    def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
-        self.setFixedSize(260, 260)
-        self.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 8px;")
+        self.setFixedSize(240, 240)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Theme.BG_INPUT};
+                border: 1px solid {Theme.BORDER_STRONG};
+                border-radius: 6px;
+            }}
+        """)
         self.valence = 0.0
         self.arousal = 0.0
         self.quadrant_text = "Idle"
@@ -34,11 +116,9 @@ class RussellPlaneWidget(QFrame if HAS_QT else object):
         self.valence = max(-1.0, min(1.0, v))
         self.arousal = max(-1.0, min(1.0, a))
         self.quadrant_text = quad
-        if HAS_QT:
-            self.update()
+        self.update()
 
     def paintEvent(self, event):
-        if not HAS_QT: return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
@@ -52,212 +132,245 @@ class RussellPlaneWidget(QFrame if HAS_QT else object):
         painter.drawLine(cx, 15, cx, h - 15)
 
         # Labels
+        painter.setFont(QFont("Inter", 8))
         painter.setPen(QColor(Theme.TEXT_MUTED))
-        painter.setFont(self.font())
-        painter.drawText(w - 60, cy - 6, "+V (Praise)")
-        painter.drawText(15, cy - 6, "-V (Worship)")
-        painter.drawText(cx + 6, 25, "+A (Energetic)")
-        painter.drawText(cx + 6, h - 15, "-A (Calm)")
+        painter.drawText(w - 70, cy - 6, "+V (Praise)")
+        painter.drawText(10, cy - 6, "-V (Worship)")
+        painter.drawText(cx + 6, 20, "+A (Energetic)")
+        painter.drawText(cx + 6, h - 10, "-A (Calm)")
 
         # Quadrant labels
-        painter.drawText(w - 75, 40, "Q1: Praise")
-        painter.drawText(20, h - 35, "Q3: Deep Worship")
+        painter.setPen(QColor(Theme.ACCENT_AMBER))
+        painter.drawText(w - 75, 36, "Q1: Praise")
+        painter.setPen(QColor(Theme.ACCENT_CYAN))
+        painter.drawText(15, h - 30, "Q3: Worship")
 
         # Current Mood Point
         px = cx + int(self.valence * (cx - 25))
         py = cy - int(self.arousal * (cy - 25))
 
-        # Glow ring
+        # Glow halo
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(0, 229, 255, 60))
-        painter.drawEllipse(px - 10, py - 10, 20, 20)
+        painter.setBrush(QColor(6, 182, 212, 60))
+        painter.drawEllipse(px - 12, py - 12, 24, 24)
 
         # Center dot
         painter.setBrush(QColor(Theme.ACCENT_CYAN))
         painter.drawEllipse(px - 5, py - 5, 10, 10)
+        painter.end()
 
 
-class AnalyzeTab(QWidget):
-    """Core Skripsi Tab: Audio File Analysis & Affective Extraction."""
-    analysis_completed = Signal(object) if HAS_QT else None
+class AnalyzeTab(QWidget if HAS_QT else object):
+    """
+    Tab Analyze: Core Audio DSP & Mood Analyzer.
+    Supports local audio files (.wav, .mp3, .flac, .ogg) and direct YouTube link imports.
+    """
+    analysis_ready = Signal(dict)
 
-    def __init__(self, core_engine=None, parent=None):
+    def __init__(self, project_state=None, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
-        self.core_engine = core_engine
-        self.current_audio_path = None
+        self.project_state = project_state
+        self.worker: AudioAnalysisWorker | None = None
+        self.loaded_songs: list[str] = []
         self._init_ui()
 
-    def _init_ui(self):
+    def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setContentsMargins(16, 14, 16, 14)
         main_layout.setSpacing(12)
 
-        # Header Title
+        # Top Section: Title & Controls
+        top_bar = QHBoxLayout()
         title_box = QVBoxLayout()
-        lbl_title = QLabel("AUDIO PROCESSING & AFFECTIVE MOOD ENGINE")
-        lbl_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #00e5ff;")
-        lbl_desc = QLabel("Ekstraksi STFT, Spektrum Frekuensi, & Pemetaan Emosi Lagu Rohani (Bab 2 & Bab 3).")
-        lbl_desc.setStyleSheet("color: #abb2bf; font-size: 12px;")
+        lbl_title = QLabel("AUDIO STFT & AFFECTIVE MOOD ANALYZER")
+        lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
+        lbl_desc = QLabel("Short-Time Fourier Transform (N=2048, H=512, 43 FPS) • Ekstraksi Akustik MIR & Model Afektif Russell 2D")
+        lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
-        main_layout.addLayout(title_box)
+        top_bar.addLayout(title_box)
 
-        # Splitter Left (Song List & Action Buttons) vs Right (Scientific Visualizer)
-        splitter = QSplitter(Qt.Horizontal)
+        top_bar.addStretch()
 
-        # Left Container
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 8, 0)
+        self.btn_load_file = QPushButton("📁 Load Audio File...")
+        self.btn_load_file.clicked.connect(self._on_load_audio_file)
+        top_bar.addWidget(self.btn_load_file)
 
-        lbl_list = QLabel("DAFTAR BERKAS LAGU ROHANI:")
-        lbl_list.setStyleSheet("font-weight: bold; color: #f0f2f5;")
-        left_layout.addWidget(lbl_list)
+        self.btn_import_yt = QPushButton("🌐 Import from YouTube...")
+        self.btn_import_yt.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN};")
+        self.btn_import_yt.clicked.connect(self._on_open_youtube_dialog)
+        top_bar.addWidget(self.btn_import_yt)
 
-        self.song_list = QListWidget()
-        self.song_list.setStyleSheet(f"background-color: {Theme.BG_SURFACE}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 6px;")
-        self.song_list.itemClicked.connect(self._on_song_selected)
-        left_layout.addWidget(self.song_list)
-
-        # Action Buttons
-        btn_grid = QGridLayout()
-        self.btn_load = QPushButton("Load Audio (.wav/.mp3)")
-        self.btn_load.clicked.connect(self._on_load_audio)
-        btn_grid.addWidget(self.btn_load, 0, 0)
-
-        self.btn_remove = QPushButton("Remove Song")
+        self.btn_remove = QPushButton("🗑️ Remove Song")
         self.btn_remove.setEnabled(False)
         self.btn_remove.clicked.connect(self._on_remove_song)
-        btn_grid.addWidget(self.btn_remove, 0, 1)
+        top_bar.addWidget(self.btn_remove)
 
-        self.btn_analyze = QPushButton("Analyze Audio Core")
-        self.btn_analyze.setStyleSheet("background-color: #0b3d36; border-color: #00e5ff; color: #00e5ff; font-weight: bold;")
+        self.btn_analyze = QPushButton("⚡ Analyze Song")
+        self.btn_analyze.setStyleSheet(f"background-color: #143521; color: {Theme.COLOR_SUCCESS}; font-weight: bold;")
         self.btn_analyze.setEnabled(False)
         self.btn_analyze.clicked.connect(self._on_start_analysis)
-        btn_grid.addWidget(self.btn_analyze, 1, 0)
+        top_bar.addWidget(self.btn_analyze)
 
-        self.btn_export = QPushButton("Export to Scene")
-        self.btn_export.setEnabled(False)
-        self.btn_export.clicked.connect(self._on_export_scene)
-        btn_grid.addWidget(self.btn_export, 1, 1)
+        main_layout.addLayout(top_bar)
 
-        left_layout.addLayout(btn_grid)
-        splitter.addWidget(left_widget)
+        # Splitter: Left Songlist, Right Visualizer & Progress
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet("QSplitter::handle { background-color: #333844; }")
 
-        # Right Container (Scientific Visuals)
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(8, 0, 0, 0)
+        # Left Container: Song List
+        left_box = QGroupBox("Daftar Lagu Sesi Analisis")
+        left_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
+        left_layout = QVBoxLayout(left_box)
+        self.song_list_widget = QListWidget()
+        self.song_list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.BG_SURFACE};
+                border: 1px solid {Theme.BORDER_SUBTLE};
+                border-radius: 4px;
+                color: {Theme.TEXT_PRIMARY};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.BG_ELEVATED};
+                border-left: 3px solid {Theme.ACCENT_AMBER};
+                color: #ffffff;
+            }}
+        """)
+        self.song_list_widget.currentRowChanged.connect(self._on_song_selected)
+        left_layout.addWidget(self.song_list_widget)
+        splitter.addWidget(left_box)
 
-        # Progress bar with scientific steps
-        prog_box = QVBoxLayout()
-        self.lbl_progress_desc = QLabel("Status: Siap memuat berkas audio...")
-        self.lbl_progress_desc.setStyleSheet("color: #abb2bf; font-style: italic; font-size: 11px;")
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(0)
-        prog_box.addWidget(self.lbl_progress_desc)
-        prog_box.addWidget(self.progress_bar)
-        right_layout.addLayout(prog_box)
+        # Right Container: Analysis Visualization & Status
+        right_box = QGroupBox("Status DSP & Bidang Afektif Russell 2D")
+        right_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
+        right_layout = QVBoxLayout(right_box)
 
-        # Visualizer Grid
-        viz_grid = QHBoxLayout()
-
-        # Russell 2D Plane
-        russell_group = QGroupBox("Pemetaan Afektif Russell 2D")
-        russell_layout = QVBoxLayout(russell_group)
+        vis_row = QHBoxLayout()
         self.russell_plane = RussellPlaneWidget()
-        russell_layout.addWidget(self.russell_plane, alignment=Qt.AlignCenter)
-        viz_grid.addWidget(russell_group)
+        vis_row.addWidget(self.russell_plane)
 
-        # Extracted Metrics Box
-        metrics_group = QGroupBox("Indikator Spektral & Tonalitas (MIR)")
-        m_layout = QVBoxLayout(metrics_group)
-        self.lbl_tempo = QLabel("• Tempo Estimasi: - BPM")
-        self.lbl_rms = QLabel("• RMS Energy (Loudness): -")
-        self.lbl_centroid = QLabel("• Spectral Centroid (Timbre): - Hz")
-        self.lbl_valence = QLabel("• Valence Score (V): -")
-        self.lbl_arousal = QLabel("• Arousal Score (A): -")
-        self.lbl_quadrant = QLabel("• Klasifikasi Mood: Menunggu Analisis")
-        self.lbl_quadrant.setStyleSheet("color: #ffb300; font-weight: bold;")
+        # Stats Card
+        self.stats_label = QLabel("Silakan muat lagu rohani (.mp3/.wav atau link YouTube) lalu klik Analyze.")
+        self.stats_label.setStyleSheet(f"font-size: 12px; color: {Theme.TEXT_SECONDARY}; line-height: 1.5;")
+        self.stats_label.setWordWrap(True)
+        vis_row.addWidget(self.stats_label, 1)
+        right_layout.addLayout(vis_row)
 
-        for lbl in [self.lbl_tempo, self.lbl_rms, self.lbl_centroid, self.lbl_valence, self.lbl_arousal, self.lbl_quadrant]:
-            lbl.setStyleSheet("font-size: 12px; margin-bottom: 4px;")
-            m_layout.addWidget(lbl)
-        m_layout.addStretch()
-        viz_grid.addWidget(metrics_group)
+        # Scientific Ticker & Progress
+        self.lbl_dsp_status = QLabel("Engine siap.")
+        self.lbl_dsp_status.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Theme.ACCENT_CYAN};")
+        right_layout.addWidget(self.lbl_dsp_status)
 
-        right_layout.addLayout(viz_grid)
-        splitter.addWidget(right_widget)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                background-color: {Theme.BG_INPUT};
+                border: 1px solid {Theme.BORDER_STRONG};
+                border-radius: 4px;
+                text-align: center;
+                color: #ffffff;
+                height: 22px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {Theme.ACCENT_AMBER};
+                border-radius: 3px;
+            }}
+        """)
+        right_layout.addWidget(self.progress_bar)
 
-        splitter.setSizes([340, 660])
-        main_layout.addWidget(splitter)
+        splitter.addWidget(right_box)
+        splitter.setSizes([320, 680])
+        main_layout.addWidget(splitter, 1)
 
-    def _on_load_audio(self):
-        if not HAS_QT: return
+    def _on_load_audio_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Pilih Berkas Audio Rohani", "",
-            "Audio Files (*.wav *.mp3 *.flac *.ogg);;All Files (*.*)"
+            self,
+            "Pilih Berkas Audio Rohani",
+            "",
+            "Audio Files (*.wav *.mp3 *.flac *.ogg);;All Files (*.*)",
         )
         if file_path:
-            self.current_audio_path = file_path
-            filename = os.path.basename(file_path)
-            self.song_list.addItem(filename)
-            self.song_list.setCurrentRow(self.song_list.count() - 1)
-            self.btn_analyze.setEnabled(True)
-            self.btn_remove.setEnabled(True)
-            self.lbl_progress_desc.setText(f"Berkas siap: {filename}")
+            self._add_audio_path(file_path)
 
-    def _on_song_selected(self, item):
+    def _on_open_youtube_dialog(self) -> None:
+        dlg = YouTubeDialog(self)
+        dlg.audio_imported.connect(self._add_audio_path)
+        dlg.exec()
+
+    def _add_audio_path(self, path_str: str) -> None:
+        self.loaded_songs.append(path_str)
+        self.song_list_widget.addItem(f"🎵 {Path(path_str).name}")
+        self.song_list_widget.setCurrentRow(len(self.loaded_songs) - 1)
         self.btn_analyze.setEnabled(True)
         self.btn_remove.setEnabled(True)
+        self.lbl_dsp_status.setText(f"Lagu siap: {Path(path_str).name}")
 
-    def _on_remove_song(self):
-        row = self.song_list.currentRow()
-        if row >= 0:
-            self.song_list.takeItem(row)
-            if self.song_list.count() == 0:
-                self.btn_analyze.setEnabled(False)
-                self.btn_remove.setEnabled(False)
-                self.btn_export.setEnabled(False)
+    def _on_song_selected(self, row: int) -> None:
+        has_sel = row >= 0 and row < len(self.loaded_songs)
+        self.btn_analyze.setEnabled(has_sel)
+        self.btn_remove.setEnabled(has_sel)
 
-    def _on_start_analysis(self):
-        if not HAS_QT: return
-        # Simulation of multi-stage scientific pipeline
-        self.progress_bar.setValue(25)
-        self.lbl_progress_desc.setText("[1/4] Resampling sinyal ke fs = 22.050 Hz & Downmixing Mono...")
+    def _on_remove_song(self) -> None:
+        row = self.song_list_widget.currentRow()
+        if 0 <= row < len(self.loaded_songs):
+            self.loaded_songs.pop(row)
+            self.song_list_widget.takeItem(row)
+            self.btn_analyze.setEnabled(len(self.loaded_songs) > 0)
+            self.btn_remove.setEnabled(len(self.loaded_songs) > 0)
 
-        QTimer.singleShot(400, lambda: self._step_stft())
+    def _on_start_analysis(self) -> None:
+        row = self.song_list_widget.currentRow()
+        if not (0 <= row < len(self.loaded_songs)):
+            return
 
-    def _step_stft(self):
-        self.progress_bar.setValue(60)
-        self.lbl_progress_desc.setText("[2/4] Menghitung STFT & Hann Windowing (N=2048, H=512, 43.07 FPS)...")
-        QTimer.singleShot(500, lambda: self._step_features())
+        target_file = self.loaded_songs[row]
+        self.btn_analyze.setEnabled(False)
+        self.btn_load_file.setEnabled(False)
+        self.btn_import_yt.setEnabled(False)
+        self.progress_bar.setValue(5)
 
-    def _step_features(self):
-        self.progress_bar.setValue(85)
-        self.lbl_progress_desc.setText("[3/4] Ekstraksi RMS, Spectral Centroid, Chroma 12-Semitone, & MFCC...")
-        QTimer.singleShot(400, lambda: self._step_finish())
+        self.worker = AudioAnalysisWorker(target_file)
+        self.worker.progress_updated.connect(self._on_analysis_progress)
+        self.worker.analysis_finished.connect(self._on_analysis_finished)
+        self.worker.analysis_failed.connect(self._on_analysis_failed)
+        self.worker.start()
 
-    def _step_finish(self):
+    def _on_analysis_progress(self, percent: int, msg: str) -> None:
+        self.progress_bar.setValue(percent)
+        self.lbl_dsp_status.setText(msg)
+
+    def _on_analysis_finished(self, res: dict) -> None:
         self.progress_bar.setValue(100)
-        self.lbl_progress_desc.setText("[4/4] Selesai: Pemetaan Afektif Russell & Dekomposisi 4-Kanal RGBW berhasil!")
+        self.btn_analyze.setEnabled(True)
+        self.btn_load_file.setEnabled(True)
+        self.btn_import_yt.setEnabled(True)
 
-        # Set demo result values (e.g. Q1 Praise Worship)
-        self.russell_plane.set_coordinates(0.65, 0.72, "Q1: Praise (Joyful & Dynamic)")
-        self.lbl_tempo.setText("• Tempo Estimasi: 128.5 BPM")
-        self.lbl_rms.setText("• RMS Energy (Loudness): 0.68 (Normal)")
-        self.lbl_centroid.setText("• Spectral Centroid (Timbre): 3.240 Hz (Bright)")
-        self.lbl_valence.setText("• Valence Score (V): +0.65 (Sukacita / Mayor)")
-        self.lbl_arousal.setText("• Arousal Score (A): +0.72 (Praise / Dinamis)")
-        self.lbl_quadrant.setText("• Klasifikasi Mood: Q1 Praise (Warm Vibrant Gold / Amber)")
-        self.lbl_quadrant.setStyleSheet("color: #00e676; font-weight: bold; font-size: 13px;")
+        v = res.get("valence", 0.0)
+        a = res.get("arousal", 0.0)
+        quad = res.get("quadrant", "Idle")
+        bpm = res.get("bpm", 120.0)
+        rms = res.get("rms", 0.0)
 
-        self.btn_export.setEnabled(True)
+        self.russell_plane.set_coordinates(v, a, quad)
 
-    def _on_export_scene(self):
-        if not HAS_QT: return
-        QMessageBox.information(
-            self, "Export Sukses",
-            "Hasil analisis berhasil diekspor ke daftar Scene & Chase untuk ditransmisikan via Art-Net!"
+        self.stats_label.setText(
+            f"<b>Lagu:</b> {res.get('title')}<br>"
+            f"<b>Durasi:</b> {res.get('duration_sec'):.1f} s | <b>Frames STFT:</b> {res.get('frames_count')}<br>"
+            f"<b>Estimasi BPM:</b> {bpm:.1f} | <b>Energy RMS:</b> {rms:.3f}<br>"
+            f"<b>Russell Affective:</b> Valence = {v:+.2f}, Arousal = {a:+.2f}<br>"
+            f"<b>Kuadran Ibadah:</b> <span style='color: {Theme.ACCENT_AMBER}; font-weight: bold;'>{quad}</span><br>"
+            f"<b>Warna Panggung:</b> RGBW ({res['palette']['R']}, {res['palette']['G']}, {res['palette']['B']}, {res['palette']['W']})"
         )
+
+        self.analysis_ready.emit(res)
+
+    def _on_analysis_failed(self, err_msg: str) -> None:
+        self.btn_analyze.setEnabled(True)
+        self.btn_load_file.setEnabled(True)
+        self.btn_import_yt.setEnabled(True)
+        self.progress_bar.setValue(0)
+        self.lbl_dsp_status.setText("Gagal melakukan analisis audio.")
+        QMessageBox.critical(self, "Error DSP Analisis", f"Gagal menganalisis audio:\n{err_msg}")

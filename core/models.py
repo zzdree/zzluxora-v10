@@ -138,3 +138,15 @@ class AudioFrameFeatures:
     mfcc_coeffs: List[float] = field(default_factory=lambda: [0.0] * 13)
     emotion: EmotionCoordinate = field(default_factory=EmotionCoordinate)
     color: ColorRGBW = field(default_factory=ColorRGBW)
+
+
+@dataclass
+class ProjectState:
+    project_name: str = "Untitled.zlx"
+    target_ip: str = "127.0.0.1"
+    universe: int = 1
+    master_dimmer: int = 255
+    patches: List[PatchEntry] = field(default_factory=list)
+    songs: List[Dict[str, Any]] = field(default_factory=list)
+    is_dirty: bool = False
+

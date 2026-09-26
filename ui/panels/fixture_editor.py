@@ -1,143 +1,259 @@
 """
-fixture_editor.py — Fixture Profile JSON Editor Panel
-Enables operators to define, customize, and save multi-channel DMX fixture profiles (RGBW, Dimmer, Strobe).
+fixture_editor.py — QLC+ Inspired Standalone Fixture Definition Editor Window
+Provides an independent windowed tool with its own menubar (Open, Save, Save As)
+for authoring and managing .zfx / .json fixture definitions.
 """
 
+from __future__ import annotations
 import json
-try:
-    from PySide6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-        QLineEdit, QSpinBox, QTableWidget, QTableWidgetItem,
-        QComboBox, QFileDialog, QMessageBox, QGroupBox, QHeaderView
-    )
-    from PySide6.QtCore import Qt
-    HAS_QT = True
-except ImportError:
-    HAS_QT = False
-    class QWidget: pass
+from pathlib import Path
 
-class FixtureEditor(QWidget):
-    """Fixture Profile Creator and Editor."""
-    def __init__(self, parent=None):
+from ui.qt_compat import (
+    HAS_QT, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QLineEdit, QSpinBox, QTableWidget, QTableWidgetItem,
+    QComboBox, QFileDialog, QMessageBox, QGroupBox, QHeaderView, QMenuBar, QMenu,
+    Qt, QAction, QKeySequence, QFont
+)
+from ui.styles import Theme, CONSOLE_QSS
+
+
+CHANNEL_TYPES = [
+    "Dimmer",
+    "Red",
+    "Green",
+    "Blue",
+    "White",
+    "Amber",
+    "Strobe",
+    "Pan",
+    "Tilt",
+    "Color Macro",
+    "Empty",
+]
+
+
+class FixtureEditorWindow(QMainWindow if HAS_QT else object):
+    """
+    Standalone QLC+ inspired Fixture Definition Editor.
+    Has its own independent menubar (Open, Save, Save As) and operates on .zfx / .json profiles.
+    """
+    def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
-        super().__init__(parent)
+        super().__init__(parent, Qt.Window)
+        self.setWindowTitle("Fixture Definition Editor — ZZLUXORA")
+        self.resize(680, 560)
+        self.setStyleSheet(CONSOLE_QSS)
+
+        self.current_file_path: Path | None = None
+        self._init_menu_bar()
         self._init_ui()
 
-    def _init_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 16, 16, 16)
+    def _init_menu_bar(self) -> None:
+        mb = self.menuBar()
+        menu_file = mb.addMenu("File")
+
+        act_new = QAction("New Fixture", self)
+        act_new.setShortcut(QKeySequence("Ctrl+N"))
+        act_new.triggered.connect(self._on_new_fixture)
+        menu_file.addAction(act_new)
+
+        act_open = QAction("Open Fixture...", self)
+        act_open.setShortcut(QKeySequence("Ctrl+O"))
+        act_open.triggered.connect(self._on_open_file)
+        menu_file.addAction(act_open)
+
+        menu_file.addSeparator()
+
+        act_save = QAction("Save Fixture", self)
+        act_save.setShortcut(QKeySequence("Ctrl+S"))
+        act_save.triggered.connect(self._on_save_file)
+        menu_file.addAction(act_save)
+
+        act_save_as = QAction("Save As...", self)
+        act_save_as.setShortcut(QKeySequence("Ctrl+Shift+S"))
+        act_save_as.triggered.connect(self._on_save_as_file)
+        menu_file.addAction(act_save_as)
+
+        menu_file.addSeparator()
+        act_close = QAction("Close Editor", self)
+        act_close.triggered.connect(self.close)
+        menu_file.addAction(act_close)
+
+    def _init_ui(self) -> None:
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(18, 14, 18, 14)
         main_layout.setSpacing(12)
 
-        # Header Title
-        title_box = QVBoxLayout()
-        title = QLabel("DMX FIXTURE PROFILE EDITOR")
-        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #00e5ff;")
-        desc = QLabel("Penyunting profil lampu DMX512 (RGBW, Dimmer, Strobe) ke berkas definisi .json.")
-        desc.setStyleSheet("color: #abb2bf; font-size: 12px;")
-        title_box.addWidget(title)
-        title_box.addWidget(desc)
-        main_layout.addLayout(title_box)
+        # Top Header Form
+        form_group = QGroupBox("Spesifikasi Model & Pabrikan Lampu")
+        form_group.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
+        form_layout = QGridLayout(form_group)
+        form_layout.setSpacing(10)
 
-        # Form Metadata
-        form_group = QGroupBox("Spesifikasi Fixture Lampu")
-        form_layout = QHBoxLayout(form_group)
+        form_layout.addWidget(QLabel("Nama Model:"), 0, 0)
+        self.txt_model = QLineEdit("Generic PAR LED RGBW 4CH")
+        form_layout.addWidget(self.txt_model, 0, 1)
 
-        form_layout.addWidget(QLabel("Nama Fixture:"))
-        self.txt_name = QLineEdit("Generic PAR LED RGBW 4CH")
-        form_layout.addWidget(self.txt_name)
-
-        form_layout.addWidget(QLabel("Manufaktur:"))
+        form_layout.addWidget(QLabel("Manufaktur:"), 0, 2)
         self.txt_maker = QLineEdit("Generic")
-        form_layout.addWidget(self.txt_maker)
+        form_layout.addWidget(self.txt_maker, 0, 3)
 
-        form_layout.addWidget(QLabel("Jumlah Kanal:"))
+        form_layout.addWidget(QLabel("Jumlah Kanal DMX:"), 1, 0)
         self.spin_channels = QSpinBox()
         self.spin_channels.setRange(1, 64)
         self.spin_channels.setValue(4)
         self.spin_channels.valueChanged.connect(self._on_channel_count_changed)
-        form_layout.addWidget(self.spin_channels)
+        form_layout.addWidget(self.spin_channels, 1, 1)
 
         main_layout.addWidget(form_group)
 
-        # Channel mapping table
-        self.table = QTableWidget(4, 3)
-        self.table.setHorizontalHeaderLabels(["No. Kanal", "Nama / Label", "Tipe Kanal"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # Channel Mapping Table
+        tbl_box = QGroupBox("Tabel Pemetaan Kanal DMX (Channel Footprint)")
+        tbl_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
+        tbl_layout = QVBoxLayout(tbl_box)
 
-        default_types = ["Red", "Green", "Blue", "White"]
-        for i in range(4):
-            item_no = QTableWidgetItem(f"Kanal {i+1}")
+        self.table = QTableWidget(4, 3)
+        self.table.setHorizontalHeaderLabels(["Kanal", "Label / Deskripsi", "Tipe Fungsi"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        tbl_layout.addWidget(self.table)
+
+        main_layout.addWidget(tbl_box, 1)
+
+        # Bottom Action Bar
+        btn_bar = QHBoxLayout()
+        btn_bar.addStretch()
+
+        self.btn_save = QPushButton("💾 Simpan Fixture (.zfx)")
+        self.btn_save.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN}; font-weight: bold;")
+        self.btn_save.clicked.connect(self._on_save_file)
+        btn_bar.addWidget(self.btn_save)
+
+        self.btn_close = QPushButton("Tutup")
+        self.btn_close.clicked.connect(self.close)
+        btn_bar.addWidget(self.btn_close)
+
+        main_layout.addLayout(btn_bar)
+
+        self._populate_table_rows(4)
+
+    def _populate_table_rows(self, count: int) -> None:
+        self.table.setRowCount(count)
+        default_names = ["Red", "Green", "Blue", "White", "Dimmer", "Strobe", "Amber", "Macro"]
+        for i in range(count):
+            item_no = QTableWidgetItem(f"Ch {i+1:02d}")
             item_no.setTextAlignment(Qt.AlignCenter)
+            item_no.setFlags(Qt.ItemIsEnabled)
+            item_no.setForeground(Theme.TEXT_SECONDARY)
             self.table.setItem(i, 0, item_no)
 
-            item_label = QLineEdit(default_types[i])
-            self.table.setCellWidget(i, 1, item_label)
+            init_label = default_names[i] if i < len(default_names) else f"Channel {i+1}"
+            edit_label = QLineEdit(init_label)
+            self.table.setCellWidget(i, 1, edit_label)
 
-            combo_type = QComboBox()
-            combo_type.addItems(["Dimmer", "Red", "Green", "Blue", "White", "Amber", "Strobe", "Pan", "Tilt", "Empty"])
-            combo_type.setCurrentText(default_types[i])
-            self.table.setCellWidget(i, 2, combo_type)
+            combo = QComboBox()
+            combo.addItems(CHANNEL_TYPES)
+            matched = "Empty"
+            for t in CHANNEL_TYPES:
+                if t.lower() in init_label.lower():
+                    matched = t
+                    break
+            combo.setCurrentText(matched)
+            self.table.setCellWidget(i, 2, combo)
 
-        main_layout.addWidget(self.table)
+    def _on_channel_count_changed(self, new_count: int) -> None:
+        old_count = self.table.rowCount()
+        if new_count == old_count: return
+        self._populate_table_rows(new_count)
 
-        # Action Buttons
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-
-        self.btn_open = QPushButton("Buka Profil (.json)")
-        self.btn_open.clicked.connect(self._on_open_json)
-        btn_layout.addWidget(self.btn_open)
-
-        self.btn_save = QPushButton("Simpan Profil Fixture")
-        self.btn_save.setStyleSheet("background-color: #0b3d36; border-color: #00e5ff; color: #00e5ff; font-weight: bold;")
-        self.btn_save.clicked.connect(self._on_save_json)
-        btn_layout.addWidget(self.btn_save)
-
-        main_layout.addLayout(btn_layout)
-
-    def _on_channel_count_changed(self, count: int):
-        self.table.setRowCount(count)
-        types = ["Dimmer", "Red", "Green", "Blue", "White", "Amber", "Strobe", "Empty"]
-        for i in range(count):
-            if not self.table.item(i, 0):
-                item_no = QTableWidgetItem(f"Kanal {i+1}")
-                item_no.setTextAlignment(Qt.AlignCenter)
-                self.table.setItem(i, 0, item_no)
-            if not self.table.cellWidget(i, 1):
-                self.table.setCellWidget(i, 1, QLineEdit(f"Channel {i+1}"))
-            if not self.table.cellWidget(i, 2):
-                combo = QComboBox()
-                combo.addItems(types)
-                self.table.setCellWidget(i, 2, combo)
-
-    def _on_open_json(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Buka Fixture JSON", "", "JSON Files (*.json)")
-        if file_path:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            self.txt_name.setText(data.get("name", ""))
-            self.txt_maker.setText(data.get("manufacturer", ""))
-            channels = data.get("channels", [])
-            self.spin_channels.setValue(len(channels))
-            for i, ch in enumerate(channels):
-                widget_label = self.table.cellWidget(i, 1)
-                widget_type = self.table.cellWidget(i, 2)
-                if widget_label: widget_label.setText(ch.get("label", ""))
-                if widget_type: widget_type.setCurrentText(ch.get("type", "Dimmer"))
-
-    def _on_save_json(self):
-        data = {
-            "name": self.txt_name.text(),
-            "manufacturer": self.txt_maker.text(),
-            "channels": []
-        }
+    def _get_fixture_dict(self) -> dict:
+        ch_list = []
         for i in range(self.table.rowCount()):
-            lbl = self.table.cellWidget(i, 1).text() if self.table.cellWidget(i, 1) else f"CH {i+1}"
-            ctype = self.table.cellWidget(i, 2).currentText() if self.table.cellWidget(i, 2) else "Dimmer"
-            data["channels"].append({"channel": i+1, "label": lbl, "type": ctype})
+            edit = self.table.cellWidget(i, 1)
+            combo = self.table.cellWidget(i, 2)
+            label = edit.text().strip() if isinstance(edit, QLineEdit) else f"Ch {i+1}"
+            ctype = combo.currentText().lower() if isinstance(combo, QComboBox) else "dimmer"
+            ch_list.append({
+                "index": i + 1,
+                "label": label,
+                "type": ctype,
+                "default_value": 255 if ctype == "dimmer" else 0,
+            })
 
-        file_path, _ = QFileDialog.getSaveFileName(self, "Simpan Fixture JSON", f"{self.txt_name.text().lower().replace(' ', '_')}.json", "JSON Files (*.json)")
-        if file_path:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-            QMessageBox.information(self, "Disimpan", f"Profil fixture tersimpan di {file_path}")
+        return {
+            "name": self.txt_model.text().strip(),
+            "manufacturer": self.txt_maker.text().strip(),
+            "channel_count": len(ch_list),
+            "channels": ch_list,
+        }
+
+    def _on_new_fixture(self) -> None:
+        self.current_file_path = None
+        self.txt_model.setText("New PAR LED RGBW")
+        self.txt_maker.setText("Generic")
+        self.spin_channels.setValue(4)
+        self.setWindowTitle("Fixture Definition Editor — [New Fixture]")
+
+    def _on_open_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Buka Berkas Profil Fixture",
+            str(Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"),
+            "ZZLUXORA Fixtures (*.zfx *.json);;All Files (*.*)",
+        )
+        if not path: return
+        try:
+            with open(path, "r", encoding="utf-8") as fp:
+                data = json.load(fp)
+                self.txt_model.setText(data.get("name", Path(path).stem))
+                self.txt_maker.setText(data.get("manufacturer", "Generic"))
+                channels = data.get("channels", [])
+                self.spin_channels.setValue(len(channels))
+                self._populate_table_rows(len(channels))
+
+                for i, ch in enumerate(channels):
+                    edit = self.table.cellWidget(i, 1)
+                    combo = self.table.cellWidget(i, 2)
+                    if isinstance(edit, QLineEdit): edit.setText(ch.get("label", ""))
+                    if isinstance(combo, QComboBox):
+                        # capitalize
+                        t = ch.get("type", "dimmer").capitalize()
+                        if t in CHANNEL_TYPES: combo.setCurrentText(t)
+
+                self.current_file_path = Path(path)
+                self.setWindowTitle(f"Fixture Definition Editor — [{self.current_file_path.name}]")
+        except Exception as e:
+            QMessageBox.critical(self, "Error Buka Berkas", f"Gagal membaca profil fixture:\n{e}")
+
+    def _on_save_file(self) -> None:
+        if self.current_file_path:
+            self._write_file(self.current_file_path)
+        else:
+            self._on_save_as_file()
+
+    def _on_save_as_file(self) -> None:
+        default_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"
+        default_dir.mkdir(parents=True, exist_ok=True)
+        default_name = f"{self.txt_model.text().lower().replace(' ', '_')}.zfx"
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Simpan Profil Fixture",
+            str(default_dir / default_name),
+            "ZZLUXORA Fixture (*.zfx);;JSON Fixture (*.json)",
+        )
+        if path:
+            self._write_file(Path(path))
+
+    def _write_file(self, target_path: Path) -> None:
+        try:
+            data = self._get_fixture_dict()
+            with open(target_path, "w", encoding="utf-8") as fp:
+                json.dump(data, fp, indent=2)
+            self.current_file_path = target_path
+            self.setWindowTitle(f"Fixture Definition Editor — [{target_path.name}]")
+            QMessageBox.information(self, "Berhasil Disimpan", f"Profil fixture berhasil disimpan ke:\n{target_path.name}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error Simpan", f"Gagal menyimpan profil fixture:\n{e}")

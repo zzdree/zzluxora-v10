@@ -126,6 +126,11 @@ class ArtNetSender:
 
         return packet
 
+    def send_raw(self, buffer: Sequence[int]) -> bool:
+        """Set DMX channels from buffer and immediately transmit packet."""
+        self.set_channels(1, buffer[:512])
+        return self.send_frame()
+
     def send_frame(self) -> bool:
         """Transmit current DMX buffer via UDP to target IP."""
         try:

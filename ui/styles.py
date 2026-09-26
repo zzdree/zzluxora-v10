@@ -1,45 +1,48 @@
 """
-styles.py — Dark Industrial Lighting Console Styling Tokens and QSS
-Inspired by grandMA3 lighting consoles and QLC+ utility.
+styles.py — Pure Dark Grey & High-Contrast White Theme (grandMA3 Industrial Console)
+Refined for ZZLUXORA v10.0.0 based on Feedback v3.
 """
 
 class Theme:
-    # Backgrounds
-    BG_ROOT = "#0e1013"
-    BG_SURFACE = "#16181d"
-    BG_PANEL = "#1d2127"
-    BG_CARD = "#242832"
-    BG_INPUT = "#121417"
+    # Pure Dark Grey Backgrounds (Industrial Stage Console)
+    BG_ROOT = "#1e2024"             # Root window background (Deep Charcoal Grey)
+    BG_SURFACE = "#242830"          # Panels, cards, and tab containers
+    BG_ELEVATED = "#2d323c"         # Headers, dialogs, floating windows
+    BG_FADER_GROOVE = "#14161a"     # Recessed dark fader groove rail
+    BG_FADER_CAP = "#353b47"        # Tactile ribbed fader cap
+    BG_INPUT = "#181a1f"            # Text inputs, combo boxes
 
     # Borders & Dividers
-    BORDER_SUBTLE = "#282c34"
-    BORDER_STRONG = "#3e4451"
-    BORDER_FOCUS = "#00bcd4"
+    BORDER_SUBTLE = "#333844"       # Subtle divider lines
+    BORDER_STRONG = "#4a5264"       # Active / focused borders
+    BORDER_HIGHLIGHT = "#06b6d4"    # Focus neon cyan outline
 
-    # Accents & Functional Colors
-    ACCENT_CYAN = "#00e5ff"
-    ACCENT_AMBER = "#ffb300"
-    COLOR_SUCCESS = "#00e676"  # Art-Net connected
-    COLOR_DANGER = "#ff1744"   # Art-Net disconnected / Blackout
-    COLOR_WARNING = "#ff9100"
+    # Accents & Functional Colors (grandMA3 Inspired)
+    ACCENT_AMBER = "#f59e0b"        # grandMA Amber Gold (Master Dimmer & active tab line)
+    ACCENT_CYAN = "#06b6d4"         # Neon Cyan Glow (DMX channel fader rails)
+    COLOR_SUCCESS = "#22c55e"       # Art-Net connected / transmitting (Green)
+    COLOR_DANGER = "#ef4444"        # Art-Net disconnected / blackout outline (Red)
+    COLOR_WARNING = "#eab308"       # Onset / Strobe / Shutter flash
 
-    # Typography
-    TEXT_PRIMARY = "#f0f2f5"
-    TEXT_SECONDARY = "#abb2bf"
-    TEXT_MUTED = "#5c6370"
+    # Typography (High Contrast White)
+    TEXT_PRIMARY = "#ffffff"        # Pure Crisp White for maximum stage readability
+    TEXT_SECONDARY = "#cbd5e1"      # Light grey for labels, subheadings, file paths
+    TEXT_MUTED = "#94a3b8"          # Dim grey for placeholders & unpatched numbers
 
-    # DMX Channel Semantic Colors
-    CH_DIMMER = "#ffd54f"
-    CH_RED = "#ff5252"
-    CH_GREEN = "#69f0ae"
-    CH_BLUE = "#448aff"
-    CH_WHITE = "#ffffff"
-    CH_AMBER = "#ffab40"
-    CH_STROBE = "#ea80fc"
-    CH_EMPTY = "#21252b"
+    # DMX Channel Semantic Colors (Grid & Mixer Sync)
+    CH_DIMMER = "#d97706"           # Amber Gold
+    CH_RED = "#dc2626"              # Pure Red
+    CH_GREEN = "#16a34a"            # Vivid Green
+    CH_BLUE = "#2563eb"             # Royal Blue
+    CH_WHITE = "#f8fafc"            # Neutral Stage White
+    CH_STROBE = "#eab308"           # Electric Flash Yellow
+    CH_PAN_TILT = "#8b5cf6"         # Violet Moving Head
+    CH_COLOR_MACRO = "#ec4899"      # Rainbow Macro
+    CH_EMPTY = "#282c34"            # Dark Grey Unpatched Cell
+
 
 CONSOLE_QSS = f"""
-QMainWindow {{
+QMainWindow, QDialog {{
     background-color: {Theme.BG_ROOT};
     color: {Theme.TEXT_PRIMARY};
 }}
@@ -47,76 +50,130 @@ QMainWindow {{
 QWidget {{
     background-color: {Theme.BG_ROOT};
     color: {Theme.TEXT_PRIMARY};
-    font-family: "Segoe UI", "Roboto", "Ubuntu", sans-serif;
+    font-family: "Inter", "Segoe UI", "Roboto", "Ubuntu", sans-serif;
     font-size: 13px;
 }}
 
-/* Header Bar */
-QFrame#HeaderBar {{
-    background-color: {Theme.BG_SURFACE};
+/* Level 1: App Title Bar */
+QFrame#TitleBarFrame {{
+    background-color: {Theme.BG_ROOT};
     border-bottom: 1px solid {Theme.BORDER_SUBTLE};
-    padding: 6px 12px;
+    padding: 2px 10px;
 }}
 
-QLabel#LogoTitle {{
-    font-size: 15px;
-    font-weight: bold;
+QLabel#AppTitleLabel {{
+    font-size: 14px;
+    font-weight: 800;
     color: {Theme.TEXT_PRIMARY};
     letter-spacing: 1px;
 }}
 
-QLabel#ProjectPath {{
+QLabel#ProjectPathLabel {{
     font-size: 12px;
-    color: {Theme.TEXT_MUTED};
-    font-style: italic;
+    color: {Theme.TEXT_SECONDARY};
+    font-family: "JetBrains Mono", "Consolas", monospace;
 }}
 
-/* Art-Net Indicator */
-QLabel#ArtNetStatusConnected {{
-    color: {Theme.COLOR_SUCCESS};
-    font-weight: bold;
-    font-size: 12px;
+/* Level 2: Menu Bar */
+QMenuBar {{
+    background-color: {Theme.BG_SURFACE};
+    border-bottom: 1px solid {Theme.BORDER_SUBTLE};
+    color: {Theme.TEXT_PRIMARY};
+    padding: 3px 6px;
+    font-weight: 600;
 }}
 
-QLabel#ArtNetStatusDisconnected {{
-    color: {Theme.COLOR_DANGER};
-    font-weight: bold;
-    font-size: 12px;
-}}
-
-/* Buttons */
-QPushButton {{
-    background-color: {Theme.BG_PANEL};
-    border: 1px solid {Theme.BORDER_STRONG};
+QMenuBar::item {{
+    background: transparent;
+    padding: 5px 12px;
     border-radius: 4px;
     color: {Theme.TEXT_PRIMARY};
-    padding: 6px 14px;
-    font-weight: 500;
 }}
 
-QPushButton:hover {{
-    background-color: {Theme.BG_CARD};
-    border-color: {Theme.ACCENT_CYAN};
+QMenuBar::item:selected {{
+    background-color: {Theme.BG_ELEVATED};
+    color: {Theme.ACCENT_CYAN};
 }}
 
-QPushButton:pressed {{
-    background-color: {Theme.BORDER_SUBTLE};
+QMenu {{
+    background-color: {Theme.BG_ELEVATED};
+    border: 1px solid {Theme.BORDER_STRONG};
+    color: {Theme.TEXT_PRIMARY};
+    padding: 4px;
 }}
 
-QPushButton:disabled {{
-    background-color: {Theme.BG_ROOT};
-    border-color: {Theme.BORDER_SUBTLE};
-    color: {Theme.TEXT_MUTED};
+QMenu::item {{
+    padding: 6px 20px;
+    border-radius: 3px;
 }}
 
-/* Blackout Button */
-QPushButton#BlackoutBtn {{
-    background-color: #2b0d13;
-    border: 1px solid {Theme.COLOR_DANGER};
-    color: {Theme.COLOR_DANGER};
-    border-radius: 14px;
+QMenu::item:selected {{
+    background-color: {Theme.ACCENT_CYAN};
+    color: {Theme.BG_ROOT};
     font-weight: bold;
-    padding: 6px 16px;
+}}
+
+/* Level 3: Program View Bar */
+QFrame#ProgramBarFrame {{
+    background-color: {Theme.BG_SURFACE};
+    border-bottom: 2px solid {Theme.BORDER_SUBTLE};
+    padding: 4px 12px;
+}}
+
+/* Program Workspace Tab Buttons */
+QPushButton.ProgramTabBtn {{
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: {Theme.TEXT_SECONDARY};
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+}}
+
+QPushButton.ProgramTabBtn:hover {{
+    color: {Theme.TEXT_PRIMARY};
+    background-color: {Theme.BG_ELEVATED};
+}}
+
+QPushButton.ProgramTabBtn:checked {{
+    color: {Theme.TEXT_PRIMARY};
+    border-bottom: 3px solid {Theme.ACCENT_AMBER};
+    background-color: {Theme.BG_ELEVATED};
+}}
+
+/* Telemetry: Art-Net Badge */
+QPushButton#ArtNetBadgeBtn {{
+    border-radius: 14px;
+    padding: 5px 14px;
+    font-weight: 700;
+    font-size: 11px;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    border: 1px solid {Theme.BORDER_STRONG};
+}}
+
+QPushButton#ArtNetBadgeBtn[connected="true"] {{
+    background-color: #143521;
+    color: {Theme.COLOR_SUCCESS};
+    border: 1px solid {Theme.COLOR_SUCCESS};
+}}
+
+QPushButton#ArtNetBadgeBtn[connected="false"] {{
+    background-color: #3b161c;
+    color: {Theme.COLOR_DANGER};
+    border: 1px solid {Theme.COLOR_DANGER};
+}}
+
+/* Master Blackout Button */
+QPushButton#BlackoutBtn {{
+    background-color: #000000;
+    color: {Theme.COLOR_DANGER};
+    border: 2px solid {Theme.COLOR_DANGER};
+    border-radius: 16px;
+    padding: 4px 14px;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.5px;
 }}
 
 QPushButton#BlackoutBtn:hover {{
@@ -124,89 +181,72 @@ QPushButton#BlackoutBtn:hover {{
     color: #ffffff;
 }}
 
-/* Play/Pause Button */
-QPushButton#PlayPauseBtn {{
-    background-color: #0d2621;
-    border: 1px solid {Theme.COLOR_SUCCESS};
-    color: {Theme.COLOR_SUCCESS};
+/* Play / Stop Toggle Button */
+QPushButton#PlayStopToggleBtn {{
     border-radius: 4px;
+    padding: 5px 16px;
     font-weight: bold;
-    padding: 6px 14px;
+    font-size: 12px;
 }}
 
-QPushButton#PlayPauseBtn:hover {{
+QPushButton#PlayStopToggleBtn[state="play"] {{
+    background-color: #166534;
+    color: #ffffff;
+    border: 1px solid {Theme.COLOR_SUCCESS};
+}}
+
+QPushButton#PlayStopToggleBtn[state="play"]:hover {{
     background-color: {Theme.COLOR_SUCCESS};
     color: #000000;
 }}
 
-/* Tab Widget (grandMA3 style) */
-QTabWidget::pane {{
-    border: 1px solid {Theme.BORDER_SUBTLE};
-    background-color: {Theme.BG_SURFACE};
-    top: -1px;
+QPushButton#PlayStopToggleBtn[state="stop"] {{
+    background-color: #991b1b;
+    color: #ffffff;
+    border: 1px solid {Theme.COLOR_DANGER};
 }}
 
-QTabBar::tab {{
-    background-color: {Theme.BG_ROOT};
-    border: 1px solid {Theme.BORDER_SUBTLE};
-    border-bottom: none;
-    color: {Theme.TEXT_SECONDARY};
-    padding: 8px 18px;
-    font-weight: 600;
-    margin-right: 2px;
+QPushButton#PlayStopToggleBtn[state="stop"]:hover {{
+    background-color: {Theme.COLOR_DANGER};
+    color: #ffffff;
 }}
 
-QTabBar::tab:selected {{
-    background-color: {Theme.BG_SURFACE};
-    border-top: 2px solid {Theme.ACCENT_CYAN};
-    color: {Theme.TEXT_PRIMARY};
-}}
-
-QTabBar::tab:hover:!selected {{
-    background-color: {Theme.BG_PANEL};
-    color: {Theme.TEXT_PRIMARY};
-}}
-
-/* Sliders (Industrial Faders) */
-QSlider::groove:vertical {{
-    background: {Theme.BG_INPUT};
-    width: 8px;
-    border-radius: 4px;
-    border: 1px solid {Theme.BORDER_SUBTLE};
-}}
-
-QSlider::sub-page:vertical {{
-    background: {Theme.ACCENT_CYAN};
-    border-radius: 4px;
-}}
-
-QSlider::add-page:vertical {{
-    background: {Theme.BG_INPUT};
-    border-radius: 4px;
-}}
-
-QSlider::handle:vertical {{
-    background: {Theme.TEXT_PRIMARY};
+/* Standard Buttons */
+QPushButton {{
+    background-color: {Theme.BG_ELEVATED};
     border: 1px solid {Theme.BORDER_STRONG};
-    height: 22px;
-    margin: 0 -8px;
-    border-radius: 3px;
+    border-radius: 4px;
+    color: {Theme.TEXT_PRIMARY};
+    padding: 6px 14px;
+    font-weight: 600;
 }}
 
-QSlider::handle:vertical:hover {{
-    background: {Theme.ACCENT_AMBER};
+QPushButton:hover {{
+    background-color: #383f4d;
+    border-color: {Theme.ACCENT_CYAN};
+}}
+
+QPushButton:pressed {{
+    background-color: {Theme.ACCENT_CYAN};
+    color: #000000;
+}}
+
+QPushButton:disabled {{
+    background-color: #1a1c22;
+    color: {Theme.TEXT_MUTED};
+    border-color: {Theme.BORDER_SUBTLE};
 }}
 
 /* Scrollbars */
 QScrollBar:horizontal {{
     background: {Theme.BG_ROOT};
     height: 10px;
-    border: none;
+    margin: 0px;
 }}
 
 QScrollBar::handle:horizontal {{
     background: {Theme.BORDER_STRONG};
-    min-width: 20px;
+    min-width: 24px;
     border-radius: 5px;
 }}
 
@@ -217,12 +257,12 @@ QScrollBar::handle:horizontal:hover {{
 QScrollBar:vertical {{
     background: {Theme.BG_ROOT};
     width: 10px;
-    border: none;
+    margin: 0px;
 }}
 
 QScrollBar::handle:vertical {{
     background: {Theme.BORDER_STRONG};
-    min-height: 20px;
+    min-height: 24px;
     border-radius: 5px;
 }}
 
@@ -230,23 +270,21 @@ QScrollBar::handle:vertical:hover {{
     background: {Theme.ACCENT_CYAN};
 }}
 
-/* Progress Bar */
-QProgressBar {{
+/* Input controls */
+QLineEdit, QSpinBox, QComboBox {{
     background-color: {Theme.BG_INPUT};
-    border: 1px solid {Theme.BORDER_SUBTLE};
+    border: 1px solid {Theme.BORDER_STRONG};
     border-radius: 4px;
-    text-align: center;
     color: {Theme.TEXT_PRIMARY};
-    font-weight: bold;
-    height: 20px;
+    padding: 6px 10px;
+    font-size: 13px;
 }}
 
-QProgressBar::chunk {{
-    background-color: {Theme.ACCENT_CYAN};
-    border-radius: 3px;
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{
+    border: 1px solid {Theme.ACCENT_CYAN};
 }}
 
-/* Tables */
+/* Table Widget */
 QTableWidget {{
     background-color: {Theme.BG_SURFACE};
     border: 1px solid {Theme.BORDER_SUBTLE};
@@ -255,10 +293,10 @@ QTableWidget {{
 }}
 
 QHeaderView::section {{
-    background-color: {Theme.BG_PANEL};
-    border: 1px solid {Theme.BORDER_SUBTLE};
-    color: {Theme.TEXT_SECONDARY};
+    background-color: {Theme.BG_ELEVATED};
+    color: {Theme.TEXT_PRIMARY};
     padding: 6px;
+    border: 1px solid {Theme.BORDER_SUBTLE};
     font-weight: bold;
 }}
 """

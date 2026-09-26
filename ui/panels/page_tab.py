@@ -1,50 +1,74 @@
 """
-page_tab.py — Virtual Executor Page Tab
-Provides instant-trigger executor buttons for live stage lighting playback during worship service.
+page_tab.py — Virtual Executor Page Tab (grandMA3 & QLC+ Style)
+Provides tactile executor buttons for live stage lighting playback, flash buttons,
+and auto-generated cue buttons received from PerformTab.
 """
 
-try:
-    from PySide6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
-        QFrame, QGroupBox
-    )
-    from PySide6.QtCore import Qt
-    HAS_QT = True
-except ImportError:
-    HAS_QT = False
-    class QWidget: pass
+from __future__ import annotations
 
+from ui.qt_compat import (
+    HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
+    QScrollArea, QFrame, QGroupBox, Qt, Signal, QColor, QFont
+)
 from ui.styles import Theme
+
 
 class ExecutorButton(QPushButton if HAS_QT else object):
     """grandMA3-style rectangular playback executor button."""
-    def __init__(self, cue_name: str, cue_color: str, parent=None):
+    cue_triggered = Signal(dict)
+
+    def __init__(self, cue_data: dict, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
-        self.cue_name = cue_name
-        self.cue_color = cue_color
+        self.cue_data = cue_data
         self.is_active = False
+        self.is_flash = cue_data.get("type") == "flash"
 
         self.setFixedSize(140, 90)
-        self.setText(f"{cue_name}\n[GO+]")
+        label = cue_data.get("label", "Cue")
+        self.setText(f"{label}\n[GO+]")
+        self.setFont(QFont("Inter", 10, QFont.Bold))
         self.update_appearance()
-        self.clicked.connect(self._toggle)
 
-    def _toggle(self):
+        if self.is_flash:
+            self.pressed.connect(self._on_flash_pressed)
+            self.released.connect(self._on_flash_released)
+        else:
+            self.clicked.connect(self._toggle)
+
+    def _toggle(self) -> None:
         self.is_active = not self.is_active
         self.update_appearance()
+        self.cue_triggered.emit({**self.cue_data, "active": self.is_active})
 
-    def update_appearance(self):
-        border = self.cue_color if self.is_active else Theme.BORDER_STRONG
-        bg = "#1f2937" if self.is_active else Theme.BG_PANEL
+    def _on_flash_pressed(self) -> None:
+        self.is_active = True
+        self.update_appearance()
+        self.cue_triggered.emit({**self.cue_data, "active": True})
+
+    def _on_flash_released(self) -> None:
+        self.is_active = False
+        self.update_appearance()
+        self.cue_triggered.emit({**self.cue_data, "active": False})
+
+    def update_appearance(self) -> None:
+        if self.is_flash:
+            border = Theme.COLOR_WARNING
+            bg = Theme.COLOR_WARNING if self.is_active else "#2b2510"
+            text_color = "#000000" if self.is_active else Theme.COLOR_WARNING
+        else:
+            border = Theme.ACCENT_AMBER if self.is_active else Theme.BORDER_STRONG
+            bg = "#1f2937" if self.is_active else Theme.BG_SURFACE
+            text_color = "#ffffff"
+
         self.setStyleSheet(f"""
             QPushButton {{
                 background-color: {bg};
                 border: 2px solid {border};
                 border-radius: 6px;
-                color: #ffffff;
+                color: {text_color};
                 font-weight: bold;
-                font-size: 13px;
+                padding: 6px;
             }}
             QPushButton:hover {{
                 border-color: {Theme.ACCENT_CYAN};
@@ -52,51 +76,90 @@ class ExecutorButton(QPushButton if HAS_QT else object):
         """)
 
 
-class PageTab(QWidget):
+class PageTab(QWidget if HAS_QT else object):
     """Virtual Executor Grid Page."""
-    def __init__(self, parent=None):
+    cue_activated = Signal(dict)
+
+    def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
+        self.executor_buttons: list[ExecutorButton] = []
         self._init_ui()
 
-    def _init_ui(self):
+    def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setContentsMargins(16, 14, 16, 14)
         main_layout.setSpacing(12)
 
         # Header Title
+        top_bar = QHBoxLayout()
         title_box = QVBoxLayout()
         title = QLabel("VIRTUAL PLAYBACK EXECUTORS (LIVE PAGE)")
-        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #00e5ff;")
-        desc = QLabel("Tombol eksekutor langsung panggung untuk memicu scene dan chase secara instan.")
-        desc.setStyleSheet("color: #abb2bf; font-size: 12px;")
+        title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
+        desc = QLabel("Tombol Eksekutor Langsung Panggung (grandMA3 & QLC+ Style) • Memicu Scene, Chase, & Strobe Instan.")
+        desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px;")
         title_box.addWidget(title)
         title_box.addWidget(desc)
-        main_layout.addLayout(title_box)
+        top_bar.addLayout(title_box)
 
-        # Executor Grid
-        grid_group = QGroupBox("Matriks Executor Tombol Cepat Panggung")
-        grid_layout = QGridLayout(grid_group)
-        grid_layout.setSpacing(12)
+        top_bar.addStretch()
 
-        cues = [
-            ("Q1 Praise Fast", "#ffd54f"),
-            ("Q1 Praise Chorus", "#ffb300"),
-            ("Q2 Holy War", "#ff1744"),
-            ("Q2 Minor Peak", "#ea80fc"),
-            ("Q3 Deep Worship", "#448aff"),
-            ("Q3 Intimate Holy", "#7c4dff"),
-            ("Q4 Warm Peace", "#ffffff"),
-            ("Q4 Silent Prayer", "#69f0ae"),
-            ("All White 100%", "#ffffff"),
-            ("Pastel Warm Glow", "#ffcc80"),
-            ("Cyan Ocean Wave", "#00e5ff"),
-            ("Grand Blackout", "#ff1744"),
+        self.btn_clear_page = QPushButton("🗑️ Clear Page")
+        self.btn_clear_page.clicked.connect(self._clear_executors)
+        top_bar.addWidget(self.btn_clear_page)
+
+        main_layout.addLayout(top_bar)
+
+        # Scrollable Executor Grid
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
+                background-color: {Theme.BG_ROOT};
+                border: 1px solid {Theme.BORDER_SUBTLE};
+                border-radius: 6px;
+            }}
+        """)
+
+        self.grid_container = QWidget()
+        self.grid_layout = QGridLayout(self.grid_container)
+        self.grid_layout.setContentsMargins(14, 14, 14, 14)
+        self.grid_layout.setSpacing(14)
+        scroll.setWidget(self.grid_container)
+
+        main_layout.addWidget(scroll, 1)
+
+        # Default Preset Executors
+        self._load_default_executors()
+
+    def _load_default_executors(self) -> None:
+        defaults = [
+            {"label": "PRAISE ☀️\nAll Bright", "type": "scene", "color": {"R": 255, "G": 200, "B": 80, "W": 40}},
+            {"label": "WORSHIP 🕊️\nDeep Blue", "type": "scene", "color": {"R": 30, "G": 80, "B": 240, "W": 0}},
+            {"label": "ALTAR CALL 🙏\nWarm Amber", "type": "scene", "color": {"R": 240, "G": 120, "B": 20, "W": 60}},
+            {"label": "MEDITATION 🕯️\nSoft Purple", "type": "scene", "color": {"R": 160, "G": 40, "B": 200, "W": 20}},
+            {"label": "STROBE FLASH ⚡\nInstant", "type": "flash", "color": {"R": 255, "G": 255, "B": 255, "W": 255}},
+            {"label": "WARM WHITE 💡\nFull Wash", "type": "scene", "color": {"R": 0, "G": 0, "B": 0, "W": 255}},
         ]
+        self.load_cues(defaults)
 
-        for i, (name, color) in enumerate(cues):
-            btn = ExecutorButton(name, color, grid_group)
-            grid_layout.addWidget(btn, i // 4, i % 4)
+    def load_cues(self, cues: list[dict]) -> None:
+        """Loads a list of cues and displays them on the executor grid."""
+        for cue in cues:
+            btn = ExecutorButton(cue, self.grid_container)
+            btn.cue_triggered.connect(self._on_cue_triggered)
+            self.executor_buttons.append(btn)
 
-        main_layout.addWidget(grid_group)
-        main_layout.addStretch()
+            idx = len(self.executor_buttons) - 1
+            row = idx // 6
+            col = idx % 6
+            self.grid_layout.addWidget(btn, row, col)
+
+    def _clear_executors(self) -> None:
+        for btn in self.executor_buttons:
+            self.grid_layout.removeWidget(btn)
+            btn.deleteLater()
+        self.executor_buttons.clear()
+
+    def _on_cue_triggered(self, cue_info: dict) -> None:
+        self.cue_activated.emit(cue_info)
