@@ -129,20 +129,6 @@ class PageTab(QWidget if HAS_QT else object):
 
         main_layout.addWidget(scroll, 1)
 
-        # Default Preset Executors
-        self._load_default_executors()
-
-    def _load_default_executors(self) -> None:
-        defaults = [
-            {"label": "PRAISE ☀️\nAll Bright", "type": "scene", "color": {"R": 255, "G": 200, "B": 80, "W": 40}},
-            {"label": "WORSHIP 🕊️\nDeep Blue", "type": "scene", "color": {"R": 30, "G": 80, "B": 240, "W": 0}},
-            {"label": "ALTAR CALL 🙏\nWarm Amber", "type": "scene", "color": {"R": 240, "G": 120, "B": 20, "W": 60}},
-            {"label": "MEDITATION 🕯️\nSoft Purple", "type": "scene", "color": {"R": 160, "G": 40, "B": 200, "W": 20}},
-            {"label": "STROBE FLASH ⚡\nInstant", "type": "flash", "color": {"R": 255, "G": 255, "B": 255, "W": 255}},
-            {"label": "WARM WHITE 💡\nFull Wash", "type": "scene", "color": {"R": 0, "G": 0, "B": 0, "W": 255}},
-        ]
-        self.load_cues(defaults)
-
     def load_cues(self, cues: list[dict]) -> None:
         """Loads a list of cues and displays them on the executor grid."""
         for cue in cues:

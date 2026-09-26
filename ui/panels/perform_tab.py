@@ -94,24 +94,10 @@ class PerformTab(QWidget if HAS_QT else object):
         right_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         right_layout = QVBoxLayout(right_box)
 
-        self.cue_table = QTableWidget(5, 5)
+        self.cue_table = QTableWidget(0, 5)
         self.cue_table.setHorizontalHeaderLabels(["Bagian Lagu", "Suasana", "Fade In (s)", "Fade Out (s)", "Chase Rate"])
         self.cue_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.cue_table.verticalHeader().setVisible(False)
-
-        default_sections = [
-            ("1. Intro", "Warmup", "2.0", "1.0", "Slow"),
-            ("2. Verse", "Subtle Worship", "3.0", "2.0", "Medium"),
-            ("3. Chorus", "Intense Praise", "1.0", "1.5", "Fast"),
-            ("4. Bridge", "Deep Reverence", "4.0", "2.0", "Slow"),
-            ("5. Outro / Ending", "Fade Out", "5.0", "3.0", "Slow"),
-        ]
-        for row, sec in enumerate(default_sections):
-            for col, text in enumerate(sec):
-                it = QTableWidgetItem(text)
-                it.setFont(QFont("Inter", 9))
-                it.setForeground(QColor(Theme.TEXT_PRIMARY))
-                self.cue_table.setItem(row, col, it)
 
         right_layout.addWidget(self.cue_table)
         splitter.addWidget(right_box)

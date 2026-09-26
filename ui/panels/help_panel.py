@@ -17,8 +17,9 @@ class HelpDialog(QDialog if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
+        self.setWindowFlags(Qt.Window | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Panduan & Keyboard Shortcuts — ZZLUXORA")
-        self.setFixedSize(580, 520)
+        self.resize(580, 520)
         self.setStyleSheet(CONSOLE_QSS)
         self._init_ui()
 

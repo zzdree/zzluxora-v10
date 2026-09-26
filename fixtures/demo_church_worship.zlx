@@ -1,0 +1,92 @@
+{
+  "app": "ZZLUXORA",
+  "version": "10.0.0",
+  "project_name": "Demo GIA Deliksari Sunday Worship",
+  "target_ip": "127.0.0.1",
+  "universe": 0,
+  "master_dimmer": 255,
+  "patches": [
+    {
+      "start_channel": 1,
+      "model": "PAR LED 1",
+      "channels": [
+        {"index": 1, "type": "red", "label": "RED"},
+        {"index": 2, "type": "green", "label": "GRN"},
+        {"index": 3, "type": "blue", "label": "BLU"},
+        {"index": 4, "type": "white", "label": "WHT"}
+      ]
+    },
+    {
+      "start_channel": 5,
+      "model": "PAR LED 2",
+      "channels": [
+        {"index": 1, "type": "red", "label": "RED"},
+        {"index": 2, "type": "green", "label": "GRN"},
+        {"index": 3, "type": "blue", "label": "BLU"},
+        {"index": 4, "type": "white", "label": "WHT"}
+      ]
+    },
+    {
+      "start_channel": 9,
+      "model": "PAR LED 3",
+      "channels": [
+        {"index": 1, "type": "red", "label": "RED"},
+        {"index": 2, "type": "green", "label": "GRN"},
+        {"index": 3, "type": "blue", "label": "BLU"},
+        {"index": 4, "type": "white", "label": "WHT"}
+      ]
+    },
+    {
+      "start_channel": 13,
+      "model": "PAR LED 4",
+      "channels": [
+        {"index": 1, "type": "red", "label": "RED"},
+        {"index": 2, "type": "green", "label": "GRN"},
+        {"index": 3, "type": "blue", "label": "BLU"},
+        {"index": 4, "type": "white", "label": "WHT"}
+      ]
+    }
+  ],
+  "songs": [
+    {
+      "title": "Kebaikan Tuhan (Goodness of God)",
+      "duration_sec": 240.0,
+      "bpm": 72.0,
+      "valence": 0.65,
+      "arousal": -0.42,
+      "quadrant": "Q3 Worship",
+      "palette": {"R": 180, "G": 90, "B": 240, "W": 40}
+    },
+    {
+      "title": "Darah-Mu Yesus (Holy Blood)",
+      "duration_sec": 310.0,
+      "bpm": 68.0,
+      "valence": 0.35,
+      "arousal": -0.55,
+      "quadrant": "Q3 Worship",
+      "palette": {"R": 220, "G": 40, "B": 60, "W": 10}
+    },
+    {
+      "title": "Nyanyi Bagi Dia (Praise the Lord)",
+      "duration_sec": 210.0,
+      "bpm": 128.0,
+      "valence": 0.82,
+      "arousal": 0.74,
+      "quadrant": "Q1 Praise",
+      "palette": {"R": 255, "G": 210, "B": 30, "W": 60}
+    }
+  ],
+  "cues": [
+    {"label": "PRAISE ☀️\nAll Bright", "type": "scene", "color": {"R": 255, "G": 200, "B": 80, "W": 40}, "dimmer": 255},
+    {"label": "WORSHIP 🕊️\nDeep Blue", "type": "scene", "color": {"R": 30, "G": 80, "B": 240, "W": 0}, "dimmer": 200},
+    {"label": "ALTAR CALL 🙏\nWarm Amber", "type": "scene", "color": {"R": 240, "G": 120, "B": 20, "W": 60}, "dimmer": 220},
+    {"label": "STROBE FLASH ⚡\nInstant", "type": "flash", "color": {"R": 255, "G": 255, "B": 255, "W": 255}, "dimmer": 255}
+  ],
+  "faders": {
+    "0": 255,
+    "1": 255,
+    "2": 180,
+    "3": 0,
+    "4": 40
+  }
+}

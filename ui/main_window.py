@@ -5,6 +5,7 @@ and floating tool windows (Fixture List, Fixture Editor, Stage Visualizer, Setti
 """
 
 from __future__ import annotations
+import json
 import os
 import sys
 from pathlib import Path
@@ -144,39 +145,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         root_layout.setSpacing(0)
 
         # -------------------------------------------------------------
-        # LEVEL 1: TITLE BAR FRAME (App Name & File Path)
-        # -------------------------------------------------------------
-        title_bar_frame = QFrame()
-        title_bar_frame.setObjectName("TitleBarFrame")
-        title_bar_layout = QHBoxLayout(title_bar_frame)
-        title_bar_layout.setContentsMargins(12, 4, 12, 4)
-        title_bar_layout.setSpacing(10)
-
-        # App Logo Icon
-        logo_path = Path(__file__).resolve().parent / "assets" / "logo_zz.png"
-        lbl_logo = QLabel()
-        if logo_path.exists():
-            aspect_mode = getattr(Qt, "KeepAspectRatio", getattr(Qt.AspectRatioMode, "KeepAspectRatio", None))
-            smooth_mode = getattr(Qt, "SmoothTransformation", getattr(Qt.TransformationMode, "SmoothTransformation", None))
-            pix = QPixmap(str(logo_path)).scaled(20, 20, aspect_mode, smooth_mode)
-            lbl_logo.setPixmap(pix)
-        title_bar_layout.addWidget(lbl_logo)
-
-        lbl_app_name = QLabel("ZZLUXORA")
-        lbl_app_name.setObjectName("AppTitleLabel")
-        title_bar_layout.addWidget(lbl_app_name)
-
-        title_bar_layout.addWidget(QLabel("|", styleSheet=f"color: {Theme.BORDER_STRONG};"))
-
-        self.lbl_project_path = QLabel("[Untitled.zlx]")
-        self.lbl_project_path.setObjectName("ProjectPathLabel")
-        title_bar_layout.addWidget(self.lbl_project_path)
-
-        title_bar_layout.addStretch()
-        root_layout.addWidget(title_bar_frame)
-
-        # -------------------------------------------------------------
-        # LEVEL 3: PROGRAM VIEW BAR (Horizontal Workspace Tabs & Status)
+        # LEVEL 2: PROGRAM VIEW BAR (Horizontal Workspace Tabs & Status)
         # -------------------------------------------------------------
         program_bar_frame = QFrame()
         program_bar_frame.setObjectName("ProgramBarFrame")
@@ -300,8 +269,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.tab_buttons[index].setChecked(True)
 
     def _update_title_bar(self) -> None:
-        self.lbl_project_path.setText(f"[{self.current_project_path}]")
-        self.setWindowTitle(f"ZZLUXORA — {Path(self.current_project_path).name}")
+        self.setWindowTitle(f"ZZLUXORA — [{self.current_project_path}]")
 
     # -----------------------------------------------------------------
     # MENU POP-UP ACTIONS (WINDOWED INDEPENDENT TOOLS)
@@ -366,7 +334,8 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.tab_mixer.apply_blackout()
         for i in range(512):
             self.dmx_buffer[i] = 0
-        self.artnet_sender.blackout()
+        if self.is_transmitting:
+            self.artnet_sender.blackout()
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx([0] * 512)
 
@@ -384,7 +353,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.btn_artnet_badge.setProperty("connected", "true")
             self.btn_artnet_badge.style().polish(self.btn_artnet_badge)
 
-            # Transmit immediately on play
+            # Transmit immediately on play and start continuous streaming
             self.artnet_sender.send_raw(self.dmx_buffer)
             self.stream_timer.start()
         else:
@@ -418,8 +387,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
         elif 1 <= ch_id <= 512:
             self.dmx_buffer[ch_id - 1] = int(round(val * master_dim))
 
-        # Always transmit the updated DMX frame on tactile fader movement for instant hardware response
-        self.artnet_sender.send_raw(self.dmx_buffer)
+        # Hanya mengirim paket jika tombol Play aktif (is_transmitting == True)
+        if self.is_transmitting:
+            self.artnet_sender.send_raw(self.dmx_buffer)
 
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx(self.dmx_buffer)
@@ -464,8 +434,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.tab_mixer.set_channel_value(base + 3, self.dmx_buffer[base + 2], silent=True)
             self.tab_mixer.set_channel_value(base + 4, self.dmx_buffer[base + 3], silent=True)
 
-        # Transmit cue immediately to Art-Net
-        self.artnet_sender.send_raw(self.dmx_buffer)
+        # Hanya mengirim paket jika tombol Play aktif (is_transmitting == True)
+        if self.is_transmitting:
+            self.artnet_sender.send_raw(self.dmx_buffer)
 
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx(self.dmx_buffer)
@@ -473,35 +444,128 @@ class MainWindow(QMainWindow if HAS_QT else object):
     # -----------------------------------------------------------------
     # FILE MANAGEMENT (.zlx)
     # -----------------------------------------------------------------
+    def load_project_file(self, path: str) -> None:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            self.current_project_path = path
+            self._update_title_bar()
+
+            # Target IP & universe
+            self.target_ip = data.get("target_ip", "127.0.0.1")
+            self.target_universe = data.get("universe", 0)
+            self.artnet_sender.close()
+            self.artnet_sender = ArtNetSender(target_ip=self.target_ip, universe=self.target_universe, port=self.target_port)
+
+            # Load patches to AddressTab
+            patches = data.get("patches", [])
+            if patches:
+                self.tab_address.record_undo()
+                for box in self.tab_address.grid_area.boxes.values():
+                    box.set_unpatched()
+                for p in patches:
+                    start_ch = p.get("start_channel", 1)
+                    model = p.get("model", "Fixture")
+                    channels = p.get("channels", [])
+                    for i, ch in enumerate(channels):
+                        ch_num = start_ch + i
+                        if ch_num in self.tab_address.grid_area.boxes:
+                            self.tab_address.grid_area.boxes[ch_num].set_patched(
+                                ch.get("type", "dimmer"),
+                                ch.get("label", ""),
+                                model
+                            )
+
+            # Load songs to PerformTab
+            songs = data.get("songs", [])
+            self.tab_perform.playlist.clear()
+            self.tab_perform.playlist_widget.clear()
+            for s in songs:
+                self.tab_perform.add_analyzed_song(s)
+
+            # Load cues to PageTab
+            cues = data.get("cues", [])
+            self.tab_page._clear_executors()
+            if cues:
+                self.tab_page.load_cues(cues)
+
+            # Load faders to MixerTab
+            faders_dict = data.get("faders", {})
+            for ch_str, val in faders_dict.items():
+                ch = int(ch_str)
+                self.tab_mixer.set_channel_value(ch, val)
+
+            QMessageBox.information(self, "Project Dimuat", f"Proyek berhasil dibuka:\n{Path(path).name}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error Buka Proyek", f"Gagal membuka berkas proyek:\n{e}")
+
     def _on_open_project(self) -> None:
+        fixtures_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Buka File Proyek ZZLUXORA",
-            "",
+            str(fixtures_dir),
             "ZZLUXORA Project (*.zlx);;All Files (*.*)",
         )
         if path:
-            self.current_project_path = path
-            self._update_title_bar()
-            QMessageBox.information(self, "Project Dimuat", f"Proyek berhasil dibuka:\n{Path(path).name}")
+            self.load_project_file(path)
 
     def _on_save_project(self) -> None:
         if self.current_project_path == "Untitled.zlx":
             self._on_save_as_project()
         else:
-            QMessageBox.information(self, "Project Disimpan", f"Proyek berhasil disimpan ke:\n{self.current_project_path}")
+            self._save_to_path(self.current_project_path)
 
     def _on_save_as_project(self) -> None:
+        fixtures_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Simpan Proyek ZZLUXORA",
-            "Untitled.zlx",
+            str(fixtures_dir / "Untitled.zlx"),
             "ZZLUXORA Project (*.zlx)",
         )
         if path:
+            self._save_to_path(path)
+
+    def _save_to_path(self, path: str) -> None:
+        try:
+            patches = []
+            for ch in range(1, 257):
+                box = self.tab_address.grid_area.boxes.get(ch)
+                if box and box.is_patched:
+                    patches.append({
+                        "channel": ch,
+                        "type": box.channel_type,
+                        "label": box.channel_label,
+                        "fixture": box.fixture_name,
+                    })
+
+            faders = {}
+            for ch in range(257):
+                val = self.tab_mixer.faders[ch].value
+                if val > 0 or ch == 0:
+                    faders[str(ch)] = val
+
+            data = {
+                "app": "ZZLUXORA",
+                "version": "10.0.0",
+                "project_name": Path(path).stem,
+                "target_ip": self.target_ip,
+                "universe": self.target_universe,
+                "master_dimmer": self.tab_mixer.master_fader.value,
+                "patches_raw": patches,
+                "songs": self.tab_perform.playlist,
+                "faders": faders,
+            }
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+
             self.current_project_path = path
             self._update_title_bar()
             QMessageBox.information(self, "Project Disimpan", f"Proyek berhasil disimpan ke:\n{Path(path).name}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error Simpan Proyek", f"Gagal menyimpan berkas proyek:\n{e}")
 
     def closeEvent(self, event) -> None:
         self.stream_timer.stop()

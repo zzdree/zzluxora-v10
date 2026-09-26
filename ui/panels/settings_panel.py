@@ -22,8 +22,9 @@ class SettingsDialog(QDialog if HAS_QT else object):
     def __init__(self, current_ip: str = "127.0.0.1", current_universe: int = 0, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
+        self.setWindowFlags(Qt.Window | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Pengaturan Jaringan & Art-Net — ZZLUXORA")
-        self.setFixedSize(560, 440)
+        self.resize(560, 460)
         self.setStyleSheet(CONSOLE_QSS)
 
         self.current_ip = current_ip

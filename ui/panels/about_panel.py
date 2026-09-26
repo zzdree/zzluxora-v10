@@ -16,8 +16,9 @@ class AboutDialog(QDialog if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
+        self.setWindowFlags(Qt.Window | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Tentang Pengembang & Aplikasi — ZZLUXORA")
-        self.setFixedSize(620, 520)
+        self.resize(620, 520)
         self.setStyleSheet(CONSOLE_QSS)
         self._init_ui()
 
