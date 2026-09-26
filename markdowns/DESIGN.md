@@ -1,131 +1,129 @@
 # 🎨 DESIGN.md — ZZLUXORA v10 Design System & UI Specification
 
 **Sistem Desain & Panduan Antarmuka Konsol Pencahayaan Panggung Generasi Mutakhir**  
-*Mengadopsi Standar Industri grandMA3, Utilitas QLC+, dan Prinsip Desain Anti-AI Slop*
+*Lead Architect / Senior Developer Edition — Standar Industri grandMA3 & Utilitas QLC+*
 
 ---
 
 ## 📌 1. Filosofi & Visi Desain
 
-Aplikasi **ZZLUXORA v10** adalah perangkat lunak konsol pencahayaan panggung cerdas (*intelligent stage lighting console*) yang dirancang khusus untuk operator pencahayaan live pertunjukan dan ibadah gereja (GIA Deliksari). 
+Aplikasi **ZZLUXORA v10** adalah perangkat lunak konsol pencahayaan panggung cerdas (*intelligent stage lighting console*) yang mengemulasi feel dan ketangguhan konsol pencahayaan fisik profesional (MA Lighting grandMA3) ke dalam antarmuka desktop modern.
 
-### Prinsip Inti Desain:
-1. **Utilitas Panggung Nyata (Mission-Critical Stage Readiness):**
-   Antarmuka beroperasi di ruang gelap (*Front of House* / FOH). Kontras tinggi (WCAG AAA), elemen interaktif besar dan tegas, serta bebas dari dekorasi visual yang membingungkan operator saat pertunjukan live.
-2. **Estetika grandMA3 Hardware-Emulation:**
-   Mengadopsi bahasa visual konsol fisik grandMA3 (MA Lighting GmbH): permukaan logam hitam pekat, fader slider dengan *illuminated track groove* (jalur LED bercahaya di belakang fader cap), *tactile ribbed fader caps*, serta skala kalibrasi garis bertingkat.
-3. **Instan & Ringan (Zero-Bloat, No Splashscreen):**
-   Aplikasi diluncurkan secara instan (*cold start* < 500 ms) menyerupai QLC+, tanpa splash screen lambat, meminimalkan waktu pemulihan jika terjadi reboot di tengah acara.
-4. **Anti-AI Slop:**
-   Bebas dari gradien ungu/pink generik AI, sudut lengkung ekstrem yang membuang ruang, atau ikon kartun yang tidak fungsional. Seluruh elemen bergaris tegas 1px solid dengan rasio proporsional.
+### Prinsip Inti Rekayasa Desain:
+1. **Pure Dark Grey Theme (Kenyamanan FOH):**
+   Tidak menggunakan hitam legam OLED (#000000) yang melelahkan mata akibat kontras berlebih, melainkan **Pure Dark Grey** industri elegan (`#1e2024` s.d. `#282c34`). Warna ini menyerupai lempengan bodi baja/aluminium konsol panggung asli.
+2. **Tipografi Putih Bersih Kontras Tinggi (High-Contrast White):**
+   Seluruh teks nama channel, angka DMX (0–255), label fader, dan menu menggunakan **Putih Bersih** (`#ffffff` / `#f8fafc`) dengan rendering subpixel tajam agar operator FOH dapat membaca parameter dari jarak pandang panggung tanpa salah ketik/baca.
+3. **Hardware Tactile Emulation:**
+   Fader slider dirancang khusus dengan rel ber-LED menyala lembut (*illuminated groove rail*), cap taktil bersirip horizontal (*ribbed tactile cap*), dan garis skala kalibrasi analog menyerupai konsol audio/lighting studio.
+4. **Instan & Ringan (Zero-Bloat, No Splashscreen):**
+   Peluncuran instan (< 500 ms) seperti QLC+, siap live performance tanpa jeda booting buatan.
 
 ---
 
 ## 🎨 2. Palet Warna & Token Desain (Color Tokens)
 
-### 2.1. Primitive Background & Surface Tokens
-| Token | Nilai Hex | Penggunaan |
+### 2.1. Primitive Dark Grey & Surface Tokens
+| Token | Nilai Hex | Peran & Penggunaan |
 | :--- | :--- | :--- |
-| `--bg-root` | `#0a0c10` | Latar belakang jendela root paling dasar |
-| `--bg-surface` | `#11141a` | Latar belakang panel utama, card container, dan tab |
-| `--bg-surface-elevated`| `#181c24` | Latar widget mengambang, dialog pop-up, header |
-| `--bg-fader-well` | `#07080a` | Cekungan rel fader slider hitam pekat bertekstur |
-| `--border-subtle` | `#222733` | Garis batas pemisah panel dan grid (1px solid) |
-| `--border-strong` | `#333a4d` | Garis batas kontrol aktif / focused input |
+| `--bg-root` | `#1e2024` | Latar belakang dasar jendela utama (Pure Dark Grey) |
+| `--bg-surface` | `#242830` | Latar panel kerja, tab container, dan dialog |
+| `--bg-surface-elevated`| `#2d323c` | Latar header bar, widget mengambang, card aktif |
+| `--bg-fader-groove` | `#14161a` | Cekungan rel fader slider hitam abu pekat berbayang |
+| `--border-subtle` | `#333844` | Garis batas pemisah panel dan grid (1px crisp) |
+| `--border-strong` | `#4a5264` | Garis batas elemen aktif / hover / focused input |
 
 ### 2.2. Accent & Lighting Glow Tokens (grandMA3 Inspired)
-| Token | Nilai Hex | Penggunaan |
+| Token | Nilai Hex | Peran & Penggunaan |
 | :--- | :--- | :--- |
-| `--accent-amber` | `#f59e0b` | Warna emas khas grandMA3 untuk Grand Master & Dimmer |
-| `--accent-cyan` | `#06b6d4` | Warna cyan neon untuk jalur fader track groove & highlight |
+| `--accent-amber` | `#f59e0b` | Emas grandMA3 untuk Grand Master & Master Dimmer |
+| `--accent-cyan` | `#06b6d4` | Cyan neon untuk rel fader DMX channel & visualizer glow |
 | `--status-online` | `#22c55e` | Status Art-Net terhubung / streaming aktif (Green Glow) |
 | `--status-offline`| `#ef4444` | Status Art-Net terputus / transmisi berhenti (Red Glow) |
-| `--status-warning`| `#eab308` | Status waspada / Onset trigger / Strobe mode |
-| `--text-primary` | `#f1f5f9` | Teks utama, pembacaan nilai fader (High Contrast) |
-| `--text-secondary`| `#94a3b8` | Label subjudul, nomor DMX unpatched, instruksi |
-| `--text-muted` | `#64748b` | Keterangan non-aktif, watermark, placeholder |
+| `--status-blackout`| `#000000` | Tombol Blackout lingkaran hitam pekat berbingkai merah |
+| `--text-primary` | `#ffffff` | **Putih Bersih**: Teks utama, judul, nilai fader DMX |
+| `--text-secondary`| `#cbd5e1` | Abu-abu terang: Subjudul, status deskripsi, label tab |
+| `--text-muted` | `#94a3b8` | Abu-abu redup: Placeholder, nomor DMX unpatched |
 
 ### 2.3. Semantic DMX Channel Role Tokens (Address Grid & Fixture Sync)
-| Tipe Kanal | Nilai Hex | Warna Visual | Ikon Karakter |
+| Tipe Kanal | Nilai Hex | Warna Visual | Ikon Karakteristik |
 | :--- | :--- | :--- | :--- |
-| **Dimmer** | `#d97706` | Amber Gold | 💡 Lampu Bohlam / Intensitas |
-| **Red (R)** | `#dc2626` | Deep Bright Red | 🔴 Balok Warna Merah |
-| **Green (G)** | `#16a34a` | Vivid Green | 🟢 Balok Warna Hijau |
-| **Blue (B)** | `#2563eb` | Royal Blue | 🔵 Balok Warna Biru |
-| **White (W)** | `#f8fafc` | Pure Stage White| ⚪ Balok Warna Putih Netral |
-| **Strobe** | `#eab308` | Electric Yellow | ⚡ Kilat / Flash Shutter |
+| **Dimmer** | `#d97706` | Amber Gold | 💡 Bohlam Lampu / Intensitas |
+| **Red (R)** | `#dc2626` | Deep Bright Red | 🔴 Blok Warna Merah |
+| **Green (G)** | `#16a34a` | Vivid Green | 🟢 Blok Warna Hijau |
+| **Blue (B)** | `#2563eb` | Royal Blue | 🔵 Blok Warna Biru |
+| **White (W)** | `#f8fafc` | Pure Stage White| ⚪ Blok Warna Putih Panggung |
+| **Strobe** | `#eab308` | Electric Yellow | ⚡ Kilat / Shutter Flash |
 | **Pan / Tilt** | `#8b5cf6` | Violet Purple | 🔄 Sumbu Rotasi Moving Head |
-| **Color Macro** | `#ec4899` | Magenta Rainbow | 🌈 Roda Warna / Preset |
-| **Unpatched** | `#1a1d24` | Industrial Dark Gray| — Nomor kanal di pojok kanan |
+| **Color Macro** | `#ec4899` | Magenta Rainbow | 🌈 Roda Warna / Preset Efek |
+| **Unpatched** | `#282c34` | Pure Dark Grey | — Nomor kanal di sudut kanan |
 
 ---
 
-## 📐 3. Tipografi & Skala Teks (Typography)
+## 🏛️ 3. Arsitektur 3-Level Header (Standard Desktop Windows & Linux)
 
-Menggunakan font sistem sans-serif monospaced bersih untuk presisi angka panggung:
-- **Font Utama:** Inter, Segoe UI, Roboto, sans-serif.
-- **Font Numerik & DMX Value:** JetBrains Mono, Fira Code, Consolas, monospace (menghindari angka goyang saat nilai berubah cepat).
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [Icon ZZ] ZZLUXORA    D:\projects\church_live\SundayWorship.zlx                          —  □  ✕ │  <-- Level 1: Title Bar
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ File    Fixture    Editor    Preview    Setting    Help    About                                 │  <-- Level 2: Menu Bar
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Address] [Analyze] [Result] [Perform] [Page] [Mixer]    │ [ART-NET: IDLE]  [○ Blackout]  [▶ Play]│  <-- Level 3: Program Bar
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-| Level | Ukuran Font | Bobot | Line-Height | Penggunaan |
-| :--- | :--- | :--- | :--- | :--- |
-| Display | 18px | 800 Bold | 22px | Nama Brand `ZZLUXORA`, Judul Modal |
-| Heading | 14px | 700 Bold | 18px | Tab Title, Section Header, Dialog Title |
-| Subheading | 12px | 600 SemiBold| 16px | Kategori Patch, Label Mixer Fader |
-| Body / Value| 11px | 500 Medium | 14px | Pembacaan Angka Fader (0-255), Grid Label |
-| Caption | 9px | 600 SemiBold| 11px | Nomor Kanal DMX Pojok (1-256), Status Badge|
+### 3.1. Level 1: Title Bar (App Bar & Project Path)
+- **Tinggi:** 32px.
+- **Pojok Kiri:** Logo icon `zz` glowing (20×20px) + Teks brand `ZZLUXORA` (font sans-serif bold, warna putih murni `#ffffff`).
+- **Samping Kanan Brand:** Path lengkap file proyek yang sedang aktif (contoh: `D:\projects\worship\SundayWorship.zlx` atau `[Untitled.zlx]`) dengan warna teks `#cbd5e1`.
+- **Pojok Kanan:** Tombol standar jendela OS (Minimize, Maximize, Close).
+
+### 3.2. Level 2: Main Menu Bar
+- **Tinggi:** 30px.
+- **Menu Items:** `File`, `Fixture`, `Editor`, `Preview`, `Setting`, `Help`, `About`.
+- **Karakteristik:**
+  * `File`: Dropdown menu native (`Open Project (Ctrl+O)`, `Save Project (Ctrl+S)`, `Save As Project (Ctrl+Shift+S)`, `Exit`).
+  * `Fixture`, `Editor`, `Preview`, `Setting`, `Help`, `About`: **Membuka Jendela Pop-up Independen (Windowed Mode by default)** dengan tombol minimize, maximize, dan close.
+
+### 3.3. Level 3: Program View Bar (Sejajar Horizontal)
+- **Tinggi:** 42px.
+- **Sisi Kiri (Tab Switcher):**
+  * Enam tombol tab workspace: `[Address]`, `[Analyze]`, `[Result]`, `[Perform]`, `[Page]`, `[Mixer]`.
+  * Tab aktif memiliki border-bottom 2px warna amber grandMA3 (`#f59e0b`) dan teks putih menyala.
+- **Sisi Kanan (Status & Kontrol Panggung):**
+  * **Art-Net Status Badge:** Kapsul pill interaktif `[ART-NET: IDLE]` (merah) atau `[ART-NET: TRANSMITTING]` (hijau). Klik badge langsung membuka pop-up Setting.
+  * **Tombol Blackout:** Lingkaran hitam pekat berbingkai merah (`○ Blackout`) untuk mereset Grand Master seketika ke 0.
+  * **Tombol Play/Stop Toggle:** 1 tombol tunggal berganti status. Kondisi Idle menampilkan ikon Play hijau (`▶ Play`). Begitu diklik -> transmisi aktif dan tombol berubah otomatis menjadi Stop merah (`■ Stop`).
 
 ---
 
-## 🎛️ 4. Spesifikasi Komponen Khusus (grandMA3 Aesthetic)
+## 🎛️ 4. Spesifikasi Komponen Fader Konsol grandMA3 (Mixer Tab)
 
-### 4.1. Tactile Fader Slider (Mixer Tab)
 Mengacu langsung pada Gambar Referensi **Image #02**, **Image #04**, dan **Image #05**:
-- **Cap Fader (Knob):**
-  * Bentuk trapesium memanjang dengan cekungan ergonomis di tengah (*finger concavity*).
-  * Tekstur sirip horizontal (*ribbed tactile grips*) di sisi samping untuk kenyamanan drag & drop sentuhan jari operator.
-  * Garis horizontal putih presisi di tengah cap sebagai penunjuk level nilai DMX.
-  * Ukuran Cap: Lebar 32px, Tinggi 20px.
-- **Track Slider (Groove & Backlit Rail):**
-  * Lebar alur (slot): 4px solid dengan kedalaman terbayang (*inner shadow*).
-  * Efek *Backlit LED*: Rel di belakang cap memiliki pencahayaan lembut vertikal:
+- **Cap Fader Taktil (Tactile Ribbed Cap):**
+  * Bentuk trapesium dengan cekungan ergonomis jari operator.
+  * Tekstur sirip horizontal (*ribbed grooves*) di sisi samping cap.
+  * Garis indikator putih presisi di bagian tengah cap sebagai penunjuk nilai DMX.
+  * Dimensi Cap: Lebar 32px, Tinggi 22px.
+- **Track Slider & Rel LED Menyala (Illuminated Rail):**
+  * Cekungan alur hitam pekat berkedalaman inner-shadow.
+  * Rel di belakang cap memancarkan cahaya LED lembut vertikal:
     - Master Dimmer: Cahaya Amber Warm Gold (`#f59e0b`).
-    - Kanal RGBW: Cahaya sesuai grup warna (Merah, Hijau, Biru, Putih).
-    - Kanal Lain: Cahaya Cyan Elektrik (`#06b6d4`).
-- **Skala Garis Kalibrasi (Scale Markings):**
-  * Garis-garis tanda level di sisi kiri dan kanan track (menyerupai fader konsol audio/lighting studio analog).
-  * Penanda khusus pada 0%, 50% (127), dan 100% (255).
-- **Label & Readout Numerik:**
-  * Di atas fader: Nama kanal / fixture yang ter-patch.
-  * Di bawah fader: Tombol identifikasi kanal + Nilai DMX real-time (0–255) yang dapat diketik langsung.
-
-### 4.2. Header Bar Terpadu (Single Unified Header - No Sidebar)
-- Tinggi: 44px tetap (fixed).
-- Sisi Kiri:
-  * Logo Icon 24x24px (huruf `zz` bold italic glowing).
-  * Teks Brand `ZZLUXORA` (13px, bold, tracking +1px).
-  * Pemisah vertikal 1px (`#222733`).
-  * Menubar Menu Bar: `[File]` `[Fixture]` `[Editor]` `[Preview]` `[Setting]` `[Help]` `[About]`.
-- Sisi Kanan:
-  * Badge Art-Net: Tombol kapsul pill rounded (`#15181f`), teks status "ART-NET: TRANSMITTING" (Hijau) atau "ART-NET: IDLE" (Merah). Klik badge membuka popup Setting.
-  * Tombol Blackout: Lingkaran 32x32px berlatar hitam pekat berbingkai merah peringatan (`#ef4444`).
-  * Tombol Play/Stop: Tombol rounded 32x32px berganti dinamis: Play (Segitiga hijau) / Stop (Persegi merah).
-
-### 4.3. Address Grid Sheet (DMX 1–256)
-- Matriks kotak 24 kolom horizontal, baris ke bawah bertambah dinamis dengan scrollbar vertikal.
-- Ukuran per kotak: Minimal 48x48px (responsif mengikuti lebar jendela).
-- Desain kotak kosong: Border 1px `#222733`, latar `#14171f`, nomor DMX di sudut kanan atas dalam warna abu-abu `#64748b`.
-- Desain kotak terisi: Border 1px solid menyala, latar belakang solid sesuai warna jenis kanal, teks fungsi (contoh: "RED", "DIM", "STROBE") di posisi tengah dengan font tebal kontras tinggi.
+    - Kanal DMX 1–256: Cahaya Cyan Elektrik (`#06b6d4`).
+- **Garis Skala Kalibrasi (Analog Scale Markings):**
+  * Skala garis bergradasi di samping track fader (menyerupai fader konsol audio/lighting analog).
+  * Penanda garis khusus pada 0%, 50% (127), dan 100% (255).
+- **Pembacaan Nilai:**
+  * Di bawah fader: Label nomor channel dan box input angka DMX real-time (0–255) yang dapat diketik langsung.
 
 ---
 
-## 🖥️ 5. Responsivitas Layar (1366x768 vs 1920x1080)
+## 🖥️ 5. Responsivitas Layar (1366×768 vs 1920×1080)
 
-Aplikasi wajib tampil proporsional tanpa elemen terpotong (*no clipping, no overflow*) pada dua perangkat utama:
-1. **Laptop Dev (Linux Mint ASUS X407MA):** 1366 × 768 piksel (768p).
-2. **Laptop Utama (Windows 11 Acer Swift 3):** 1920 × 1080 piksel (1080p).
-
-### Aturan Rekayasa Responsif:
-- Seluruh panel utama menggunakan `QSplitter` dan layout elastis (`QVBoxLayout` & `QHBoxLayout` dengan stretch factors).
-- Tidak menggunakan nilai posisi atau ukuran absolut (`setGeometry` fixed) untuk komponen utama.
-- Tab Mixer menggunakan `QScrollArea` dengan scrolling horizontal yang sangat halus (*smooth horizontal scrolling*).
-- Jendela visualizer (Preview), Fixture List, dan Fixture Editor dirancang sebagai **Floating Tool Windows** yang bebas digeser, di-maximize, atau dipindahkan ke monitor sekunder (eksternal panggung).
+1. **Laptop Dev (Linux Mint ASUS X407MA - 1366×768):**
+   * Seluruh komponen menggunakan stretch factor proporsional.
+   * Tab Mixer menggunakan smooth horizontal scrollbar yang ringan.
+   * Jendela pop-up (Visualizer, Fixture List) dapat di-docking atau diminimalkan dengan mudah.
+2. **Laptop Utama (Windows 11 Acer Swift 3 - 1920×1080):**
+   * Antarmuka otomatis berekspansi memenuhi ruang kerja Full HD.
+   * Jendela visualizer panggung dapat dipindahkan ke monitor sekunder (eksternal panggung).
