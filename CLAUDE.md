@@ -12,7 +12,8 @@ Panduan arsitektur, instruksi pengembangan, dan konteks operasional untuk **ZZLU
 - **Dosen Pembimbing:** Mario Norman Syah, S.Pd., M.Eng. (`NIP: 199304212024061001`)
 - **Institusi:** Program Studi S1 Teknik Komputer, Fakultas Teknik, Universitas Negeri Semarang (UNNES)
 - **Karakter Desain:** Modern-minimalis industri panggung pertunjukan (mengadopsi estetika **grandMA2 / grandMA3 onPC** dan utilitas **QLC+**).
-- **Format File Project:** `.zlx` (JSON terstruktur terkompresi).
+- **Format Showfile Project:** `.zlx` (JSON showfile).
+- **Format Fixture Profile:** `.zfx` (JSON profil fixture).
 - **Format Profil Fixture:** `.zfx` (JSON profil lampu berstandar QLC+).
 
 ---
@@ -69,7 +70,7 @@ zzluxora_v10/
 │
 ├── fixtures/                  # Preset profil lampu & berkas demo
 │   ├── demo_church_worship.zlx # Berkas proyek demo resmi (bisa dibuka via File -> Open Project...)
-│   ├── generic_par_rgbw_8ch.json # Profil fixture 8-CH (Dimmer, Red, Green, Blue, White, Strobe, Program, Speed)
+│   ├── generic_par_rgbw_8ch.zfx # Profil fixture 8-CH (Dimmer, Red, Green, Blue, White, Strobe, Program, Speed)
 │   ├── generic_par_rgbw_8ch.zfx
 │   ├── generic_par_rgbw_4ch.json
 │   └── qlcplus_template.qxw   # Template SITL loopback QLC+

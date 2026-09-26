@@ -55,7 +55,7 @@ Aplikasi mentransmisikan data pencahayaan menggunakan protokol standar internasi
 - **FR-07 (Fixture Definition Editor Floating Window):**
   * Jendela pop-up berstandar QLC+ Fixture Definition Editor dengan menubar mandiri (*Open, Save, Save As*).
   * Format profil lampu: `.zfx` (JSON).
-  * Profil Fixture Sample Resmi 8-CH (`fixtures/generic_par_rgbw_8ch.json` dan `.zfx`):
+  * Profil Fixture Sample Resmi 8-CH (`fixtures/generic_par_rgbw_8ch.zfx`; `.json` is a source-format copy).:
     Ch 1 Dimmer, Ch 2 Red, Ch 3 Green, Ch 4 Blue, Ch 5 White, Ch 6 Strobe, Ch 7 Program, Ch 8 Speed.
 - **FR-08 (Detachable Multi-Screen Stage Visualizer):**
   * Jendela visualizer non-modal dapat dipindahkan ke monitor sekunder / FOH.
