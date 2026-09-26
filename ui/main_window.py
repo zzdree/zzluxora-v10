@@ -57,7 +57,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.project_state = ProjectState(project_name="Untitled.zlx")
         self.current_project_path = "Untitled.zlx"
         self.target_ip = "127.0.0.1"
-        self.target_universe = 1
+        self.target_universe = 0
         self.target_port = 6454
         self.is_transmitting = False
 
@@ -349,8 +349,10 @@ class MainWindow(QMainWindow if HAS_QT else object):
     # -----------------------------------------------------------------
     def _on_blackout_clicked(self) -> None:
         self.tab_mixer.apply_blackout()
+        for i in range(512):
+            self.dmx_buffer[i] = 0
         self.artnet_sender.blackout()
-        if self.win_visualizer:
+        if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx([0] * 512)
 
     def _on_play_stop_toggled(self) -> None:
@@ -367,6 +369,8 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.btn_artnet_badge.setProperty("connected", "true")
             self.btn_artnet_badge.style().polish(self.btn_artnet_badge)
 
+            # Transmit immediately on play
+            self.artnet_sender.send_raw(self.dmx_buffer)
             self.stream_timer.start()
         else:
             # Change button to PLAY (Green)
@@ -388,11 +392,19 @@ class MainWindow(QMainWindow if HAS_QT else object):
                 self.win_visualizer.update_dmx(self.dmx_buffer)
 
     def _on_fader_moved(self, ch_id: int, val: int) -> None:
+        master_val = self.tab_mixer.master_fader.value
+        master_dim = master_val / 255.0
+
         if ch_id == 0:
-            # Grand Master changed: attenuate buffer
-            pass
+            # Grand Master moved: scale all 256 channels
+            for ch in range(1, 257):
+                raw = self.tab_mixer.faders[ch].value
+                self.dmx_buffer[ch - 1] = int(round(raw * master_dim))
         elif 1 <= ch_id <= 512:
-            self.dmx_buffer[ch_id - 1] = val
+            self.dmx_buffer[ch_id - 1] = int(round(val * master_dim))
+
+        if self.is_transmitting:
+            self.artnet_sender.send_raw(self.dmx_buffer)
 
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx(self.dmx_buffer)

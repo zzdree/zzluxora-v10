@@ -19,7 +19,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
     """Network & Art-Net configuration dialog for ZZLUXORA."""
     settings_saved = Signal(str, int, int)  # (ip, port, universe)
 
-    def __init__(self, current_ip: str = "127.0.0.1", current_universe: int = 1, parent: QWidget | None = None):
+    def __init__(self, current_ip: str = "127.0.0.1", current_universe: int = 0, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
         self.setWindowTitle("Pengaturan Jaringan & Art-Net — ZZLUXORA")
