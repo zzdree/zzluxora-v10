@@ -68,23 +68,24 @@ Aplikasi **ZZLUXORA v10** mengadopsi prinsip **Single Source of Truth (SSOT)** d
   $$\text{DMX}_{\text{out}}[i] = \text{round}\left(\text{DMX}_{\text{raw}}[i] \times \frac{M}{255}\right)$$
 - Saat tombol **Blackout** ditekan: Nilai $M$ diset seketika ke 0, sehingga seluruh $\text{DMX}_{\text{out}}$ bernilai 0 tanpa mengubah nilai mentah fader $\text{DMX}_{\text{raw}}$.
 
-### 3.2. State Machine Transmisi Art-Net
+### 3.2. State Machine Transmisi Art-Net (Play-Gated)
 ```text
-           [Aplikasi Dibuka]
+           [Aplikasi Dibuka: State IDLE]
+           (Transmisi DMX MATI - Paket Tidak Dikirim)
                    │
                    ▼
          ┌───────────────────┐
          │    STATE: IDLE    │ <───────────────┐
          │ (Status Merah)    │                 │
          └─────────┬─────────┘                 │
-                   │ Klik [▶ Play]             │ Klik [■ Stop]
+                   │ Klik [PLAY]               │ Klik [STOP]
                    ▼                           │
          ┌───────────────────┐                 │
          │ STATE:TRANSMITTING│ ────────────────┘
          │ (Status Hijau)    │
          │ UDP 43.07 FPS     │
          └─────────┬─────────┘
-                   │ Tekan [○ Blackout]
+                   │ Tekan [BLACKOUT]
                    ▼
          ┌───────────────────┐
          │  STATE: BLACKOUT  │
@@ -97,20 +98,21 @@ Aplikasi **ZZLUXORA v10** mengadopsi prinsip **Single Source of Truth (SSOT)** d
 ## 📁 4. Serialisasi & Deserialisasi Berkas Data
 
 ### 4.1. Berkas Proyek (`.zlx`)
-- Format berkas `.zlx` adalah JSON yang dikompresi menggunakan pustaka standar `zlib` atau `gzip` murni Python untuk efisiensi penyimpanan dan kecepatan I/O.
+- Format berkas `.zlx` adalah JSON yang terstruktur murni Python untuk efisiensi penyimpanan dan kecepatan I/O.
+- Disediakan berkas demo resmi di `fixtures/demo_church_worship.zlx`.
 - Struktur Data:
   ```json
   {
     "app": "ZZLUXORA",
     "version": "10.0.0",
-    "title": "Sunday_Worship_Session",
+    "project_name": "Sunday_Worship_Session",
     "target_ip": "127.0.0.1",
     "target_port": 6454,
-    "universe": 1,
-    "grand_master": 255,
-    "patch_table": [ ... ],
+    "universe": 0,
+    "master_dimmer": 255,
+    "patches": [ ... ],
     "songs": [ ... ],
-    "faders_raw": [ ... ]
+    "faders": { ... }
   }
   ```
 

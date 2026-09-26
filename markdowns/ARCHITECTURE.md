@@ -1,7 +1,7 @@
 # 🏗️ ARCHITECTURE.md — ZZLUXORA v10 Software Architecture
 
 **Spesifikasi Arsitektur Sistem, Desain Modul, & Alur Data**  
-*Framework: Python 3.10+ / PySide6 (Qt6) | Pola: Clean Modular Architecture*
+*Framework: Python 3.10+ / Universal Qt6 (`ui/qt_compat.py`) | Pola: Clean Modular Architecture*
 
 ---
 
@@ -9,17 +9,22 @@
 
 Perangkat lunak **ZZLUXORA v10** dirancang dengan prinsip **Pemisahan Kepentingan Secara Tegas (Strict Separation of Concerns)**:
 1. **Core Engine (`core/`):** Pure Python / NumPy tanpa ketergantungan GUI (Zero-GUI Dependency). Bertanggung jawab atas kalkulasi matematis sinyal audio, pemodelan afektif Russell, dekomposisi warna fisik RGBW, konstruksi biner paket ArtDmx, dan I/O berkas.
-2. **UI Layer (`ui/`):** Antarmuka pengguna PySide6 berbasis event-driven. Bertanggung jawab atas rendering grafis konsol, visualisasi panggung, fader slider grandMA3, dan manajemen jendela floating.
-3. **Hardware / Network Interface:** Komunikasi soket UDP port 6454 ke node ESP32 fisik atau simulator QLC+ melalui loopback `127.0.0.1`.
+2. **UI Layer (`ui/`):** Antarmuka pengguna berbasis event-driven dengan kompatibilitas ganda PySide6 & PyQt6. Bertanggung jawab atas rendering grafis konsol, visualisasi panggung, fader slider grandMA, dan manajemen jendela non-modal floating.
+3. **Hardware / Network Interface:** Komunikasi soket UDP port 6454 (Universe 0) ke node ESP32 fisik atau simulator QLC+ melalui loopback `127.0.0.1`. Transmisi bersifat Play-gated.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        ZZLUXORA v10 USER INTERFACE                    │
 │                                                                        │
+│  [ZZ] ZZLUXORA [Untitled.zlx]                           (OS Title Bar) │
+│                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │                     HEADER & INTEGRATED MENUBAR                  │  │
-│  │ [ZZ] ZZLUXORA │ File Fixture Editor Preview Setting Help About  │  │
-│  │                    │ Status: Art-Net │ [Blackout] │ [▶/■]       │  │
+│  │                     PURE NATIVE QMenuBar                         │  │
+│  │  File    Fixture    Editor    Preview    Setting    Help    About│  │
+│  ├──────────────────────────────────────────────────────────────────┤  │
+│  │                     PROGRAM VIEW BAR                             │  │
+│  │  [Address] [Analyze] [Result] [Perform] [Page] [Mixer]           │  │
+│  │                  │ [ART-NET: IDLE] │ [BLACKOUT] │ [PLAY]         │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
@@ -30,11 +35,12 @@ Perangkat lunak **ZZLUXORA v10** dirancang dengan prinsip **Pemisahan Kepentinga
 │         │                ▲                                             │
 │         ▼                │                                             │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │        FLOATING TOOL WINDOWS (DETACHABLE / MULTI-SCREEN)         │  │
-│  │  • Fixture List Dialog      (Drag-and-Drop Patching)             │  │
+│  │        FLOATING TOOL WINDOWS (DETACHABLE / NON-MODAL)            │  │
+│  │  • Fixture List Window      (Drag-and-Drop Patching)             │  │
 │  │  • Fixture Definition Editor (QLC+ Style Table Editor .zfx)      │  │
-│  │  • Stage Visualizer Window  (2D Front View & 3D Perspective)     │  │
-│  │  • Network Setting Dialog   (Adapter IP & Universe Setup)        │  │
+│  │  • Stage Visualizer Window  (2D Front View RGBW Light Beams)     │  │
+│  │  • Network Setting Dialog   (Adapter IP & Universe 0 Setup)      │  │
+│  │  • Help & About Dialogs     (Shortcuts & Student Credentials)    │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Event Bus / Qt Signals

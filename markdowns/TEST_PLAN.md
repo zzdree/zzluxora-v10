@@ -39,13 +39,13 @@ Sesuai dengan pedoman **Test-Driven Development (TDD)** dan skill **Verification
 
 ### 3.1. Skenario Pengujian Loopback 127.0.0.1
 1. **Langkah 1:** Buka QLC+ v4 (`qlc+4`) atau QLC+ v5 (`qlc+5`) dengan memuat template workspace `/home/zzdree/ANDREAS/zzluxora_test.qxw`.
-2. **Langkah 2:** Pastikan Universe 1 di QLC+ terkonfigurasi ke input Art-Net `127.0.0.1` dengan opsi `Passthrough = True`.
-3. **Langkah 3:** Jalankan ZZLUXORA v10, klik tombol `[▶ Play]` pada Header Bar.
+2. **Langkah 2:** Pastikan Universe 1 di QLC+ terkonfigurasi ke input Art-Net `127.0.0.1` Line 0 (Universe 0) dengan opsi `Passthrough = True`.
+3. **Langkah 3:** Jalankan ZZLUXORA v10, klik tombol `[PLAY]` pada Header Bar.
 4. **Verifikasi Visual:**
    * Di QLC+ Virtual Console / Simple Desk: Fader kanal 1 s.d. 16 bergerak secara real-time mengikuti pergerakan fader di Tab Mixer ZZLUXORA.
    * Di QLC+ 3D Visualizer (v5): Lampu PAR LED memancarkan warna RGBW dinamis sesuai musik.
 5. **Uji Blackout:**
-   * Tekan tombol `[○ Blackout]` di ZZLUXORA: Seluruh fader di QLC+ seketika turun ke 0.
+   * Tekan tombol `[BLACKOUT]` di ZZLUXORA: Seluruh fader di QLC+ seketika turun ke 0.
    * Naikkan kembali fader Grand Master: Output pulih seketika.
 
 ---
