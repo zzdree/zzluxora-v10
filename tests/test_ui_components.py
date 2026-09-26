@@ -41,6 +41,29 @@ class TestUIModules(unittest.TestCase):
 
         self.assertTrue(True)
 
+    def test_settings_dialog_initializes_adapter_table_with_qcolors(self):
+        from ui.qt_compat import QApplication, HAS_QT
+        if not HAS_QT:
+            self.skipTest("No Qt binding available in test runner environment")
+
+        from ui.panels.settings_panel import SettingsDialog
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(["-platform", "offscreen"])
+
+        dialog = SettingsDialog()
+        self.assertGreater(dialog.table_adapters.rowCount(), 0)
+        self.assertEqual(
+            dialog.table_adapters.item(0, 0).foreground().color().name(),
+            "#ffffff",
+        )
+        self.assertEqual(
+            dialog.table_adapters.item(0, 1).foreground().color().name(),
+            "#06b6d4",
+        )
+        dialog.close()
+
     def test_headless_main_window_instantiation(self):
         from ui.qt_compat import QApplication, HAS_QT
         if not HAS_QT:

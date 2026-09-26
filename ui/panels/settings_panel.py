@@ -10,7 +10,7 @@ import socket
 from ui.qt_compat import (
     HAS_QT, QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QComboBox, QSpinBox, QGroupBox, QLineEdit, QTableWidget,
-    QTableWidgetItem, QHeaderView, QMessageBox, Qt, Signal
+    QTableWidgetItem, QHeaderView, QMessageBox, Qt, Signal, QColor
 )
 from ui.styles import Theme, CONSOLE_QSS
 
@@ -137,8 +137,8 @@ class SettingsDialog(QDialog if HAS_QT else object):
         for row, (name, ip) in enumerate(adapters):
             it1 = QTableWidgetItem(name)
             it2 = QTableWidgetItem(ip)
-            it1.setForeground(Theme.TEXT_PRIMARY)
-            it2.setForeground(Theme.ACCENT_CYAN)
+            it1.setForeground(QColor(Theme.TEXT_PRIMARY))
+            it2.setForeground(QColor(Theme.ACCENT_CYAN))
             self.table_adapters.setItem(row, 0, it1)
             self.table_adapters.setItem(row, 1, it2)
 
