@@ -54,7 +54,8 @@
 - [x] **Fixture Definition Editor Window:**
   * Jendela editor profil lampu terisolasi berstandar QLC+ Fixture Editor.
   * Menubar mandiri: File -> Open, Save, Save As (`.zfx` / `.json`).
-  * Profil Fixture Sample 8-CH (`fixtures/generic_par_rgbw_8ch.zfx`).
+  * Profil ZZLUXORA 8-CH: `fixtures/generic_par_rgbw_8ch.zfx`.
+  * Definisi fixture native QLC+: `fixtures/ZZLUXORA-PAR-RGBW-8CH.qxf`.
 - [x] **Stage Visualizer Window:**
   * Jendela visualizer panggung non-modal (dapat dipindah ke second monitor FOH).
   * Tab 2D: Tampak depan panggung dengan pendaran cahaya lingkaran RGBW dinamis.
