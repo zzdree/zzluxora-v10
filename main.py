@@ -78,12 +78,17 @@ def run_cli_demo(target_ip: str = "127.0.0.1", duration: float = 3.0) -> None:
         print("✓ All DMX channels reset to 0. Session complete.")
 
 
-def main() -> None:
+def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="ZZLUXORA v10 Stage Lighting Control Console")
     parser.add_argument("--cli", action="store_true", help="Run standalone CLI engine demonstration")
     parser.add_argument("--ip", type=str, default="127.0.0.1", help="Target Art-Net node IP (default: 127.0.0.1)")
     parser.add_argument("--duration", type=float, default=4.0, help="Demo duration in seconds")
-    args = parser.parse_args()
+    parser.add_argument("project", nargs="?", help="Optional .zlx showfile to load at startup")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = build_argument_parser().parse_args(argv)
 
     # If --cli or DISPLAY is not available, run CLI
     if args.cli or "DISPLAY" not in os.environ:
@@ -97,6 +102,8 @@ def main() -> None:
             from ui.main_window import MainWindow
             app = QApplication(sys.argv)
             window = MainWindow()
+            if args.project:
+                window.load_project_file(args.project, notify=False)
             window.show()
             sys.exit(app.exec())
         except ImportError as e:

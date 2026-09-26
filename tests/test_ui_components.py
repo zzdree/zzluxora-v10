@@ -1,20 +1,31 @@
 """
-test_ui_components.py — Unit Tests for ZZLUXORA v10 UI Architecture & Modules
-Validates component imports, theme tokens, widgets, and headless window initialization.
+test_ui_components.py — Unit tests for ZZLUXORA v10 UI and project fixtures.
 """
 
+import json
 import sys
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest.mock import patch
 
-# Add project root to sys.path
 BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 
 class TestUIModules(unittest.TestCase):
-    """Verifies that all newly created UI widgets and panels import and initialize cleanly."""
+    """Verifies UI imports, demo showfile patching, and QLC+ workspace agreement."""
+
+    def _application(self):
+        from ui.qt_compat import QApplication, HAS_QT
+        if not HAS_QT:
+            self.skipTest("No Qt binding available in test runner environment")
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(["-platform", "offscreen"])
+        self.__class__._qapp = app
+        return app
 
     def test_theme_tokens(self):
         from ui.styles import Theme
@@ -38,64 +49,99 @@ class TestUIModules(unittest.TestCase):
         from ui.panels.about_panel import AboutDialog
         from ui.widgets.tactile_fader import TactileFader
         from ui.widgets.youtube_dialog import YouTubeDialog
-
-        self.assertTrue(True)
+        self.assertTrue(all((AddressTab, AnalyzeTab, ResultTab, PerformTab, PageTab,
+                             MixerTab, FixtureListWindow, FixtureEditorWindow,
+                             StageVisualizerWindow, SettingsDialog, HelpDialog,
+                             AboutDialog, TactileFader, YouTubeDialog)))
 
     def test_settings_dialog_initializes_adapter_table_with_qcolors(self):
-        from ui.qt_compat import QApplication, HAS_QT
-        if not HAS_QT:
-            self.skipTest("No Qt binding available in test runner environment")
-
+        self._application()
         from ui.panels.settings_panel import SettingsDialog
-
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication(["-platform", "offscreen"])
-
         dialog = SettingsDialog()
         self.assertGreater(dialog.table_adapters.rowCount(), 0)
-        self.assertEqual(
-            dialog.table_adapters.item(0, 0).foreground().color().name(),
-            "#ffffff",
-        )
-        self.assertEqual(
-            dialog.table_adapters.item(0, 1).foreground().color().name(),
-            "#06b6d4",
-        )
+        self.assertEqual(dialog.table_adapters.item(0, 0).foreground().color().name(), "#ffffff")
+        self.assertEqual(dialog.table_adapters.item(0, 1).foreground().color().name(), "#06b6d4")
         dialog.close()
 
-    def test_headless_main_window_instantiation(self):
-        from ui.qt_compat import QApplication, HAS_QT
-        if not HAS_QT:
-            self.skipTest("No Qt binding available in test runner environment")
-
+    def test_demo_showfile_patches_requested_eight_channel_fixture(self):
+        self._application()
         from ui.main_window import MainWindow
+        win = MainWindow()
+        demo_path = BASE_DIR / "fixtures" / "demo_church_worship.zlx"
+        with patch("ui.main_window.QMessageBox.information"):
+            win.load_project_file(str(demo_path))
 
-        # Create or reuse QApplication with offscreen platform
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication(["-platform", "offscreen"])
+        expected = [
+            ("dimmer", "Dimmer"), ("red", "Red"), ("green", "Green"),
+            ("blue", "Blue"), ("white", "White"), ("strobe", "Strobe"),
+            ("program", "Program"), ("speed", "Speed"),
+        ]
+        for fixture_idx in range(4):
+            fixture_name = f"PAR LED {fixture_idx + 1} (8CH)"
+            start_channel = fixture_idx * 8 + 1
+            for offset, (channel_type, label) in enumerate(expected):
+                box = win.tab_address.grid_area.boxes[start_channel + offset]
+                self.assertTrue(box.is_patched)
+                self.assertEqual((box.channel_type, box.channel_label, box.fixture_name),
+                                 (channel_type, label, fixture_name))
+        self.assertFalse(win.tab_address.grid_area.boxes[33].is_patched)
+        self.assertEqual(len(win.tab_perform.playlist), 3)
+        self.assertEqual(len(win.tab_page.executor_buttons), 4)
 
+        win._on_cue_activated({"type": "scene", "active": True, "dimmer": 255,
+                               "color": {"R": 100, "G": 80, "B": 60, "W": 40}})
+        for fixture_idx in range(4):
+            start = fixture_idx * 8
+            self.assertEqual(list(win.dmx_buffer[start:start + 8]), [255, 100, 80, 60, 40, 0, 0, 0])
+        win.close()
+
+    def test_qlcplus_definition_and_workspace_use_requested_eight_channel_order(self):
+        fixtures_dir = BASE_DIR / "fixtures"
+        ns = {"q": "http://www.qlcplus.org/FixtureDefinition"}
+        qxf = ET.parse(fixtures_dir / "ZZLUXORA-PAR-RGBW-8CH.qxf").getroot()
+        expected = ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"]
+        names = [node.attrib["Name"] for node in qxf.findall("q:Channel", ns)]
+        mode = qxf.find("q:Mode[@Name='8 Channel']", ns)
+        self.assertEqual(names, expected)
+        self.assertEqual([node.text for node in mode.findall("q:Channel", ns)], expected)
+
+        workspace = ET.parse(fixtures_dir / "qlcplus_template.qxw").getroot()
+        fixtures = workspace.findall("./Engine/Fixture")
+        self.assertEqual(len(fixtures), 4)
+        self.assertEqual([int(f.findtext("Channels")) for f in fixtures], [8] * 4)
+        self.assertEqual([int(f.findtext("Address")) for f in fixtures], [0, 8, 16, 24])
+        self.assertTrue(all(f.findtext("Manufacturer") == "ZZLUXORA" for f in fixtures))
+        self.assertTrue(all(f.findtext("Model") == "PAR RGBW 8CH" for f in fixtures))
+
+        sliders = workspace.findall("./VirtualConsole/Frame/Slider")
+        self.assertEqual(len(sliders), 32)
+        for fixture_idx in range(4):
+            for channel_idx, channel_name in enumerate(expected):
+                slider = sliders[fixture_idx * 8 + channel_idx]
+                self.assertEqual(slider.find("Input").get("Channel"), str(fixture_idx * 8 + channel_idx))
+                self.assertEqual(slider.find("Level/Channel").get("Fixture"), str(fixture_idx))
+                self.assertIn(channel_name, slider.get("Caption"))
+
+    def test_qlc_user_fixture_definition_is_installed_for_qxw(self):
+        user_fixture = Path.home() / ".qlcplus" / "fixtures" / "ZZLUXORA" / "ZZLUXORA-PAR-RGBW-8CH.qxf"
+        self.assertTrue(user_fixture.is_file(), f"QLC+ user fixture definition missing: {user_fixture}")
+
+    def test_headless_main_window_instantiation(self):
+        self._application()
+        from ui.main_window import MainWindow
         win = MainWindow()
         self.assertIsNotNone(win)
         self.assertEqual(len(win.tab_buttons), 6)
         self.assertEqual(win.stack.count(), 6)
-
-        # Check mixer fader count (1 Master + 256 DMX = 257)
         self.assertEqual(len(win.tab_mixer.faders), 257)
-
-        # Test Blackout logic
         win.tab_mixer.set_channel_value(0, 255)
         win.tab_mixer.apply_blackout()
         self.assertEqual(win.tab_mixer.master_fader.value, 0)
-
-        # Test Play / Stop toggle
         self.assertFalse(win.is_transmitting)
         win._on_play_stop_toggled()
         self.assertTrue(win.is_transmitting)
         win._on_play_stop_toggled()
         self.assertFalse(win.is_transmitting)
-
         win.close()
 
 

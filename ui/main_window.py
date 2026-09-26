@@ -395,6 +395,11 @@ class MainWindow(QMainWindow if HAS_QT else object):
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx(self.dmx_buffer)
 
+    @staticmethod
+    def _fixture_channel_offset(channel_number: int, footprint: int = 8) -> int:
+        """Return zero-based offset within the fixed 8-channel PAR fixture footprint."""
+        return (channel_number - 1) % footprint
+
     def _on_patch_changed(self) -> None:
         pass
 
@@ -414,26 +419,21 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self._switch_workspace(4)  # Switch to Page tab
 
     def _on_cue_activated(self, cue_info: dict) -> None:
-        pal = cue_info.get("color", {})
-        r = pal.get("R", 255)
-        g = pal.get("G", 255)
-        b = pal.get("B", 255)
-        w = pal.get("W", 0)
-        dim = cue_info.get("dimmer", 255) if cue_info.get("active", True) else 0
-
-        # Apply to channels 1-16 (4 PAR LEDs)
-        for par in range(4):
-            base = par * 4
-            self.dmx_buffer[base] = int(r * dim / 255.0)
-            self.dmx_buffer[base + 1] = int(g * dim / 255.0)
-            self.dmx_buffer[base + 2] = int(b * dim / 255.0)
-            self.dmx_buffer[base + 3] = int(w * dim / 255.0)
-
-            # Sync faders in MixerTab silently
-            self.tab_mixer.set_channel_value(base + 1, self.dmx_buffer[base], silent=True)
-            self.tab_mixer.set_channel_value(base + 2, self.dmx_buffer[base + 1], silent=True)
-            self.tab_mixer.set_channel_value(base + 3, self.dmx_buffer[base + 2], silent=True)
-            self.tab_mixer.set_channel_value(base + 4, self.dmx_buffer[base + 3], silent=True)
+        palette = cue_info.get("color", {})
+        intensity = int(cue_info.get("dimmer", 255)) if cue_info.get("active", True) else 0
+        rgbw = [
+            int(palette.get("R", 255)),
+            int(palette.get("G", 255)),
+            int(palette.get("B", 255)),
+            int(palette.get("W", 0)),
+        ]
+        # Each 8-channel PAR uses Ch1 dimmer, Ch2-5 RGBW, Ch6 strobe, Ch7 program, Ch8 speed.
+        for fixture_index in range(4):
+            base = fixture_index * 8
+            frame = [intensity, *rgbw, 0, 0, 0]
+            self.dmx_buffer[base:base + 8] = bytes(frame)
+            for offset, value in enumerate(frame):
+                self.tab_mixer.set_channel_value(base + offset + 1, value, silent=True)
 
         # Hanya mengirim paket jika tombol Play aktif (is_transmitting == True)
         if self.is_transmitting:
@@ -445,7 +445,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
     # -----------------------------------------------------------------
     # FILE MANAGEMENT (.zlx)
     # -----------------------------------------------------------------
-    def load_project_file(self, path: str) -> None:
+    def load_project_file(self, path: str, notify: bool = True) -> None:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -459,24 +459,29 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.artnet_sender.close()
             self.artnet_sender = ArtNetSender(target_ip=self.target_ip, universe=self.target_universe, port=self.target_port)
 
-            # Load patches to AddressTab
-            patches = data.get("patches", [])
-            if patches:
-                self.tab_address.record_undo()
-                for box in self.tab_address.grid_area.boxes.values():
-                    box.set_unpatched()
-                for p in patches:
-                    start_ch = p.get("start_channel", 1)
-                    model = p.get("model", "Fixture")
-                    channels = p.get("channels", [])
-                    for i, ch in enumerate(channels):
-                        ch_num = start_ch + i
+            # Load patch entries in either showfile fixture-block form or legacy per-channel form
+            patches = data.get("patches", data.get("patches_raw", []))
+            self.tab_address.record_undo()
+            for box in self.tab_address.grid_area.boxes.values():
+                box.set_unpatched()
+            for p in patches:
+                if "channels" in p:
+                    start_ch = int(p.get("start_channel", 1))
+                    fixture_name = p.get("model", p.get("name", "Fixture"))
+                    for offset, ch in enumerate(p.get("channels", [])):
+                        ch_num = start_ch + offset
                         if ch_num in self.tab_address.grid_area.boxes:
                             self.tab_address.grid_area.boxes[ch_num].set_patched(
-                                ch.get("type", "dimmer"),
-                                ch.get("label", ""),
-                                model
+                                ch.get("type", "empty"), ch.get("label", ""), fixture_name
                             )
+                else:
+                    ch_num = int(p.get("channel", 0))
+                    if ch_num in self.tab_address.grid_area.boxes:
+                        self.tab_address.grid_area.boxes[ch_num].set_patched(
+                            p.get("type", "empty"), p.get("label", ""),
+                            p.get("fixture", p.get("fixture_name", "Fixture"))
+                        )
+            self.tab_address.patch_changed.emit()
 
             # Load songs to PerformTab
             songs = data.get("songs", [])
@@ -491,13 +496,19 @@ class MainWindow(QMainWindow if HAS_QT else object):
             if cues:
                 self.tab_page.load_cues(cues)
 
-            # Load faders to MixerTab
+            # Load saved channel values, then derive DMX output with Grand Master.
             faders_dict = data.get("faders", {})
-            for ch_str, val in faders_dict.items():
-                ch = int(ch_str)
-                self.tab_mixer.set_channel_value(ch, val)
+            if "0" not in faders_dict and "master_dimmer" in data:
+                faders_dict["0"] = data["master_dimmer"]
+            for channel_text, value in faders_dict.items():
+                self.tab_mixer.set_channel_value(int(channel_text), value, silent=True)
+            master_scale = self.tab_mixer.master_fader.value / 255.0
+            for channel in range(1, 257):
+                raw_value = self.tab_mixer.faders[channel].value
+                self.dmx_buffer[channel - 1] = round(raw_value * master_scale)
 
-            QMessageBox.information(self, "Project Dimuat", f"Proyek berhasil dibuka:\n{Path(path).name}")
+            if notify:
+                QMessageBox.information(self, "Project Dimuat", f"Proyek berhasil dibuka:\n{Path(path).name}")
         except Exception as e:
             QMessageBox.critical(self, "Error Buka Proyek", f"Gagal membuka berkas proyek:\n{e}")
 
@@ -531,16 +542,20 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
     def _save_to_path(self, path: str) -> None:
         try:
-            patches = []
-            for ch in range(1, 257):
-                box = self.tab_address.grid_area.boxes.get(ch)
-                if box and box.is_patched:
-                    patches.append({
-                        "channel": ch,
-                        "type": box.channel_type,
-                        "label": box.channel_label,
-                        "fixture": box.fixture_name,
-                    })
+            patches_by_fixture = {}
+            for channel in range(1, 257):
+                box = self.tab_address.grid_area.boxes.get(channel)
+                if not box or not box.is_patched:
+                    continue
+                key = (box.fixture_name, channel - self._fixture_channel_offset(channel))
+                entry = patches_by_fixture.setdefault(key, {
+                    "start_channel": channel - self._fixture_channel_offset(channel),
+                    "model": box.fixture_name,
+                    "channels": [],
+                })
+                entry["channels"].append({"index": len(entry["channels"]) + 1,
+                                          "type": box.channel_type, "label": box.channel_label})
+            patches = list(patches_by_fixture.values())
 
             faders = {}
             for ch in range(257):
@@ -555,7 +570,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
                 "target_ip": self.target_ip,
                 "universe": self.target_universe,
                 "master_dimmer": self.tab_mixer.master_fader.value,
-                "patches_raw": patches,
+                "patches": patches,
                 "songs": self.tab_perform.playlist,
                 "faders": faders,
             }

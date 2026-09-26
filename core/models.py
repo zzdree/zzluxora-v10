@@ -22,6 +22,7 @@ class ChannelType(str, Enum):
     TILT = "tilt"
     SPEED = "speed"
     MACRO = "macro"
+    PROGRAM = "program"
     EMPTY = "empty"
 
 
@@ -60,20 +61,21 @@ class FixtureProfile:
 
     @classmethod
     def create_generic_dimmer_rgbw(cls, name: str = "Generic PAR RGBW 8CH") -> FixtureProfile:
+        """Create the requested PAR footprint: Dimmer, RGBW, Strobe, Program, Speed."""
         return cls(
             id="generic_rgbw_8ch",
             name=name,
             manufacturer="Generic",
             channel_count=8,
             channels=[
-                FixtureChannel(1, ChannelType.DIMMER, "Master Dimmer", default_value=255),
-                FixtureChannel(2, ChannelType.STROBE, "Strobe", default_value=0),
-                FixtureChannel(3, ChannelType.RED, "Red"),
-                FixtureChannel(4, ChannelType.GREEN, "Green"),
-                FixtureChannel(5, ChannelType.BLUE, "Blue"),
-                FixtureChannel(6, ChannelType.WHITE, "White"),
-                FixtureChannel(7, ChannelType.MACRO, "Color Macro"),
-                FixtureChannel(8, ChannelType.SPEED, "Macro Speed"),
+                FixtureChannel(1, ChannelType.DIMMER, "Dimmer", default_value=255),
+                FixtureChannel(2, ChannelType.RED, "Red"),
+                FixtureChannel(3, ChannelType.GREEN, "Green"),
+                FixtureChannel(4, ChannelType.BLUE, "Blue"),
+                FixtureChannel(5, ChannelType.WHITE, "White"),
+                FixtureChannel(6, ChannelType.STROBE, "Strobe"),
+                FixtureChannel(7, ChannelType.PROGRAM, "Program"),
+                FixtureChannel(8, ChannelType.SPEED, "Speed"),
             ]
         )
 

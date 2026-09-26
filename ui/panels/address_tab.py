@@ -61,6 +61,8 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         elif "green" in self.channel_type: short_label = "GRN"
         elif "blue" in self.channel_type: short_label = "BLU"
         elif "white" in self.channel_type: short_label = "WHT"
+        elif "program" in self.channel_type or "macro" in self.channel_type: short_label = "PRG"
+        elif "speed" in self.channel_type: short_label = "SPD"
 
         self.lbl_type.setText(short_label)
         self.update_style()
@@ -85,11 +87,13 @@ class DMXChannelBox(QFrame if HAS_QT else object):
             "pan": Theme.CH_PAN_TILT,
             "tilt": Theme.CH_PAN_TILT,
             "color macro": Theme.CH_COLOR_MACRO,
+            "program": Theme.CH_COLOR_MACRO,
+            "speed": Theme.BORDER_STRONG,
             "empty": Theme.CH_EMPTY,
         }
         bg = color_map.get(self.channel_type, Theme.CH_EMPTY)
         border = Theme.BORDER_HIGHLIGHT if self.is_patched else Theme.BORDER_SUBTLE
-        text_color = "#000000" if self.channel_type in ["dimmer", "white", "green", "strobe"] else "#ffffff"
+        text_color = "#000000" if self.channel_type in ["dimmer", "white", "green", "strobe", "speed"] else "#ffffff"
 
         self.setStyleSheet(f"""
             QFrame#DMXBox {{
@@ -297,19 +301,25 @@ class AddressTab(QWidget if HAS_QT else object):
             self.patch_changed.emit()
 
     def _on_auto_patch_default(self) -> None:
-        """Auto patches 4 standard PAR LED RGBW fixtures (16 channels total)."""
-        self.record_undo()
+        """Auto-patch four requested 8-channel PAR fixture profiles (channels 1-32)."""
         channels_pattern = [
-            ("red", "RED"),
-            ("green", "GRN"),
-            ("blue", "BLU"),
-            ("white", "WHT"),
+            ("dimmer", "Dimmer"), ("red", "Red"), ("green", "Green"),
+            ("blue", "Blue"), ("white", "White"), ("strobe", "Strobe"),
+            ("program", "Program"), ("speed", "Speed"),
         ]
-        ch_idx = 1
-        for par_num in range(1, 5):
-            for ch_type, lbl in channels_pattern:
-                box = self.grid_area.boxes.get(ch_idx)
-                if box:
-                    box.set_patched(ch_type, lbl, f"PAR {par_num}")
-                ch_idx += 1
-        self.patch_changed.emit()
+        self._on_fixture_dropped(1, {
+            "model": "PAR RGBW 8CH",
+            "channels": [
+                {"type": channel_type, "label": label}
+                for channel_type, label in channels_pattern
+            ],
+        })
+        for fixture_index in range(1, 4):
+            start_channel = fixture_index * 8 + 1
+            self._on_fixture_dropped(start_channel, {
+                "model": "PAR RGBW 8CH",
+                "channels": [
+                    {"type": channel_type, "label": label}
+                    for channel_type, label in channels_pattern
+                ],
+            })
