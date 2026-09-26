@@ -69,10 +69,13 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.stream_timer.setInterval(23)
         self.stream_timer.timeout.connect(self._stream_artnet_packet)
 
-        # Floating Sub-Windows
+        # Floating Sub-Windows (Windowed Independent Tools)
         self.win_fixture_list: FixtureListWindow | None = None
         self.win_fixture_editor: FixtureEditorWindow | None = None
         self.win_visualizer: StageVisualizerWindow | None = None
+        self.win_settings: SettingsDialog | None = None
+        self.win_help: HelpDialog | None = None
+        self.win_about: AboutDialog | None = None
 
         self._init_menu_bar()
         self._init_ui()
@@ -325,9 +328,13 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.win_visualizer.activateWindow()
 
     def _on_open_settings(self) -> None:
-        dlg = SettingsDialog(self.target_ip, self.target_universe, self)
-        dlg.settings_saved.connect(self._on_settings_saved)
-        dlg.exec()
+        if self.win_settings is None:
+            self.win_settings = SettingsDialog(self.target_ip, self.target_universe, self)
+            self.win_settings.setWindowFlags(Qt.Window)
+            self.win_settings.settings_saved.connect(self._on_settings_saved)
+        self.win_settings.show()
+        self.win_settings.raise_()
+        self.win_settings.activateWindow()
 
     def _on_settings_saved(self, ip: str, port: int, universe: int) -> None:
         self.target_ip = ip
@@ -337,12 +344,20 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.artnet_sender = ArtNetSender(target_ip=ip, universe=universe, port=port)
 
     def _on_open_help(self) -> None:
-        dlg = HelpDialog(self)
-        dlg.exec()
+        if self.win_help is None:
+            self.win_help = HelpDialog(self)
+            self.win_help.setWindowFlags(Qt.Window)
+        self.win_help.show()
+        self.win_help.raise_()
+        self.win_help.activateWindow()
 
     def _on_open_about(self) -> None:
-        dlg = AboutDialog(self)
-        dlg.exec()
+        if self.win_about is None:
+            self.win_about = AboutDialog(self)
+            self.win_about.setWindowFlags(Qt.Window)
+        self.win_about.show()
+        self.win_about.raise_()
+        self.win_about.activateWindow()
 
     # -----------------------------------------------------------------
     # STAGE CONTROLS: BLACKOUT & PLAY/STOP
@@ -403,8 +418,8 @@ class MainWindow(QMainWindow if HAS_QT else object):
         elif 1 <= ch_id <= 512:
             self.dmx_buffer[ch_id - 1] = int(round(val * master_dim))
 
-        if self.is_transmitting:
-            self.artnet_sender.send_raw(self.dmx_buffer)
+        # Always transmit the updated DMX frame on tactile fader movement for instant hardware response
+        self.artnet_sender.send_raw(self.dmx_buffer)
 
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx(self.dmx_buffer)
@@ -448,6 +463,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.tab_mixer.set_channel_value(base + 2, self.dmx_buffer[base + 1], silent=True)
             self.tab_mixer.set_channel_value(base + 3, self.dmx_buffer[base + 2], silent=True)
             self.tab_mixer.set_channel_value(base + 4, self.dmx_buffer[base + 3], silent=True)
+
+        # Transmit cue immediately to Art-Net
+        self.artnet_sender.send_raw(self.dmx_buffer)
 
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx(self.dmx_buffer)
@@ -493,4 +511,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         if self.win_fixture_list: self.win_fixture_list.close()
         if self.win_fixture_editor: self.win_fixture_editor.close()
         if self.win_visualizer: self.win_visualizer.close()
+        if self.win_settings: self.win_settings.close()
+        if self.win_help: self.win_help.close()
+        if self.win_about: self.win_about.close()
         event.accept()
