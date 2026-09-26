@@ -88,7 +88,7 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
                 "palette": palette,
             }
 
-            self.progress_updated.emit(100, "✓ Analisis Akustik Audio & Pemodelan Mood Selesai!")
+            self.progress_updated.emit(100, "Analisis Akustik Audio & Pemodelan Mood Selesai.")
             self.analysis_finished.emit(result)
 
         except Exception as e:
@@ -184,8 +184,8 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         top_bar = QHBoxLayout()
         title_box = QVBoxLayout()
         lbl_title = QLabel("AUDIO STFT & AFFECTIVE MOOD ANALYZER")
-        lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Short-Time Fourier Transform (N=2048, H=512, 43 FPS) • Ekstraksi Akustik MIR & Model Afektif Russell 2D")
+        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
+        lbl_desc = QLabel("Short-Time Fourier Transform (N=2048, H=512, 43 FPS) | Ekstraksi Akustik MIR & Model Afektif Russell 2D")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -193,21 +193,21 @@ class AnalyzeTab(QWidget if HAS_QT else object):
 
         top_bar.addStretch()
 
-        self.btn_load_file = QPushButton("📁 Load Audio File...")
+        self.btn_load_file = QPushButton("LOAD AUDIO...")
         self.btn_load_file.clicked.connect(self._on_load_audio_file)
         top_bar.addWidget(self.btn_load_file)
 
-        self.btn_import_yt = QPushButton("🌐 Import from YouTube...")
+        self.btn_import_yt = QPushButton("IMPORT YOUTUBE...")
         self.btn_import_yt.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN};")
         self.btn_import_yt.clicked.connect(self._on_open_youtube_dialog)
         top_bar.addWidget(self.btn_import_yt)
 
-        self.btn_remove = QPushButton("🗑️ Remove Song")
+        self.btn_remove = QPushButton("REMOVE SONG")
         self.btn_remove.setEnabled(False)
         self.btn_remove.clicked.connect(self._on_remove_song)
         top_bar.addWidget(self.btn_remove)
 
-        self.btn_analyze = QPushButton("⚡ Analyze Song")
+        self.btn_analyze = QPushButton("ANALYZE")
         self.btn_analyze.setStyleSheet(f"background-color: #143521; color: {Theme.COLOR_SUCCESS}; font-weight: bold;")
         self.btn_analyze.setEnabled(False)
         self.btn_analyze.clicked.connect(self._on_start_analysis)
@@ -302,7 +302,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
 
     def _add_audio_path(self, path_str: str) -> None:
         self.loaded_songs.append(path_str)
-        self.song_list_widget.addItem(f"🎵 {Path(path_str).name}")
+        self.song_list_widget.addItem(f"{Path(path_str).name}")
         self.song_list_widget.setCurrentRow(len(self.loaded_songs) - 1)
         self.btn_analyze.setEnabled(True)
         self.btn_remove.setEnabled(True)

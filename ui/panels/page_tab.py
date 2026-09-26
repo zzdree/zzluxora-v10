@@ -95,8 +95,8 @@ class PageTab(QWidget if HAS_QT else object):
         top_bar = QHBoxLayout()
         title_box = QVBoxLayout()
         title = QLabel("VIRTUAL PLAYBACK EXECUTORS (LIVE PAGE)")
-        title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        desc = QLabel("Tombol Eksekutor Langsung Panggung (grandMA3 & QLC+ Style) • Memicu Scene, Chase, & Strobe Instan.")
+        title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
+        desc = QLabel("Tombol Eksekutor Langsung Panggung (grandMA3 & QLC+ Style) | Memicu Scene, Chase, & Strobe Instan.")
         desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px;")
         title_box.addWidget(title)
         title_box.addWidget(desc)
@@ -104,7 +104,7 @@ class PageTab(QWidget if HAS_QT else object):
 
         top_bar.addStretch()
 
-        self.btn_clear_page = QPushButton("🗑️ Clear Page")
+        self.btn_clear_page = QPushButton("CLEAR PAGE")
         self.btn_clear_page.clicked.connect(self._clear_executors)
         top_bar.addWidget(self.btn_clear_page)
 

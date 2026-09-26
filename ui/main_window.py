@@ -44,8 +44,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
     def __init__(self):
         if not HAS_QT: return
         super().__init__()
-        self.setWindowTitle("ZZLUXORA — Stage Lighting Console")
-        self.resize(1280, 800)
+        self.setWindowTitle("ZZLUXORA")
+        self.resize(1200, 680)
+        self.setMinimumSize(960, 560)
         self.setStyleSheet(CONSOLE_QSS)
 
         # Set Window and Taskbar Icon
@@ -178,12 +179,12 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.btn_artnet_badge.clicked.connect(self._on_open_settings)
         pbar_layout.addWidget(self.btn_artnet_badge)
 
-        self.btn_blackout = QPushButton("○ Blackout")
+        self.btn_blackout = QPushButton("BLACKOUT")
         self.btn_blackout.setObjectName("BlackoutBtn")
         self.btn_blackout.clicked.connect(self._on_blackout_clicked)
         pbar_layout.addWidget(self.btn_blackout)
 
-        self.btn_play_stop = QPushButton("▶ Play")
+        self.btn_play_stop = QPushButton("PLAY")
         self.btn_play_stop.setObjectName("PlayStopToggleBtn")
         self.btn_play_stop.setProperty("state", "play")
         self.btn_play_stop.clicked.connect(self._on_play_stop_toggled)
@@ -269,7 +270,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.tab_buttons[index].setChecked(True)
 
     def _update_title_bar(self) -> None:
-        self.setWindowTitle(f"ZZLUXORA — [{self.current_project_path}]")
+        self.setWindowTitle(f"ZZLUXORA [{Path(self.current_project_path).name}]")
 
     # -----------------------------------------------------------------
     # MENU POP-UP ACTIONS (WINDOWED INDEPENDENT TOOLS)
@@ -344,7 +345,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
         if self.is_transmitting:
             # Change button to STOP (Red)
-            self.btn_play_stop.setText("■ Stop")
+            self.btn_play_stop.setText("STOP")
             self.btn_play_stop.setProperty("state", "stop")
             self.btn_play_stop.style().polish(self.btn_play_stop)
 
@@ -358,7 +359,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.stream_timer.start()
         else:
             # Change button to PLAY (Green)
-            self.btn_play_stop.setText("▶ Play")
+            self.btn_play_stop.setText("PLAY")
             self.btn_play_stop.setProperty("state", "play")
             self.btn_play_stop.style().polish(self.btn_play_stop)
 

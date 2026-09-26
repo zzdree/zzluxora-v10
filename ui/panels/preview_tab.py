@@ -158,7 +158,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent, Qt.Window)
-        self.setWindowTitle("Stage Visualizer (2D & 3D) — ZZLUXORA")
+        self.setWindowTitle("Stage Visualizer (2D & 3D): ZZLUXORA")
         self.resize(800, 540)
         self.setStyleSheet(CONSOLE_QSS)
         self._init_ui()
@@ -173,7 +173,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         title_box = QVBoxLayout()
         lbl_title = QLabel("STAGE LIGHTING VISUALIZER (MULTI-SCREEN SUPPORT)")
         lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Simulasi Tampak Depan Panggung • Pendaran Berkas Cahaya Dinamis PAR LED RGBW")
+        lbl_desc = QLabel("Simulasi Tampak Depan Panggung | Pendaran Berkas Cahaya Dinamis PAR LED RGBW")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -181,11 +181,11 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
 
         top_bar.addStretch()
 
-        self.btn_reset_pos = QPushButton("↺ Reset Posisi Panggung")
+        self.btn_reset_pos = QPushButton("RESET POSITIONS")
         self.btn_reset_pos.clicked.connect(self._reset_positions)
         top_bar.addWidget(self.btn_reset_pos)
 
-        self.btn_close = QPushButton("Tutup")
+        self.btn_close = QPushButton("CLOSE")
         self.btn_close.clicked.connect(self.close)
         top_bar.addWidget(self.btn_close)
 

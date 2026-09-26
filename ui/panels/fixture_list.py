@@ -118,11 +118,11 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         btn_bar = QHBoxLayout()
         btn_bar.addStretch()
 
-        self.btn_refresh = QPushButton("🔄 Muat Ulang Pustaka")
+        self.btn_refresh = QPushButton("RELOAD")
         self.btn_refresh.clicked.connect(self.reload_fixtures)
         btn_bar.addWidget(self.btn_refresh)
 
-        self.btn_close = QPushButton("Tutup")
+        self.btn_close = QPushButton("CLOSE")
         self.btn_close.clicked.connect(self.close)
         btn_bar.addWidget(self.btn_close)
 
@@ -142,7 +142,7 @@ class FixtureListWindow(QWidget if HAS_QT else object):
                     ch_count = data.get("channel_count", len(data.get("channels", [])))
                     mfr = data.get("manufacturer", "Generic")
 
-                    item = QListWidgetItem(f"💡 {mfr} — {name} ({ch_count} Ch)")
+                    item = QListWidgetItem(f"{mfr} | {name} ({ch_count} Ch)")
                     item.setData(Qt.UserRole, data)
                     self.list_widget.addItem(item)
             except Exception:

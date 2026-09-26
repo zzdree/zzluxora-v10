@@ -144,9 +144,9 @@ QPushButton.ProgramTabBtn:checked {{
 
 /* Telemetry: Art-Net Badge */
 QPushButton#ArtNetBadgeBtn {{
-    border-radius: 14px;
-    padding: 5px 14px;
-    font-weight: 700;
+    border-radius: 3px;
+    padding: 5px 12px;
+    font-weight: 800;
     font-size: 11px;
     font-family: "JetBrains Mono", "Consolas", monospace;
     border: 1px solid {Theme.BORDER_STRONG};
@@ -169,8 +169,8 @@ QPushButton#BlackoutBtn {{
     background-color: #000000;
     color: {Theme.COLOR_DANGER};
     border: 2px solid {Theme.COLOR_DANGER};
-    border-radius: 16px;
-    padding: 4px 14px;
+    border-radius: 3px;
+    padding: 5px 14px;
     font-weight: 800;
     font-size: 11px;
     letter-spacing: 0.5px;

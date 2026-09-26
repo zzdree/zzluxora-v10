@@ -108,16 +108,16 @@ class SettingsDialog(QDialog if HAS_QT else object):
         btn_bar = QHBoxLayout()
         btn_bar.addStretch()
 
-        self.btn_rescan = QPushButton("🔍 Scan Ulang")
+        self.btn_rescan = QPushButton("SCAN INTERFACES")
         self.btn_rescan.clicked.connect(self._scan_network_interfaces)
         btn_bar.addWidget(self.btn_rescan)
 
-        self.btn_save = QPushButton("💾 Simpan Konfigurasi")
+        self.btn_save = QPushButton("SAVE")
         self.btn_save.setStyleSheet(f"background-color: #143521; color: {Theme.COLOR_SUCCESS}; font-weight: bold;")
         self.btn_save.clicked.connect(self._on_save_clicked)
         btn_bar.addWidget(self.btn_save)
 
-        self.btn_close = QPushButton("Batal")
+        self.btn_close = QPushButton("CANCEL")
         self.btn_close.clicked.connect(self.close)
         btn_bar.addWidget(self.btn_close)
 

@@ -126,12 +126,12 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         btn_bar = QHBoxLayout()
         btn_bar.addStretch()
 
-        self.btn_save = QPushButton("💾 Simpan Fixture (.zfx)")
+        self.btn_save = QPushButton("SAVE FIXTURE (.zfx)")
         self.btn_save.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN}; font-weight: bold;")
         self.btn_save.clicked.connect(self._on_save_file)
         btn_bar.addWidget(self.btn_save)
 
-        self.btn_close = QPushButton("Tutup")
+        self.btn_close = QPushButton("CLOSE")
         self.btn_close.clicked.connect(self.close)
         btn_bar.addWidget(self.btn_close)
 

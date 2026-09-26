@@ -38,8 +38,8 @@ class MixerTab(QWidget if HAS_QT else object):
         top_bar = QHBoxLayout()
         title_box = QVBoxLayout()
         lbl_title = QLabel("GRANDMA3 INDUSTRIAL CONSOLE MIXER (257 FADERS)")
-        lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY}; letter-spacing: 0.5px;")
-        lbl_desc = QLabel("1 Grand Master Dimmer + 256 Kanal DMX Output • Rel Fader Ber-LED Menyala & Skala Kalibrasi Analog")
+        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY}; letter-spacing: 0.5px;")
+        lbl_desc = QLabel("1 Grand Master Dimmer + 256 Kanal DMX Output | Rel Fader Ber-LED Menyala & Skala Kalibrasi Analog")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -47,16 +47,16 @@ class MixerTab(QWidget if HAS_QT else object):
 
         top_bar.addStretch()
 
-        self.btn_reset_all = QPushButton("↺ Reset DMX (All 0)")
+        self.btn_reset_all = QPushButton("RESET DMX")
         self.btn_reset_all.clicked.connect(self._reset_dmx_channels)
         top_bar.addWidget(self.btn_reset_all)
 
-        self.btn_full_master = QPushButton("☀️ Full Master (255)")
+        self.btn_full_master = QPushButton("FULL MASTER")
         self.btn_full_master.setStyleSheet(f"color: {Theme.ACCENT_AMBER}; border-color: {Theme.ACCENT_AMBER};")
         self.btn_full_master.clicked.connect(lambda: self.set_channel_value(0, 255))
         top_bar.addWidget(self.btn_full_master)
 
-        self.btn_refresh = QPushButton("🔄 Refresh")
+        self.btn_refresh = QPushButton("REFRESH")
         self.btn_refresh.clicked.connect(self.refresh_display)
         top_bar.addWidget(self.btn_refresh)
 

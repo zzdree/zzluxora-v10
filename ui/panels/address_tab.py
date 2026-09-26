@@ -27,7 +27,7 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         self.channel_label = ""
         self.fixture_name = ""
 
-        self.setFixedSize(50, 50)
+        self.setFixedSize(46, 46)
         self.setObjectName("DMXBox")
 
         layout = QVBoxLayout(self)
@@ -55,8 +55,8 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         self.fixture_name = fixture_name
 
         short_label = self.channel_label[:4].upper()
-        if "dim" in self.channel_type: short_label = "DIM 💡"
-        elif "strobe" in self.channel_type: short_label = "STR ⚡"
+        if "dim" in self.channel_type: short_label = "DIM"
+        elif "strobe" in self.channel_type: short_label = "STR"
         elif "red" in self.channel_type: short_label = "RED"
         elif "green" in self.channel_type: short_label = "GRN"
         elif "blue" in self.channel_type: short_label = "BLU"
@@ -178,8 +178,8 @@ class AddressTab(QWidget if HAS_QT else object):
 
         title_box = QVBoxLayout()
         lbl_title = QLabel("DMX ADDRESS PATCH SHEET")
-        lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY}; letter-spacing: 0.5px;")
-        lbl_desc = QLabel("Matriks 256 Kanal DMX (Maks 24 Kolom) • Drag fixture dari Fixture List untuk melakukan patching.")
+        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY}; letter-spacing: 0.5px;")
+        lbl_desc = QLabel("Matriks 256 Kanal DMX (Maks 24 Kolom) | Drag fixture dari Fixture List untuk melakukan patching.")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -187,22 +187,22 @@ class AddressTab(QWidget if HAS_QT else object):
 
         ctrl_bar.addStretch()
 
-        # Action Buttons
-        self.btn_undo = QPushButton("↶ Undo (Ctrl+Z)")
+        # Action Buttons (Clean Industrial Lighting Style)
+        self.btn_undo = QPushButton("UNDO (Ctrl+Z)")
         self.btn_undo.clicked.connect(self.undo_patch)
         self.btn_undo.setEnabled(False)
         ctrl_bar.addWidget(self.btn_undo)
 
-        self.btn_redo = QPushButton("↷ Redo (Ctrl+Y)")
+        self.btn_redo = QPushButton("REDO (Ctrl+Y)")
         self.btn_redo.clicked.connect(self.redo_patch)
         self.btn_redo.setEnabled(False)
         ctrl_bar.addWidget(self.btn_redo)
 
-        self.btn_auto_patch = QPushButton("⚡ Auto Patch 4 PAR")
+        self.btn_auto_patch = QPushButton("AUTO PATCH (4 PAR)")
         self.btn_auto_patch.clicked.connect(self._on_auto_patch_default)
         ctrl_bar.addWidget(self.btn_auto_patch)
 
-        self.btn_clear = QPushButton("🗑️ Clear All Patch")
+        self.btn_clear = QPushButton("CLEAR PATCH")
         self.btn_clear.setStyleSheet(f"color: {Theme.COLOR_DANGER}; border-color: {Theme.BORDER_STRONG};")
         self.btn_clear.clicked.connect(self._on_clear_patch_confirm)
         ctrl_bar.addWidget(self.btn_clear)

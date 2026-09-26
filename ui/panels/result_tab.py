@@ -37,7 +37,7 @@ class ResultTab(QWidget if HAS_QT else object):
         title_box = QVBoxLayout()
         lbl_title = QLabel("HASIL ANALISIS AFEKTIF & METRIK AUDIO")
         lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Hasil Komputasi Sinyal Lagu Rohani • Model Afektif Russell 2D & Rekomendasi Suasana Panggung")
+        lbl_desc = QLabel("Hasil Komputasi Sinyal Lagu Rohani | Model Afektif Russell 2D & Rekomendasi Suasana Panggung")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -45,11 +45,11 @@ class ResultTab(QWidget if HAS_QT else object):
 
         top_bar.addStretch()
 
-        self.btn_reanalyze = QPushButton("🔄 Re-Analyze")
+        self.btn_reanalyze = QPushButton("RE-ANALYZE")
         self.btn_reanalyze.clicked.connect(lambda: self.reanalyze_requested.emit())
         top_bar.addWidget(self.btn_reanalyze)
 
-        self.btn_export = QPushButton("🚀 Export to Perform")
+        self.btn_export = QPushButton("EXPORT TO PERFORM")
         self.btn_export.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN}; font-weight: bold;")
         self.btn_export.setEnabled(False)
         self.btn_export.clicked.connect(self._on_export_clicked)

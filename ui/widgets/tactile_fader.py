@@ -37,16 +37,16 @@ class TactileFader(QWidget if HAS_QT else object):
         self.is_master = is_master
         self.is_dragging = False
 
-        self.setFixedWidth(56)
-        self.setMinimumHeight(240)
+        self.setFixedWidth(52)
+        self.setMinimumHeight(190)
         self.setFocusPolicy(Qt.StrongFocus)
 
-        # Cap & Track dimensions
-        self.cap_width = 34
-        self.cap_height = 20
+        # Cap & Track dimensions (compact industrial console sizing for 768p and 1080p)
+        self.cap_width = 30
+        self.cap_height = 18
         self.track_width = 4
-        self.top_margin = 24
-        self.bottom_margin = 46
+        self.top_margin = 18
+        self.bottom_margin = 38
 
     @property
     def value(self) -> int:

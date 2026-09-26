@@ -35,8 +35,8 @@ class PerformTab(QWidget if HAS_QT else object):
         top_bar = QHBoxLayout()
         title_box = QVBoxLayout()
         lbl_title = QLabel("LIVE STAGE SHOW CONTROLLER & PERFORMANCE")
-        lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Pengaturan Playlist Pertunjukan Live • Section Cues (Verse, Chorus, Bridge) & Transisi Fade")
+        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
+        lbl_desc = QLabel("Pengaturan Playlist Pertunjukan Live | Section Cues & Transisi Fade")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -44,19 +44,19 @@ class PerformTab(QWidget if HAS_QT else object):
 
         top_bar.addStretch()
 
-        self.btn_move_up = QPushButton("▲ Geser Naik")
+        self.btn_move_up = QPushButton("MOVE UP")
         self.btn_move_up.clicked.connect(self._on_move_up)
         top_bar.addWidget(self.btn_move_up)
 
-        self.btn_move_down = QPushButton("▼ Geser Turun")
+        self.btn_move_down = QPushButton("MOVE DOWN")
         self.btn_move_down.clicked.connect(self._on_move_down)
         top_bar.addWidget(self.btn_move_down)
 
-        self.btn_delete_song = QPushButton("🗑️ Hapus Lagu")
+        self.btn_delete_song = QPushButton("DELETE")
         self.btn_delete_song.clicked.connect(self._on_delete_song)
         top_bar.addWidget(self.btn_delete_song)
 
-        self.btn_export_page = QPushButton("⚡ Generate / Export to Page")
+        self.btn_export_page = QPushButton("GENERATE EXECUTORS")
         self.btn_export_page.setStyleSheet(f"background-color: #143521; color: {Theme.COLOR_SUCCESS}; font-weight: 800;")
         self.btn_export_page.clicked.connect(self._on_export_to_page)
         top_bar.addWidget(self.btn_export_page)
@@ -111,7 +111,7 @@ class PerformTab(QWidget if HAS_QT else object):
         title = song_data.get("title", "Untitled")
         quad = song_data.get("quadrant", "General")
         bpm = song_data.get("bpm", 120.0)
-        self.playlist_widget.addItem(f"🎶 {title} — [{quad}, {bpm:.0f} BPM]")
+        self.playlist_widget.addItem(f"{title} [{quad}, {bpm:.0f} BPM]")
         self.playlist_widget.setCurrentRow(len(self.playlist) - 1)
 
     def _on_song_selected(self, row: int) -> None:
@@ -167,7 +167,7 @@ class PerformTab(QWidget if HAS_QT else object):
                 "dimmer": 255,
             })
             generated_cues.append({
-                "label": f"FLASH ⚡\n{title[:6]}",
+                "label": f"FLASH\n{title[:6]}",
                 "type": "flash",
                 "color": {"R": 255, "G": 255, "B": 255, "W": 255},
                 "dimmer": 255,
