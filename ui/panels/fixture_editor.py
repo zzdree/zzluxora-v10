@@ -40,7 +40,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent, Qt.Window)
-        self.setWindowTitle("Fixture Definition Editor — ZZLUXORA")
+        self.setWindowTitle("Fixture Definition Editor: ZZLUXORA")
         self.resize(680, 560)
         self.setStyleSheet(CONSOLE_QSS)
 
@@ -223,7 +223,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
                         if t in CHANNEL_TYPES: combo.setCurrentText(t)
 
                 self.current_file_path = Path(path)
-                self.setWindowTitle(f"Fixture Definition Editor — [{self.current_file_path.name}]")
+                self.setWindowTitle(f"Fixture Definition Editor [{self.current_file_path.name}]")
         except Exception as e:
             QMessageBox.critical(self, "Error Buka Berkas", f"Gagal membaca profil fixture:\n{e}")
 
