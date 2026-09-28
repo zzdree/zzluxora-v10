@@ -63,6 +63,7 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         elif "white" in self.channel_type: short_label = "WHT"
         elif "program" in self.channel_type or "macro" in self.channel_type: short_label = "PRG"
         elif "speed" in self.channel_type: short_label = "SPD"
+        elif "empt" in self.channel_type: short_label = "EMP"
 
         self.lbl_type.setText(short_label)
         self.update_style()

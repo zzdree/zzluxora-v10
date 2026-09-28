@@ -292,6 +292,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
     def _on_open_visualizer(self) -> None:
         if self.win_visualizer is None:
             self.win_visualizer = StageVisualizerWindow()
+        self.win_visualizer.update_dmx(self.dmx_buffer)
         self.win_visualizer.show()
         self.win_visualizer.raise_()
         self.win_visualizer.activateWindow()
