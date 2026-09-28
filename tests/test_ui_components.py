@@ -185,6 +185,27 @@ class TestUIModules(unittest.TestCase):
         self.assertTrue(win.is_transmitting)
         win._on_play_stop_toggled()
         self.assertFalse(win.is_transmitting)
+
+        # Verify all popup windows and menus instantiate and become visible
+        win._on_open_fixture_list()
+        self.assertTrue(win.win_fixture_list.isVisible())
+        win._on_open_fixture_editor()
+        self.assertTrue(win.win_fixture_editor.isVisible())
+        win._on_open_visualizer()
+        self.assertTrue(win.win_visualizer.isVisible())
+        win._on_open_settings()
+        self.assertTrue(win.win_settings.isVisible())
+        win._on_open_help()
+        self.assertTrue(win.win_help.isVisible())
+        win._on_open_about()
+        self.assertTrue(win.win_about.isVisible())
+
+        # Verify all 7 top-level menus exist
+        from ui.qt_compat import QMenu
+        menu_titles = [m.title() for m in win.menuBar().findChildren(QMenu)]
+        for title in ["File", "Fixture", "Editor", "Preview", "Setting", "Help", "About"]:
+            self.assertIn(title, menu_titles)
+
         win.close()
 
 

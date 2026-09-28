@@ -79,19 +79,19 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.win_help: HelpDialog | None = None
         self.win_about: AboutDialog | None = None
 
-        self._init_menu_bar()
         self._init_ui()
+        self._init_menu_bar()
         self._init_shortcuts()
         self._update_title_bar()
 
     def _init_menu_bar(self) -> None:
-        """Level 2: Main Menu Bar."""
+        """Level 2: Main Menu Bar with proper dropdown QMenu hierarchy."""
         mb = self.menuBar()
 
         # 1. File Menu
         menu_file = mb.addMenu("File")
 
-        act_open = QAction("Open Project...", self)
+        act_open = QAction("Open Project (.zlx)...", self)
         act_open.setShortcut(QKeySequence("Ctrl+O"))
         act_open.triggered.connect(self._on_open_project)
         menu_file.addAction(act_open)
@@ -113,30 +113,60 @@ class MainWindow(QMainWindow if HAS_QT else object):
         act_exit.triggered.connect(self.close)
         menu_file.addAction(act_exit)
 
-        # 2. Standalone Floating Window Menus
-        act_fix = QAction("Fixture", self)
-        act_fix.triggered.connect(self._on_open_fixture_list)
-        mb.addAction(act_fix)
+        # 2. Fixture Menu
+        menu_fix = mb.addMenu("Fixture")
+        act_fix_list = QAction("Fixture Library (Drag & Drop)...", self)
+        act_fix_list.setShortcut(QKeySequence("Ctrl+F"))
+        act_fix_list.triggered.connect(self._on_open_fixture_list)
+        menu_fix.addAction(act_fix_list)
 
-        act_edit = QAction("Editor", self)
-        act_edit.triggered.connect(self._on_open_fixture_editor)
-        mb.addAction(act_edit)
+        act_fix_edit = QAction("Fixture Definition Editor (.zfx)...", self)
+        act_fix_edit.setShortcut(QKeySequence("Ctrl+E"))
+        act_fix_edit.triggered.connect(self._on_open_fixture_editor)
+        menu_fix.addAction(act_fix_edit)
 
-        act_prev = QAction("Preview", self)
-        act_prev.triggered.connect(self._on_open_visualizer)
-        mb.addAction(act_prev)
+        # 3. Editor Menu
+        menu_edit = mb.addMenu("Editor")
+        act_edit_profile = QAction("Open Fixture Editor...", self)
+        act_edit_profile.triggered.connect(self._on_open_fixture_editor)
+        menu_edit.addAction(act_edit_profile)
 
-        act_set = QAction("Setting", self)
-        act_set.triggered.connect(self._on_open_settings)
-        mb.addAction(act_set)
+        act_clear_patch = QAction("Clear DMX Address Grid Patch", self)
+        act_clear_patch.triggered.connect(lambda: self.tab_address.clear_patch())
+        menu_edit.addAction(act_clear_patch)
 
-        act_help = QAction("Help", self)
-        act_help.triggered.connect(self._on_open_help)
-        mb.addAction(act_help)
+        # 4. Preview Menu
+        menu_prev = mb.addMenu("Preview")
+        act_stage_vis = QAction("Stage Lighting Visualizer (2D & 3D)...", self)
+        act_stage_vis.setShortcut(QKeySequence("Ctrl+P"))
+        act_stage_vis.triggered.connect(self._on_open_visualizer)
+        menu_prev.addAction(act_stage_vis)
 
-        act_about = QAction("About", self)
-        act_about.triggered.connect(self._on_open_about)
-        mb.addAction(act_about)
+        # 5. Setting Menu
+        menu_set = mb.addMenu("Setting")
+        act_net_settings = QAction("Network & Art-Net Configuration...", self)
+        act_net_settings.setShortcut(QKeySequence("Ctrl+Shift+P"))
+        act_net_settings.triggered.connect(self._on_open_settings)
+        menu_set.addAction(act_net_settings)
+
+        # 6. Help Menu
+        menu_help = mb.addMenu("Help")
+        act_shortcuts = QAction("User Guide & Keyboard Shortcuts...", self)
+        act_shortcuts.setShortcut(QKeySequence("F1"))
+        act_shortcuts.triggered.connect(self._on_open_help)
+        menu_help.addAction(act_shortcuts)
+
+        menu_help.addSeparator()
+
+        act_about_app = QAction("About ZZLUXORA...", self)
+        act_about_app.triggered.connect(self._on_open_about)
+        menu_help.addAction(act_about_app)
+
+        # 7. About Menu (Direct Top-Level Access)
+        menu_about = mb.addMenu("About")
+        act_direct_about = QAction("Academic Info & Developer Details...", self)
+        act_direct_about.triggered.connect(self._on_open_about)
+        menu_about.addAction(act_direct_about)
 
     def _init_ui(self) -> None:
         central_widget = QWidget(self)
@@ -277,22 +307,25 @@ class MainWindow(QMainWindow if HAS_QT else object):
     # -----------------------------------------------------------------
     def _on_open_fixture_list(self) -> None:
         if self.win_fixture_list is None:
-            self.win_fixture_list = FixtureListWindow()
+            self.win_fixture_list = FixtureListWindow(parent=self)
+        self.win_fixture_list.showNormal()
         self.win_fixture_list.show()
         self.win_fixture_list.raise_()
         self.win_fixture_list.activateWindow()
 
     def _on_open_fixture_editor(self) -> None:
         if self.win_fixture_editor is None:
-            self.win_fixture_editor = FixtureEditorWindow()
+            self.win_fixture_editor = FixtureEditorWindow(parent=self)
+        self.win_fixture_editor.showNormal()
         self.win_fixture_editor.show()
         self.win_fixture_editor.raise_()
         self.win_fixture_editor.activateWindow()
 
     def _on_open_visualizer(self) -> None:
         if self.win_visualizer is None:
-            self.win_visualizer = StageVisualizerWindow()
+            self.win_visualizer = StageVisualizerWindow(parent=self)
         self.win_visualizer.update_dmx(self.dmx_buffer)
+        self.win_visualizer.showNormal()
         self.win_visualizer.show()
         self.win_visualizer.raise_()
         self.win_visualizer.activateWindow()
@@ -302,6 +335,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.win_settings = SettingsDialog(self.target_ip, self.target_universe, self)
             self.win_settings.setWindowFlags(Qt.Window)
             self.win_settings.settings_saved.connect(self._on_settings_saved)
+        self.win_settings.showNormal()
         self.win_settings.show()
         self.win_settings.raise_()
         self.win_settings.activateWindow()
@@ -317,6 +351,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         if self.win_help is None:
             self.win_help = HelpDialog(self)
             self.win_help.setWindowFlags(Qt.Window)
+        self.win_help.showNormal()
         self.win_help.show()
         self.win_help.raise_()
         self.win_help.activateWindow()
@@ -325,6 +360,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         if self.win_about is None:
             self.win_about = AboutDialog(self)
             self.win_about.setWindowFlags(Qt.Window)
+        self.win_about.showNormal()
         self.win_about.show()
         self.win_about.raise_()
         self.win_about.activateWindow()

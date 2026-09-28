@@ -9,10 +9,10 @@ import json
 from pathlib import Path
 
 from ui.qt_compat import (
-    HAS_QT, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    HAS_QT, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
     QLineEdit, QSpinBox, QTableWidget, QTableWidgetItem,
     QComboBox, QFileDialog, QMessageBox, QGroupBox, QHeaderView, QMenuBar, QMenu,
-    Qt, QAction, QKeySequence, QFont
+    Qt, QAction, QKeySequence, QFont, QColor
 )
 from ui.styles import Theme, CONSOLE_QSS
 
@@ -146,7 +146,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             item_no = QTableWidgetItem(f"Ch {i+1:02d}")
             item_no.setTextAlignment(Qt.AlignCenter)
             item_no.setFlags(Qt.ItemIsEnabled)
-            item_no.setForeground(Theme.TEXT_SECONDARY)
+            item_no.setForeground(QColor(Theme.TEXT_SECONDARY))
             self.table.setItem(i, 0, item_no)
 
             init_label = default_names[i] if i < len(default_names) else f"Channel {i+1}"
