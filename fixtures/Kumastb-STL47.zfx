@@ -1,0 +1,18 @@
+{
+  "id": "kumastb_stl47_8ch",
+  "name": "Kumastb STL47 (8CH RGBW)",
+  "manufacturer": "Kumastb",
+  "model": "STL47",
+  "type": "Color Changer",
+  "channel_count": 8,
+  "channels": [
+    {"index": 1, "label": "Dimmer", "type": "dimmer", "default_value": 255},
+    {"index": 2, "label": "Red", "type": "red", "default_value": 0},
+    {"index": 3, "label": "Green", "type": "green", "default_value": 0},
+    {"index": 4, "label": "Blue", "type": "blue", "default_value": 0},
+    {"index": 5, "label": "White", "type": "white", "default_value": 0},
+    {"index": 6, "label": "Strobe", "type": "strobe", "default_value": 0},
+    {"index": 7, "label": "Program", "type": "program", "default_value": 0},
+    {"index": 8, "label": "Speed", "type": "speed", "default_value": 0}
+  ]
+}

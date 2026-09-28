@@ -79,6 +79,46 @@ class FixtureProfile:
             ]
         )
 
+    @classmethod
+    def create_kumastb_stl47(cls, name: str = "Kumastb STL47 (8CH RGBW)") -> FixtureProfile:
+        """Official bench-test RGBW fixture profile: Dimmer, RGBW, Strobe, Program, Speed."""
+        return cls(
+            id="kumastb_stl47_8ch",
+            name=name,
+            manufacturer="Kumastb",
+            channel_count=8,
+            channels=[
+                FixtureChannel(1, ChannelType.DIMMER, "Dimmer", default_value=255),
+                FixtureChannel(2, ChannelType.RED, "Red"),
+                FixtureChannel(3, ChannelType.GREEN, "Green"),
+                FixtureChannel(4, ChannelType.BLUE, "Blue"),
+                FixtureChannel(5, ChannelType.WHITE, "White"),
+                FixtureChannel(6, ChannelType.STROBE, "Strobe"),
+                FixtureChannel(7, ChannelType.PROGRAM, "Program"),
+                FixtureChannel(8, ChannelType.SPEED, "Speed"),
+            ]
+        )
+
+    @classmethod
+    def create_alien_al36(cls, name: str = "Alien AL36 (8CH RGB)") -> FixtureProfile:
+        """Official GIA Deliksari church stage fixture profile: Dimmer, RGB, Empty, Program, Speed, Emptz."""
+        return cls(
+            id="alien_al36_8ch",
+            name=name,
+            manufacturer="Alien",
+            channel_count=8,
+            channels=[
+                FixtureChannel(1, ChannelType.DIMMER, "Dimmer", default_value=255),
+                FixtureChannel(2, ChannelType.RED, "Red"),
+                FixtureChannel(3, ChannelType.GREEN, "Green"),
+                FixtureChannel(4, ChannelType.BLUE, "Blue"),
+                FixtureChannel(5, ChannelType.EMPTY, "Empty"),
+                FixtureChannel(6, ChannelType.PROGRAM, "Program"),
+                FixtureChannel(7, ChannelType.SPEED, "Speed"),
+                FixtureChannel(8, ChannelType.EMPTY, "Emptz"),
+            ]
+        )
+
 
 @dataclass
 class PatchEntry:

@@ -126,6 +126,50 @@ class TestUIModules(unittest.TestCase):
         user_fixture = Path.home() / ".qlcplus" / "fixtures" / "ZZLUXORA" / "ZZLUXORA-PAR-RGBW-8CH.qxf"
         self.assertTrue(user_fixture.is_file(), f"QLC+ user fixture definition missing: {user_fixture}")
 
+    def test_official_kumastb_and_alien_fixtures(self):
+        fixtures_dir = BASE_DIR / "fixtures"
+        # 1. Test Kumastb STL47 (8CH RGBW) .zfx and .qxf
+        kuma_zfx_file = fixtures_dir / "Kumastb-STL47.zfx"
+        self.assertTrue(kuma_zfx_file.is_file())
+        with open(kuma_zfx_file, "r", encoding="utf-8") as fp:
+            kuma_data = json.load(fp)
+        self.assertEqual(kuma_data["manufacturer"], "Kumastb")
+        self.assertEqual(kuma_data["channel_count"], 8)
+        self.assertEqual([ch["label"] for ch in kuma_data["channels"]],
+                         ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"])
+
+        kuma_qxf_file = fixtures_dir / "Kumastb-STL47.qxf"
+        self.assertTrue(kuma_qxf_file.is_file())
+        ns = {"q": "http://www.qlcplus.org/FixtureDefinition"}
+        qxf_kuma = ET.parse(kuma_qxf_file).getroot()
+        self.assertEqual([node.attrib["Name"] for node in qxf_kuma.findall("q:Channel", ns)],
+                         ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"])
+
+        # 2. Test Alien AL36 (8CH RGB) .zfx and .qxf
+        alien_zfx_file = fixtures_dir / "Alien-AL36.zfx"
+        self.assertTrue(alien_zfx_file.is_file())
+        with open(alien_zfx_file, "r", encoding="utf-8") as fp:
+            alien_data = json.load(fp)
+        self.assertEqual(alien_data["manufacturer"], "Alien")
+        self.assertEqual(alien_data["channel_count"], 8)
+        self.assertEqual([ch["label"] for ch in alien_data["channels"]],
+                         ["Dimmer", "Red", "Green", "Blue", "Empty", "Program", "Speed", "Emptz"])
+
+        alien_qxf_file = fixtures_dir / "Alien-AL36.qxf"
+        self.assertTrue(alien_qxf_file.is_file())
+        qxf_alien = ET.parse(alien_qxf_file).getroot()
+        self.assertEqual([node.attrib["Name"] for node in qxf_alien.findall("q:Channel", ns)],
+                         ["Dimmer", "Red", "Green", "Blue", "Empty", "Program", "Speed", "Emptz"])
+
+        # 3. Test FixtureProfile factory methods
+        from core.models import FixtureProfile
+        kuma_prof = FixtureProfile.create_kumastb_stl47()
+        self.assertEqual(kuma_prof.manufacturer, "Kumastb")
+        self.assertEqual(kuma_prof.channel_count, 8)
+        alien_prof = FixtureProfile.create_alien_al36()
+        self.assertEqual(alien_prof.manufacturer, "Alien")
+        self.assertEqual(alien_prof.channel_count, 8)
+
     def test_headless_main_window_instantiation(self):
         self._application()
         from ui.main_window import MainWindow
