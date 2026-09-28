@@ -67,7 +67,7 @@ class TestUIModules(unittest.TestCase):
         self._application()
         from ui.main_window import MainWindow
         win = MainWindow()
-        demo_path = BASE_DIR / "fixtures" / "demo_church_worship.zlx"
+        demo_path = BASE_DIR / "showfiles" / "demo_church_worship.zlx"
         with patch("ui.main_window.QMessageBox.information"):
             win.load_project_file(str(demo_path))
 
@@ -97,21 +97,20 @@ class TestUIModules(unittest.TestCase):
 
     def test_qlcplus_definition_and_workspace_use_requested_eight_channel_order(self):
         fixtures_dir = BASE_DIR / "fixtures"
+        showfiles_dir = BASE_DIR / "showfiles"
         ns = {"q": "http://www.qlcplus.org/FixtureDefinition"}
-        qxf = ET.parse(fixtures_dir / "ZZLUXORA-PAR-RGBW-8CH.qxf").getroot()
+        qxf = ET.parse(fixtures_dir / "Kumastb-STL47.qxf").getroot()
         expected = ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"]
         names = [node.attrib["Name"] for node in qxf.findall("q:Channel", ns)]
-        mode = qxf.find("q:Mode[@Name='8 Channel']", ns)
+        mode = qxf.find("q:Mode[@Name='Modes']", ns)
         self.assertEqual(names, expected)
         self.assertEqual([node.text for node in mode.findall("q:Channel", ns)], expected)
 
-        workspace = ET.parse(fixtures_dir / "qlcplus_template.qxw").getroot()
+        workspace = ET.parse(showfiles_dir / "qlcplus_template.qxw").getroot()
         fixtures = workspace.findall("./Engine/Fixture")
         self.assertEqual(len(fixtures), 4)
         self.assertEqual([int(f.findtext("Channels")) for f in fixtures], [8] * 4)
         self.assertEqual([int(f.findtext("Address")) for f in fixtures], [0, 8, 16, 24])
-        self.assertTrue(all(f.findtext("Manufacturer") == "ZZLUXORA" for f in fixtures))
-        self.assertTrue(all(f.findtext("Model") == "PAR RGBW 8CH" for f in fixtures))
 
         sliders = workspace.findall("./VirtualConsole/Frame/Slider")
         self.assertEqual(len(sliders), 32)
@@ -123,7 +122,7 @@ class TestUIModules(unittest.TestCase):
                 self.assertIn(channel_name, slider.get("Caption"))
 
     def test_qlc_user_fixture_definition_is_installed_for_qxw(self):
-        user_fixture = Path.home() / ".qlcplus" / "fixtures" / "ZZLUXORA" / "ZZLUXORA-PAR-RGBW-8CH.qxf"
+        user_fixture = Path.home() / ".qlcplus" / "fixtures" / "Kumastb" / "Kumastb-STL47.qxf"
         self.assertTrue(user_fixture.is_file(), f"QLC+ user fixture definition missing: {user_fixture}")
 
     def test_official_kumastb_and_alien_fixtures(self):

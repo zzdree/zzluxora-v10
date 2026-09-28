@@ -68,14 +68,18 @@ zzluxora_v10/
 │   ├── TEST_PLAN.md           # Rencana pengujian berjenjang (Unit, SITL, Lapangan)
 │   └── ROADMAP.md             # Rencana aksi eksekusi Big Plan v3 bertahap
 │
-├── fixtures/                  # Preset profil lampu & berkas demo
-│   ├── demo_church_worship.zlx # Berkas proyek demo resmi (bisa dibuka via File -> Open Project...)
-│   ├── generic_par_rgbw_8ch.zfx # Profil fixture 8-CH (Dimmer, Red, Green, Blue, White, Strobe, Program, Speed)
-│   ├── generic_par_rgbw_8ch.zfx
-│   ├── generic_par_rgbw_4ch.json
-│   └── qlcplus_template.qxw   # Template SITL loopback QLC+
+├── fixtures/                  # Preset profil lampu resmi (.zfx & .qxf saja)
+│   ├── Kumastb-STL47.zfx      # Unit uji bench testing (8CH RGBW)
+│   ├── Kumastb-STL47.qxf      # Profil QLC+ Kumastb STL47
+│   ├── Alien-AL36.zfx         # 4 Unit panggung GIA Deliksari (8CH RGB)
+│   └── Alien-AL36.qxf         # Profil QLC+ Alien AL36
 │
-├── tests/                     # Unit testing & verification (14 tests pass 100%)
+├── showfiles/                 # Berkas pertunjukan live (.zlx) & simulasi (.qxw)
+│   ├── demo_church_worship.zlx # Berkas proyek demo resmi (File -> Open Project...)
+│   ├── qlcplus_template.qxw   # Template SITL loopback QLC+ (8CH)
+│   └── zzluxora_test.qxw      # Workspace pengujian visualizer loopback
+│
+├── tests/                     # Unit testing & verification (19 tests pass 100%)
 │   ├── test_core_engine.py
 │   └── test_ui_components.py
 ├── requirements.txt           # Dependensi pustaka Python
@@ -89,7 +93,7 @@ zzluxora_v10/
 
 1. **Peluncuran Instan (Zero Splashscreen) & Clean Initial State:**
    - Aplikasi terbuka seketika (*instant cold launch* < 500 ms) menyerupai QLC+, tanpa jeda splash screen.
-   - Tampilan awal 100% kosong (*clean blank state* tanpa demo otomatis). Berkas demo mandiri disediakan di `fixtures/demo_church_worship.zlx`.
+   - Tampilan awal 100% kosong (*clean blank state* tanpa demo otomatis). Berkas demo mandiri disediakan di `showfiles/demo_church_worship.zlx`.
 2. **Transmisi Art-Net Play-Gated:**
    - Paket UDP Art-Net Port 6454 **HANYA DIKIRIMKAN ketika tombol PLAY aktif** (`is_transmitting == True`). Ketika Play belum ditekan, pergerakan fader hanya memperbarui GUI internal tanpa memancarkan paket ke jaringan.
 3. **Hierarki Header Desktop Standar:**

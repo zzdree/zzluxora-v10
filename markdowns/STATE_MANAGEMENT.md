@@ -99,7 +99,7 @@ Aplikasi **ZZLUXORA v10** mengadopsi prinsip **Single Source of Truth (SSOT)** d
 
 ### 4.1. Berkas Proyek (`.zlx`)
 - Format berkas `.zlx` adalah JSON yang terstruktur murni Python untuk efisiensi penyimpanan dan kecepatan I/O.
-- Disediakan berkas demo resmi di `fixtures/demo_church_worship.zlx`.
+- Disediakan berkas demo resmi di `showfiles/demo_church_worship.zlx`.
 - Struktur Data:
   ```json
   {

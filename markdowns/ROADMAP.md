@@ -70,7 +70,7 @@
 
 ### 📑 FASE 4: Restrukturisasi 6 Tab Workspaces (STATUS: TUNTAS 100%)
 - [x] **Clean Initial State:** Seluruh tab dimulai dalam kondisi 100% kosong tanpa demo otomatis yang membingungkan operator.
-- [x] **Berkas Demo Khusus:** `fixtures/demo_church_worship.zlx` disediakan untuk memuat demo kapan saja via `File -> Open Project...`.
+- [x] **Berkas Demo Khusus:** `showfiles/demo_church_worship.zlx` disediakan untuk memuat demo kapan saja via `File -> Open Project...`.
 - [x] **Tab 1 — Address:**
   * Matriks 256 kanal DMX (maksimal 24 kolom horizontal, sel compact 46x46px).
   * Tag fungsi teknis (`DIM`, `RED`, `GRN`, `BLU`, `WHT`, `STR`).

@@ -514,11 +514,12 @@ class MainWindow(QMainWindow if HAS_QT else object):
             QMessageBox.critical(self, "Error Buka Proyek", f"Gagal membuka berkas proyek:\n{e}")
 
     def _on_open_project(self) -> None:
-        fixtures_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"
+        showfiles_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "showfiles"
+        showfiles_dir.mkdir(parents=True, exist_ok=True)
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Buka File Proyek ZZLUXORA",
-            str(fixtures_dir),
+            str(showfiles_dir),
             "ZZLUXORA Project (*.zlx);;All Files (*.*)",
         )
         if path:
@@ -531,11 +532,12 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self._save_to_path(self.current_project_path)
 
     def _on_save_as_project(self) -> None:
-        fixtures_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"
+        showfiles_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "showfiles"
+        showfiles_dir.mkdir(parents=True, exist_ok=True)
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Simpan Proyek ZZLUXORA",
-            str(fixtures_dir / "Untitled.zlx"),
+            str(showfiles_dir / "Untitled.zlx"),
             "ZZLUXORA Project (*.zlx)",
         )
         if path:

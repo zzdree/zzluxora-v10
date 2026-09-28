@@ -32,7 +32,7 @@ Aplikasi mentransmisikan data pencahayaan menggunakan protokol standar internasi
 
 ### 3.1. Peluncuran & Header Navigation
 - **FR-01 (Instant Cold Launch & Clean Blank State):**
-  Aplikasi wajib terbuka secara instan tanpa splash screen (*zero splashscreen*), waktu pemuatan awal < 500 ms. Kondisi awal 100% kosong (tanpa demo otomatis yang membingungkan operator). File demo mandiri disediakan di `fixtures/demo_church_worship.zlx`.
+  Aplikasi wajib terbuka secara instan tanpa splash screen (*zero splashscreen*), waktu pemuatan awal < 500 ms. Kondisi awal 100% kosong (tanpa demo otomatis yang membingungkan operator). File demo mandiri disediakan di `showfiles/demo_church_worship.zlx`.
 - **FR-02 (Desktop Header Standard — No In-Window Title Frame):**
   * OS Window Title Bar: Memuat logo resmi `ZZ` (Arial Black Italic, solid black #000000, pure white #ffffff, no glow) dan judul format bersih: `ZZLUXORA [NamaProject.zlx]`.
   * Baris 1: Pure Native `QMenuBar` (`File`, `Fixture`, `Editor`, `Preview`, `Setting`, `Help`, `About`) tanpa duplikasi logo/nama.
@@ -47,7 +47,7 @@ Aplikasi mentransmisikan data pencahayaan menggunakan protokol standar internasi
 - **FR-05 (Manajemen Project .zlx):**
   * Format berkas `.zlx` (JSON terstruktur terkompresi).
   * Menu File memfasilitasi `Open Project... (Ctrl+O)`, `Save Project (Ctrl+S)`, `Save As Project... (Ctrl+Shift+S)`, dan `Exit`.
-  * Memuat berkas demo resmi `fixtures/demo_church_worship.zlx` secara otomatis merestorasi seluruh patch, playlist, cues, dan faders.
+  * Memuat berkas demo resmi `showfiles/demo_church_worship.zlx` secara otomatis merestorasi seluruh patch, playlist, cues, dan faders.
 - **FR-06 (Fixture List Floating Window):**
   * Membuka jendela pop-up independen non-modal (bisa di-resize, minimize, maximize, close).
   * Menampilkan pustaka lampu yang tersimpan di `fixtures/`.
