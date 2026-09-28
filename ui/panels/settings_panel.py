@@ -57,8 +57,9 @@ class SettingsDialog(QDialog if HAS_QT else object):
         row_preset.addWidget(QLabel("Preset Target IP:"))
         self.combo_presets = QComboBox()
         self.combo_presets.addItem("127.0.0.1 (Localhost — Loopback SITL QLC+ v4 / v5)", "127.0.0.1")
-        self.combo_presets.addItem("192.168.4.1 (ESP32 Hardware — SoftAP Mode Gateway)", "192.168.4.1")
-        self.combo_presets.addItem("Custom IP (Input Manual Venue / Gereja)", "custom")
+        self.combo_presets.addItem("192.168.4.1 (ESP32 Hotspot — SoftAP Mode Direct)", "192.168.4.1")
+        self.combo_presets.addItem("255.255.255.255 (Global Broadcast — Auto-Detect ESP32)", "255.255.255.255")
+        self.combo_presets.addItem("Custom IP (Unicast Wi-Fi Router Venue / GIA Deliksari)", "custom")
         self.combo_presets.currentIndexChanged.connect(self._on_preset_changed)
         row_preset.addWidget(self.combo_presets, 1)
         target_layout.addLayout(row_preset)
@@ -100,6 +101,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
         self.table_adapters.setHorizontalHeaderLabels(["Nama Interface / Host", "Alamat IP Lokal"])
         self.table_adapters.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table_adapters.verticalHeader().setVisible(False)
+        self.table_adapters.cellDoubleClicked.connect(self._on_adapter_selected)
         adap_layout.addWidget(self.table_adapters)
 
         main_layout.addWidget(grp_adapters, 1)
@@ -125,13 +127,25 @@ class SettingsDialog(QDialog if HAS_QT else object):
 
     def _scan_network_interfaces(self) -> None:
         self.table_adapters.setRowCount(0)
-        adapters = [("Local Loopback (SITL)", "127.0.0.1")]
+        adapters = [("Local Loopback (SITL QLC+)", "127.0.0.1")]
         try:
-            hostname = socket.gethostname()
-            local_ip = socket.gethostbyname(hostname)
-            adapters.append((f"Host ({hostname})", local_ip))
+            # Active LAN IP discovery
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            lan_ip = s.getsockname()[0]
+            s.close()
+            adapters.append(("Active Wi-Fi / LAN Adapter", lan_ip))
+            parts = lan_ip.split(".")
+            if len(parts) == 4:
+                bcast_ip = f"{parts[0]}.{parts[1]}.{parts[2]}.255"
+                adapters.append(("Subnet Broadcast (Auto ESP32)", bcast_ip))
         except Exception:
-            pass
+            try:
+                hostname = socket.gethostname()
+                local_ip = socket.gethostbyname(hostname)
+                adapters.append((f"Host ({hostname})", local_ip))
+            except Exception:
+                pass
 
         self.table_adapters.setRowCount(len(adapters))
         for row, (name, ip) in enumerate(adapters):
@@ -141,6 +155,13 @@ class SettingsDialog(QDialog if HAS_QT else object):
             it2.setForeground(QColor(Theme.ACCENT_CYAN))
             self.table_adapters.setItem(row, 0, it1)
             self.table_adapters.setItem(row, 1, it2)
+
+    def _on_adapter_selected(self, row: int, col: int) -> None:
+        item = self.table_adapters.item(row, 1)
+        if item:
+            ip = item.text().strip()
+            self.combo_presets.setCurrentIndex(self.combo_presets.count() - 1)  # Custom IP
+            self.txt_ip.setText(ip)
 
     def _on_preset_changed(self, index: int) -> None:
         val = self.combo_presets.currentData()
