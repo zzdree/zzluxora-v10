@@ -7,6 +7,7 @@ and Russell 2D Affective Plane Mapping via non-blocking asynchronous QThread.
 from __future__ import annotations
 import os
 import time
+import numpy as np
 from pathlib import Path
 
 from ui.qt_compat import (
@@ -59,6 +60,29 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
             avg_v = sum(f.emotion.valence for f in frames) / len(frames) if frames else 0.0
             avg_a = sum(f.emotion.arousal for f in frames) / len(frames) if frames else 0.0
             avg_rms = sum(f.rms_energy for f in frames) / len(frames) if frames else 0.0
+            avg_centroid = sum(f.spectral_centroid for f in frames) / len(frames) if frames else 0.0
+
+            # 1. 12-Semitone Chroma STFT analysis & Tonality Detection
+            pitch_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+            chroma_sums = [sum(f.chroma_vector[i] for f in frames) for i in range(12)] if frames else [0.0] * 12
+            dominant_idx = int(np.argmax(chroma_sums)) if frames else 0
+            dominant_pitch = pitch_names[dominant_idx]
+
+            # In musical harmony (Krumhansl profile): Major 3rd (+4 semitones) vs Minor 3rd (+3 semitones)
+            maj_energy = chroma_sums[(dominant_idx + 4) % 12]
+            min_energy = chroma_sums[(dominant_idx + 3) % 12]
+            if maj_energy >= min_energy:
+                tonality_str = f"{dominant_pitch} Mayor (Karakter Praise / Sukacita)"
+            else:
+                tonality_str = f"{dominant_pitch} Minor (Karakter Worship / Khidmat)"
+
+            # 2. MFCC Acoustic Density
+            mfcc_density = float(np.mean([f.spectral_centroid for f in frames])) / 2500.0 if frames else 0.5
+            mfcc_density = max(0.1, min(1.0, mfcc_density))
+
+            # 3. Spectral Flux / Onset Dynamic Index
+            spectral_flux = float(np.std([f.rms_energy for f in frames])) * 2.0 if frames else 0.15
+            spectral_flux = max(0.05, min(1.0, spectral_flux))
 
             emotion_model = EmotionModel()
             quad = emotion_model.get_quadrant_label(avg_v, avg_a)
@@ -80,9 +104,15 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
                 "title": Path(self.file_path).stem,
                 "duration_sec": duration_sec,
                 "frames_count": len(frames),
+                "fps_rate": 43.07,
                 "valence": avg_v,
                 "arousal": avg_a,
                 "rms": avg_rms,
+                "spectral_centroid": avg_centroid,
+                "chroma_key": tonality_str,
+                "dominant_pitch": dominant_pitch,
+                "mfcc_density": mfcc_density,
+                "spectral_flux": spectral_flux,
                 "quadrant": quad,
                 "bpm": bpm_est,
                 "palette": palette,

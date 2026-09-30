@@ -96,10 +96,10 @@ class TestUIModules(unittest.TestCase):
         win.close()
 
     def test_qlcplus_definition_and_workspace_use_requested_eight_channel_order(self):
-        fixtures_dir = BASE_DIR / "fixtures"
         showfiles_dir = BASE_DIR / "showfiles"
+        zz_fixture_dir = Path.home() / "ANDREAS" / "zz-fixture"
         ns = {"q": "http://www.qlcplus.org/FixtureDefinition"}
-        qxf = ET.parse(fixtures_dir / "Kumastb-STL47.qxf").getroot()
+        qxf = ET.parse(zz_fixture_dir / "Kumastb-STL47.qxf").getroot()
         expected = ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"]
         names = [node.attrib["Name"] for node in qxf.findall("q:Channel", ns)]
         mode = qxf.find("q:Mode[@Name='Modes']", ns)
@@ -127,7 +127,13 @@ class TestUIModules(unittest.TestCase):
 
     def test_official_kumastb_and_alien_fixtures(self):
         fixtures_dir = BASE_DIR / "fixtures"
-        # 1. Test Kumastb STL47 (8CH RGBW) .zfx and .qxf
+        zz_fixture_dir = Path.home() / "ANDREAS" / "zz-fixture"
+
+        # Verify fixtures directory contains ONLY official .zfx profiles
+        fixture_files = sorted([f.name for f in fixtures_dir.glob("*") if f.is_file()])
+        self.assertEqual(fixture_files, ["Alien-AL36.zfx", "Kumastb-STL47.zfx"])
+
+        # 1. Test Kumastb STL47 (8CH RGBW) .zfx
         kuma_zfx_file = fixtures_dir / "Kumastb-STL47.zfx"
         self.assertTrue(kuma_zfx_file.is_file())
         with open(kuma_zfx_file, "r", encoding="utf-8") as fp:
@@ -137,14 +143,15 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual([ch["label"] for ch in kuma_data["channels"]],
                          ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"])
 
-        kuma_qxf_file = fixtures_dir / "Kumastb-STL47.qxf"
+        # Test Kumastb .qxf from zz-fixture repository
+        kuma_qxf_file = zz_fixture_dir / "Kumastb-STL47.qxf"
         self.assertTrue(kuma_qxf_file.is_file())
         ns = {"q": "http://www.qlcplus.org/FixtureDefinition"}
         qxf_kuma = ET.parse(kuma_qxf_file).getroot()
         self.assertEqual([node.attrib["Name"] for node in qxf_kuma.findall("q:Channel", ns)],
                          ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"])
 
-        # 2. Test Alien AL36 (8CH RGB) .zfx and .qxf
+        # 2. Test Alien AL36 (8CH RGB) .zfx
         alien_zfx_file = fixtures_dir / "Alien-AL36.zfx"
         self.assertTrue(alien_zfx_file.is_file())
         with open(alien_zfx_file, "r", encoding="utf-8") as fp:
@@ -154,7 +161,12 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual([ch["label"] for ch in alien_data["channels"]],
                          ["Dimmer", "Red", "Green", "Blue", "Empty", "Program", "Speed", "Emptz"])
 
-        alien_qxf_file = fixtures_dir / "Alien-AL36.qxf"
+        # Test Alien .qxf from zz-fixture repository
+        alien_qxf_file = zz_fixture_dir / "Alien-AL36.qxf"
+        self.assertTrue(alien_qxf_file.is_file())
+        qxf_alien = ET.parse(alien_qxf_file).getroot()
+        self.assertEqual([node.attrib["Name"] for node in qxf_alien.findall("q:Channel", ns)],
+                         ["Dimmer", "Red", "Green", "Blue", "Empty", "Program", "Speed", "Emptz"])
         self.assertTrue(alien_qxf_file.is_file())
         qxf_alien = ET.parse(alien_qxf_file).getroot()
         self.assertEqual([node.attrib["Name"] for node in qxf_alien.findall("q:Channel", ns)],
@@ -288,6 +300,76 @@ class TestUIModules(unittest.TestCase):
         # Test fade black
         win.tab_perform._on_fade_black_clicked()
         self.assertIn("BLACKOUT", win.tab_perform.lbl_cue_status.text())
+
+        win.close()
+
+    def test_tactile_fader_zero_and_mixer_bank_scroll(self):
+        """Verifies [X] clear button and quick bank jump scrolling in MixerTab."""
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        # 1. Test Grand Master dimensions and zeroing
+        master = win.tab_mixer.master_fader
+        self.assertTrue(master.is_master)
+        self.assertEqual(master.width(), 68)
+        self.assertGreaterEqual(master.minimumHeight(), 230)
+        master.value = 255
+        self.assertEqual(master.value, 255)
+        # Simulate click on [X] button
+        master.value = 0
+        self.assertEqual(master.value, 0)
+
+        # 2. Test Channel Fader [X] clear
+        fader1 = win.tab_mixer.faders[1]
+        fader1.value = 180
+        self.assertEqual(fader1.value, 180)
+        fader1.value = 0
+        self.assertEqual(fader1.value, 0)
+
+        # 3. Test Bank Scroll Jump
+        win.tab_mixer.scroll_to_channel(17)
+        self.assertGreater(win.tab_mixer.scroll_area.horizontalScrollBar().value(), 0)
+        win.tab_mixer.scroll_to_channel(1)
+        self.assertEqual(win.tab_mixer.scroll_area.horizontalScrollBar().value(), 0)
+
+        win.close()
+
+    def test_visualizer_3d_stage_and_haze_simulation(self):
+        """Verifies 2D & 3D Stage Visualizer, volumetric beams, and atmospheric haze FX."""
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        win._on_open_visualizer()
+        vis = win.win_visualizer
+        self.assertIsNotNone(vis)
+        self.assertTrue(vis.isVisible())
+        self.assertEqual(vis.tabs.count(), 2)
+
+        # Verify 3D Canvas properties and haze
+        self.assertTrue(vis.canvas_3d.haze_enabled)
+        vis._on_toggle_haze()
+        self.assertFalse(vis.canvas_3d.haze_enabled)
+        vis._on_toggle_haze()
+        self.assertTrue(vis.canvas_3d.haze_enabled)
+
+        # Verify 3D projection math
+        sx, sy, sz = vis.canvas_3d.project(0, 0, 0, 400, 300)
+        self.assertIsInstance(sx, float)
+        self.assertIsInstance(sy, float)
+        self.assertGreater(sz, 0)
+
+        # Verify DMX update propagates to both 2D and 3D
+        dmx_data = bytearray(512)
+        # Patch Alien #1 at 1 (dimmer 255, red 200, green 100, blue 50)
+        dmx_data[0] = 255
+        dmx_data[1] = 200
+        dmx_data[2] = 100
+        dmx_data[3] = 50
+        vis.update_dmx(dmx_data)
+        self.assertEqual(vis.canvas_2d.fixtures[0]["dim"], 255)
+        self.assertEqual(vis.canvas_3d.fixtures_3d[0]["dim"], 255)
 
         win.close()
 

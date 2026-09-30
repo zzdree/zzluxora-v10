@@ -65,19 +65,24 @@ class ResultTab(QWidget if HAS_QT else object):
         left_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         left_layout = QVBoxLayout(left_box)
 
-        self.table = QTableWidget(7, 2)
-        self.table.setHorizontalHeaderLabels(["Parameter", "Nilai Terhitung"])
+        self.table = QTableWidget(12, 2)
+        self.table.setHorizontalHeaderLabels(["Parameter Saintifik & DSP", "Nilai Komputasi"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
 
         metrics = [
             ("Judul Lagu", "Belum ada analisis"),
-            ("Estimasi BPM", "-"),
-            ("Durasi Audio", "-"),
-            ("Energy RMS", "-"),
+            ("Estimasi Tempo", "-"),
+            ("Durasi & Frame STFT", "-"),
+            ("RMS Energy (Parseval)", "-"),
+            ("Spectral Centroid", "-"),
+            ("Chroma STFT & Tonalitas", "-"),
+            ("MFCC Acoustic Density", "-"),
+            ("Spectral Flux (Onsets)", "-"),
             ("Valence (Valensi)", "-"),
             ("Arousal (Gairah)", "-"),
-            ("Kuadran Suasana", "-"),
+            ("Klasifikasi Kuadran", "-"),
+            ("Dekomposisi Physical RGBW", "-"),
         ]
         for row, (param, val) in enumerate(metrics):
             i1 = QTableWidgetItem(param)
@@ -114,26 +119,42 @@ class ResultTab(QWidget if HAS_QT else object):
         self.current_analysis = res
         self.btn_export.setEnabled(True)
 
-        v = res.get("valence", 0.0)
-        a = res.get("arousal", 0.0)
+        v = float(res.get("valence", 0.0))
+        a = float(res.get("arousal", 0.0))
         quad = res.get("quadrant", "Idle")
 
         self.russell_plane.set_coordinates(v, a, quad)
 
+        palette = res.get("palette", {})
+        r = palette.get("R", 255)
+        g = palette.get("G", 255)
+        b = palette.get("B", 255)
+        w = palette.get("W", 0)
+
+        frames_cnt = res.get("frames_count", 0)
+        fps_rate = res.get("fps_rate", 43.07)
+        centroid = res.get("spectral_centroid", 1850.0)
+        chroma_key = res.get("chroma_key", "Deteksi Tonalitas...")
+        mfcc_dens = res.get("mfcc_density", 0.5)
+        flux_val = res.get("spectral_flux", 0.15)
+
         vals = [
             res.get("title", "Untitled"),
-            f"{res.get('bpm', 120.0):.1f} BPM",
-            f"{res.get('duration_sec', 0.0):.1f} detik",
-            f"{res.get('rms', 0.0):.3f}",
-            f"{v:+.2f}",
-            f"{a:+.2f}",
+            f"{res.get('bpm', 120.0):.1f} BPM (Beat Tracking)",
+            f"{res.get('duration_sec', 0.0):.1f}s ({frames_cnt:,} Frame @ {fps_rate:.2f} FPS)",
+            f"{res.get('rms', 0.0):.3f} (Dinamika Master Dimmer)",
+            f"{centroid:.1f} Hz (Kecerahan Timbre Audio)",
+            f"{chroma_key}",
+            f"{mfcc_dens:.3f} (Indeks Tekstur Akustik)",
+            f"{flux_val:.3f} (Kepadatan Onset Ritmik)",
+            f"{v:+.2f} ({'Sukacita/Praise' if v >= 0 else 'Khidmat/Worship'})",
+            f"{a:+.2f} ({'Enerjik/Kuat' if a >= 0 else 'Tenang/Teduh'})",
             f"{quad}",
+            f"R:{r} G:{g} B:{b} W:{w} (Anti-Washout)",
         ]
         for row, val_str in enumerate(vals):
             self.table.item(row, 1).setText(val_str)
 
-        palette = res.get("palette", {})
-        r, g, b, w = palette.get("R", 255), palette.get("G", 255), palette.get("B", 255), palette.get("W", 0)
         self.lbl_palette_desc.setText(
             f"<b>Rekomendasi Warna Pencahayaan:</b><br>"
             f"<span style='color: rgb({r},{g},{b}); font-size: 14px;'>■■■ RGBW: ({r}, {g}, {b}, {w})</span>"

@@ -91,12 +91,56 @@ class MixerTab(QWidget if HAS_QT else object):
 
         desk_container.addWidget(master_frame)
 
-        # 2. 256 DMX Channels Scroll Area (Horizontally Scrollable)
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setStyleSheet(f"""
+        # 2. 256 DMX Channels Deck (Bank Bar + Horizontally Scrollable Faders)
+        channels_pane = QVBoxLayout()
+        channels_pane.setSpacing(6)
+
+        # Fader Bank Quick-Jump Bar (grandMA3 style)
+        bank_bar = QHBoxLayout()
+        bank_bar.setSpacing(6)
+
+        lbl_bank = QLabel("FADER BANK:")
+        lbl_bank.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {Theme.TEXT_MUTED};")
+        bank_bar.addWidget(lbl_bank)
+
+        banks = [
+            ("BANK 1 (1–16: ALIEN #1 / KUMA)", 1),
+            ("BANK 2 (17–32: ALIEN #2)", 17),
+            ("BANK 3 (33–48: ALIEN #3)", 33),
+            ("BANK 4 (49–64: ALIEN #4)", 49),
+            ("BANK 5 (65–128)", 65),
+            ("BANK 6 (129–192)", 129),
+            ("BANK 7 (193–256)", 193),
+        ]
+        for b_name, start_ch in banks:
+            btn_b = QPushButton(b_name)
+            btn_b.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Theme.BG_SURFACE};
+                    border: 1px solid {Theme.BORDER_SUBTLE};
+                    border-radius: 4px;
+                    color: {Theme.TEXT_SECONDARY};
+                    font-size: 10px;
+                    font-weight: 700;
+                    padding: 4px 8px;
+                }}
+                QPushButton:hover {{
+                    border-color: {Theme.ACCENT_CYAN};
+                    color: #ffffff;
+                    background-color: {Theme.BG_ELEVATED};
+                }}
+            """)
+            btn_b.clicked.connect(lambda _, ch=start_ch: self.scroll_to_channel(ch))
+            bank_bar.addWidget(btn_b)
+
+        bank_bar.addStretch()
+        channels_pane.addLayout(bank_bar)
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setStyleSheet(f"""
             QScrollArea {{
                 background-color: {Theme.BG_ROOT};
                 border: 1px solid {Theme.BORDER_SUBTLE};
@@ -117,10 +161,18 @@ class MixerTab(QWidget if HAS_QT else object):
             channels_layout.addWidget(fader)
 
         channels_layout.addStretch()
-        scroll_area.setWidget(channels_container)
-        desk_container.addWidget(scroll_area, 1)
+        self.scroll_area.setWidget(channels_container)
+        channels_pane.addWidget(self.scroll_area, 1)
+
+        desk_container.addLayout(channels_pane, 1)
 
         main_layout.addLayout(desk_container, 1)
+
+    def scroll_to_channel(self, channel_num: int) -> None:
+        """Instantly scrolls horizontal fader deck to the requested channel."""
+        fader_step = 58  # 52px width + 6px spacing
+        target_x = max(0, (channel_num - 1) * fader_step)
+        self.scroll_area.horizontalScrollBar().setValue(target_x)
 
     def _on_fader_value_changed(self, ch_num: int, val: int) -> None:
         self.fader_changed.emit(ch_num, val)

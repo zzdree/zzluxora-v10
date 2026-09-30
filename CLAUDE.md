@@ -68,11 +68,9 @@ zzluxora_v10/
 │   ├── TEST_PLAN.md           # Rencana pengujian berjenjang (Unit, SITL, Lapangan)
 │   └── ROADMAP.md             # Rencana aksi eksekusi Big Plan v3 bertahap
 │
-├── fixtures/                  # Preset profil lampu resmi (.zfx & .qxf saja)
+├── fixtures/                  # Preset profil lampu resmi (.zfx saja)
 │   ├── Kumastb-STL47.zfx      # Unit uji bench testing (8CH RGBW)
-│   ├── Kumastb-STL47.qxf      # Profil QLC+ Kumastb STL47
-│   ├── Alien-AL36.zfx         # 4 Unit panggung GIA Deliksari (8CH RGB)
-│   └── Alien-AL36.qxf         # Profil QLC+ Alien AL36
+│   └── Alien-AL36.zfx         # 4 Unit panggung GIA Deliksari (8CH RGB)
 │
 ├── showfiles/                 # Berkas pertunjukan live (.zlx) & simulasi (.qxw)
 │   ├── demo_church_worship.zlx # Berkas proyek demo resmi (File -> Open Project...)
@@ -81,7 +79,7 @@ zzluxora_v10/
 │   ├── qlcplus_template.qxw   # Template SITL loopback QLC+ (8CH)
 │   └── zzluxora_test.qxw      # Workspace pengujian visualizer loopback
 │
-├── tests/                     # Unit testing & verification (21 tests pass 100%)
+├── tests/                     # Unit testing & verification (23 tests pass 100%)
 │   ├── test_core_engine.py
 │   └── test_ui_components.py
 ├── requirements.txt           # Dependensi pustaka Python
@@ -107,14 +105,14 @@ zzluxora_v10/
    - Menggunakan pemisah teknis standar konsol: pipa `|` atau titik dua `:`, tanpa em-dash dekoratif `—`.
    - Kode channel visual di Tab Address: `DIM`, `RED`, `GRN`, `BLU`, `WHT`, `STR`.
 5. **Jendela Pop-up Mandiri (Floating Windows):**
-   - `Fixture List`, `Fixture Editor`, `Stage Visualizer`, `Settings`, `Help`, `About` adalah jendela pop-up non-modal independen dengan kontrol *Minimize, Maximize, Close*.
+   - `Fixture List`, `Fixture Editor`, `Stage Visualizer (2D & 3D Perspective with Volumetric Beams & Haze/Smoke FX)`, `Settings`, `Help`, `About` adalah jendela pop-up non-modal independen dengan kontrol *Minimize, Maximize, Close*.
 6. **Enam Tab Utama Program (Workspaces):**
    - `Tab 1: Address`: Grid 256 kanal DMX (maksimal 24 kolom horizontal, warna sel mengikuti tipe kanal, Clear All dengan konfirmasi, Undo `Ctrl+Z` / Redo `Ctrl+Shift+Z`, tombol cepat `[PATCH 4x ALIEN (GIA)]` DMX001/017/033/049 & `[PATCH 1x KUMA (BENCH)]` DMX001).
    - `Tab 2: Analyze`: Audio file loader, YouTube audio downloader & converter otomatis, tombol Analyze & Remove, analisis asinkron non-blocking dengan efek blur/dimmed pada area analisis dan tips saintifik DSP.
-   - `Tab 3: Result`: Dashboard metrik analisis (Russell 2D plane V-A, BPM, Chroma, kuadran mood Praise/Worship), tombol Re-Analyze, dan Export to Perform.
+   - `Tab 3: Result`: Dashboard metrik analisis lengkap (12 parameter: RMS Energy, Spectral Centroid Hz, Chroma STFT 12-Semitone + Deteksi Tonalitas Mayor/Minor, MFCC Density, Spectral Flux, Russell 2D V-A plane, BPM, kuadran mood Praise/Worship, dan Dekomposisi Physical RGBW).
    - `Tab 4: Perform`: Manajemen urutan playlist pertunjukan panggung, auto-populate section cues lagu (Intro/Verse/Chorus/Bridge/Ending), master playback `[GO+]`, `[PREV]`, `[FADE BLACK]`, dan smooth cosine crossfading.
    - `Tab 5: Page`: Lembar tombol virtual executor untuk eksekusi instan suasana panggung (Praise, Worship, Strobe Flash).
-   - `Tab 6: Mixer`: Meja 257 fader fisik (1 Grand Master + 256 DMX) berestetika grandMA3 (*tactile ribbed cap*, *illuminated groove rail* dengan LED menyala di belakang fader, dan garis skala kalibrasi analog).
+   - `Tab 6: Mixer`: Meja 257 fader fisik dengan Grand Master fader lebih tinggi & dominan (230px, 68px), tombol cepat `[✕]` clear/zero pada setiap fader, bilah navigasi lompat cepat Bank Fader 1 s.d. 7, *tactile ribbed cap*, *illuminated groove rail* dengan LED menyala di belakang fader, dan garis skala kalibrasi analog.
 
 ---
 

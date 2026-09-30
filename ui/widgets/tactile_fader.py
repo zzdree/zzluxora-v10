@@ -37,16 +37,22 @@ class TactileFader(QWidget if HAS_QT else object):
         self.is_master = is_master
         self.is_dragging = False
 
-        self.setFixedWidth(52)
-        self.setMinimumHeight(190)
-        self.setFocusPolicy(Qt.StrongFocus)
-
-        # Cap & Track dimensions (compact industrial console sizing for 768p and 1080p)
-        self.cap_width = 30
-        self.cap_height = 18
-        self.track_width = 4
-        self.top_margin = 18
-        self.bottom_margin = 38
+        if is_master:
+            self.setFixedWidth(68)
+            self.setMinimumHeight(230)
+            self.cap_width = 42
+            self.cap_height = 22
+            self.track_width = 6
+            self.top_margin = 22
+            self.bottom_margin = 52
+        else:
+            self.setFixedWidth(52)
+            self.setMinimumHeight(190)
+            self.cap_width = 30
+            self.cap_height = 18
+            self.track_width = 4
+            self.top_margin = 18
+            self.bottom_margin = 48
 
     @property
     def value(self) -> int:
@@ -69,13 +75,19 @@ class TactileFader(QWidget if HAS_QT else object):
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
-            # Check if clicked on bottom readout area -> direct value edit
-            if event.position().y() >= self.height() - self.bottom_margin:
+            pos = event.position()
+            # 1. Click on [X] quick-zero clear button
+            if hasattr(self, "_btn_zero_rect") and self._btn_zero_rect.contains(pos):
+                self.value = 0
+                return
+
+            # 2. Click on bottom value readout box -> open direct input dialog
+            if hasattr(self, "_val_box_rect") and self._val_box_rect.contains(pos):
                 self._open_direct_input()
                 return
 
             self.is_dragging = True
-            self._update_from_mouse_y(event.position().y())
+            self._update_from_mouse_y(pos.y())
 
     def mouseMoveEvent(self, event) -> None:
         if self.is_dragging:
@@ -221,19 +233,31 @@ class TactileFader(QWidget if HAS_QT else object):
         )
 
         # 7. Bottom Value Box (0-255 Readout)
-        val_box_rect = QRectF(4, h - self.bottom_margin + 6, w - 8, 22)
+        self._val_box_rect = QRectF(4, h - self.bottom_margin + 4, w - 8, 20)
         painter.setPen(QPen(QColor(Theme.BORDER_SUBTLE), 1))
         painter.setBrush(QColor(Theme.BG_INPUT))
-        painter.drawRoundedRect(val_box_rect, 3, 3)
+        painter.drawRoundedRect(self._val_box_rect, 3, 3)
 
-        painter.setFont(QFont("JetBrains Mono", 9, QFont.Bold))
-        painter.setPen(QColor(Theme.TEXT_PRIMARY))
-        painter.drawText(val_box_rect, Qt.AlignCenter, f"{self._value}")
+        painter.setFont(QFont("JetBrains Mono", 9 if not self.is_master else 11, QFont.Bold))
+        painter.setPen(QColor(Theme.ACCENT_AMBER if self.is_master else Theme.TEXT_PRIMARY))
+        painter.drawText(self._val_box_rect, Qt.AlignCenter, f"{self._value}")
 
-        # Sub-label at very bottom (e.g. channel function if available)
-        painter.setFont(QFont("Inter", 7))
-        painter.setPen(QColor(Theme.TEXT_MUTED))
-        sub_label = self.label_text[:8] if not self.is_master else "DIM"
-        painter.drawText(QRectF(2, h - 16, w - 4, 14), Qt.AlignCenter, sub_label)
+        # 8. [X] Quick-Zero Clear Button at bottom
+        btn_w = 26 if self.is_master else 22
+        self._btn_zero_rect = QRectF(cx - btn_w / 2.0, h - 20, btn_w, 15)
+        if self._value > 0:
+            painter.setBrush(QColor("#2d1414"))
+            painter.setPen(QPen(QColor(Theme.COLOR_DANGER), 1))
+            painter.drawRoundedRect(self._btn_zero_rect, 3, 3)
+            painter.setFont(QFont("Inter", 8, QFont.Bold))
+            painter.setPen(QColor(Theme.COLOR_DANGER))
+            painter.drawText(self._btn_zero_rect, Qt.AlignCenter, "✕")
+        else:
+            painter.setBrush(QColor(Theme.BG_INPUT))
+            painter.setPen(QPen(QColor(Theme.BORDER_SUBTLE), 1))
+            painter.drawRoundedRect(self._btn_zero_rect, 3, 3)
+            painter.setFont(QFont("Inter", 8, QFont.Bold))
+            painter.setPen(QColor(Theme.TEXT_MUTED))
+            painter.drawText(self._btn_zero_rect, Qt.AlignCenter, "✕")
 
         painter.end()
