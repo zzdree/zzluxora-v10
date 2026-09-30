@@ -25,6 +25,7 @@ from core.color_engine import ColorEngine
 def run_fader_test(target_ip: str = "127.0.0.1", duration: float = 30.0, fixture_model: str = "kumastb"):
     model_name = "Kumastb STL47 (8CH RGBW)" if fixture_model == "kumastb" else "Alien AL36 (8CH RGB)"
     is_rgbw = (fixture_model == "kumastb")
+    fix_desc = "1 Unit Bench Test (DMX001)" if is_rgbw else "4 Units GIA Stage (DMX001, DMX017, DMX033, DMX049)"
 
     print("=" * 76)
     print("🎛️  ZZLUXORA ➔ QLC+ ART-NET LOOPBACK BRIDGE TEST (SITL)")
@@ -32,7 +33,7 @@ def run_fader_test(target_ip: str = "127.0.0.1", duration: float = 30.0, fixture
     print(f"Target Host      : {target_ip}:6454 (UDP Art-Net)")
     print(f"Target Universe  : 0 (maps to Universe 1 in QLC+)")
     print(f"Active Fixture   : {model_name}")
-    print(f"Fixture Count    : 4 Units (32 DMX Channels total, 8-CH footprint)")
+    print(f"Addressing Map   : {fix_desc}")
     print(f"Color Pipeline   : Russell 2D Plane (V, A) ➔ HSV ➔ Physical {'RGBW' if is_rgbw else 'RGB'}")
     print(f"Transmission FPS : 43.07 FPS (Standard DMX refresh)")
     print("-" * 76)
@@ -40,7 +41,7 @@ def run_fader_test(target_ip: str = "127.0.0.1", duration: float = 30.0, fixture
     print("1. Buka QLC+ ➔ Buka workspace /home/zzdree/ANDREAS/zzluxora_test.qxw")
     print("   atau buka tab 'Inputs/Outputs', Universe 1 centang 'Input' ArtNet 127.0.0.1.")
     print("2. Buka Tab 'Simple Desk' atau 'Virtual Console' di QLC+.")
-    print("3. Fader channel 1 s.d. 32 akan bergerak real-time mengikuti emosi audio!")
+    print("3. Fader channel bergerak real-time mengikuti emosi audio!")
     print("=" * 76)
     print("Memulai transmisi paket Art-Net (Tekan Ctrl+C untuk berhenti)...\n")
 
@@ -53,8 +54,6 @@ def run_fader_test(target_ip: str = "127.0.0.1", duration: float = 30.0, fixture
             elapsed = time.time() - start_time
             t = elapsed * 1.5
 
-            channels_data = []
-
             # Simulate dynamic audio mood cycle (Praise Q1 -> Worship Q3)
             # Valence and Arousal sinusoidal orbital trajectory
             v = math.sin(t * 0.7)
@@ -65,43 +64,39 @@ def run_fader_test(target_ip: str = "127.0.0.1", duration: float = 30.0, fixture
             h, s, val = ColorEngine.emotion_to_hsv(emotion, rms_energy=rms, master_dimmer=1.0)
             base_r, base_g, base_b = ColorEngine.hsv_to_rgb(h, s, val)
 
-            # Generate 4 fixtures with phase offsets
-            for fix_idx in range(4):
-                offset_rad = fix_idx * 0.5
-                fix_v = math.sin(t * 0.7 + offset_rad)
-                fix_a = math.cos(t * 0.9 + offset_rad)
-                fix_rms = max(0.1, min(1.0, rms + math.sin(t * 2.0 + offset_rad) * 0.2))
+            if is_rgbw:
+                # Kumastb STL47: 1 unit bench testing at DMX001
+                rgbw = ColorEngine.rgb_to_physical_rgbw(base_r, base_g, base_b, dimmer=1.0)
+                r, g, b, w = rgbw.to_dmx_bytes()
+                master_dim = int(round(val * 255.0))
+                # Ch 1-8: Dimmer, Red, Green, Blue, White, Strobe, Program, Speed
+                sender.set_channels(1, [master_dim, r, g, b, w, 0, 0, 0])
+                status_str = f"KUMA (DMX001): [DIM:{master_dim:3d} R:{r:3d} G:{g:3d} B:{b:3d} W:{w:3d}]"
+            else:
+                # Alien AL36: 4 units at DMX001, DMX017, DMX033, DMX049
+                alien_starts = [1, 17, 33, 49]
+                for fix_idx, start_ch in enumerate(alien_starts):
+                    offset_rad = fix_idx * 0.5
+                    fix_v = math.sin(t * 0.7 + offset_rad)
+                    fix_a = math.cos(t * 0.9 + offset_rad)
+                    fix_rms = max(0.1, min(1.0, rms + math.sin(t * 2.0 + offset_rad) * 0.2))
 
-                fix_emo = EmotionCoordinate(valence=fix_v, arousal=fix_a)
-                fh, fs, fval = ColorEngine.emotion_to_hsv(fix_emo, rms_energy=fix_rms, master_dimmer=1.0)
-                fr, fg, fb = ColorEngine.hsv_to_rgb(fh, fs, fval)
+                    fix_emo = EmotionCoordinate(valence=fix_v, arousal=fix_a)
+                    fh, fs, fval = ColorEngine.emotion_to_hsv(fix_emo, rms_energy=fix_rms, master_dimmer=1.0)
+                    fr, fg, fb = ColorEngine.hsv_to_rgb(fh, fs, fval)
+                    master_dim = int(round(fval * 255.0))
 
-                master_dim = int(round(fval * 255.0))
-
-                if is_rgbw:
-                    # Kumastb STL47: Physical 4-Channel RGBW Decomposition
-                    rgbw = ColorEngine.rgb_to_physical_rgbw(fr, fg, fb, dimmer=1.0)
-                    r, g, b, w = rgbw.to_dmx_bytes()
-                    # 8-CH: Dimmer, Red, Green, Blue, White, Strobe, Program, Speed
-                    fix_channels = [master_dim, r, g, b, w, 0, 0, 0]
-                else:
-                    # Alien AL36: 8-CH RGB (Ch 5 Empty, Ch 8 Emptz)
                     # 8-CH: Dimmer, Red, Green, Blue, Empty, Program, Speed, Emptz
-                    fix_channels = [master_dim, fr, fg, fb, 0, 0, 0, 0]
+                    sender.set_channels(start_ch, [master_dim, fr, fg, fb, 0, 0, 0, 0])
 
-                channels_data.extend(fix_channels)
+                status_str = f"ALIEN (DMX001, 017, 033, 049) | FIX#1: [DIM:{int(round(val * 255.0)):3d} R:{base_r:3d} G:{base_g:3d} B:{base_b:3d}]"
 
-            sender.set_channels(1, channels_data)
             sender.send_frame()
             frame_count += 1
 
-            # Monitor readout
-            if is_rgbw:
-                r1, g1, b1, w1 = channels_data[1], channels_data[2], channels_data[3], channels_data[4]
-                status_str = f"FIX1 (CH1-5): [DIM:{channels_data[0]:3d} R:{r1:3d} G:{g1:3d} B:{b1:3d} W:{w1:3d}]"
-            else:
-                r1, g1, b1 = channels_data[1], channels_data[2], channels_data[3]
-                status_str = f"FIX1 (CH1-4): [DIM:{channels_data[0]:3d} R:{r1:3d} G:{g1:3d} B:{b1:3d}]"
+            print(f"\r[Art-Net TX] Frame {frame_count:04d} | Mood: (V:{v:+.2f}, A:{a:+.2f}) | {status_str} | Time: {elapsed:.1f}s", end="", flush=True)
+
+            time.sleep(1.0 / 43.07)
 
             print(f"\r[Art-Net TX] Frame {frame_count:04d} | Mood: (V:{v:+.2f}, A:{a:+.2f}) | {status_str} | Time: {elapsed:.1f}s", end="", flush=True)
 

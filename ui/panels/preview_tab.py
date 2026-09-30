@@ -43,9 +43,19 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             self.update()
 
     def update_dmx_frame(self, dmx_channels: list[int] | bytearray) -> None:
-        """Parses DMX channels for 4 PAR LED fixtures (supports both 8-CH and 4-CH footprints)."""
-        if len(dmx_channels) >= 32:
-            # 8-Channel standard footprint: Ch 1 Dimmer, Ch 2 R, Ch 3 G, Ch 4 B, Ch 5 W, Ch 6 Strobe, Ch 7 Prog, Ch 8 Speed
+        """Parses DMX channels for 4 PAR LED fixtures (supports 8-CH Alien at 1,17,33,49, 8-CH contiguous, and 4-CH)."""
+        if len(dmx_channels) >= 56 and (dmx_channels[16] > 0 or dmx_channels[32] > 0 or dmx_channels[48] > 0):
+            # 16-channel spacing (Alien AL36 GIA stage patch: DMX001, DMX017, DMX033, DMX049)
+            bases = [0, 16, 32, 48]
+            for par_idx, base in enumerate(bases):
+                dim = dmx_channels[base]
+                r = dmx_channels[base + 1]
+                g = dmx_channels[base + 2]
+                b = dmx_channels[base + 3]
+                w = dmx_channels[base + 4]
+                self.set_fixture_color(par_idx, r, g, b, w, dim)
+        elif len(dmx_channels) >= 32:
+            # 8-Channel standard contiguous footprint: Ch 1 Dimmer, Ch 2 R, Ch 3 G, Ch 4 B, Ch 5 W, Ch 6 Strobe, Ch 7 Prog, Ch 8 Speed
             for par_idx in range(4):
                 base = par_idx * 8
                 dim = dmx_channels[base]

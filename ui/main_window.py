@@ -6,6 +6,7 @@ and floating tool windows (Fixture List, Fixture Editor, Stage Visualizer, Setti
 
 from __future__ import annotations
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -78,6 +79,15 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.win_settings: SettingsDialog | None = None
         self.win_help: HelpDialog | None = None
         self.win_about: AboutDialog | None = None
+
+        # Smooth Crossfade Engine State (~43.07 FPS DMX refresh)
+        self._crossfade_timer = QTimer(self)
+        self._crossfade_timer.setInterval(23)
+        self._crossfade_timer.timeout.connect(self._on_crossfade_tick)
+        self._fade_start = bytearray(512)
+        self._fade_target = bytearray(512)
+        self._fade_duration = 0.0
+        self._fade_elapsed = 0.0
 
         self._init_ui()
         self._init_menu_bar()
@@ -247,6 +257,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         # 4. Perform Tab
         self.tab_perform = PerformTab(self.project_state, self)
         self.tab_perform.export_to_page.connect(self._on_export_to_page)
+        self.tab_perform.cue_activated.connect(self._on_cue_activated)
         self.stack.addWidget(self.tab_perform)
 
         # 5. Page Tab
@@ -455,29 +466,96 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.tab_page.load_cues(cues)
         self._switch_workspace(4)  # Switch to Page tab
 
-    def _on_cue_activated(self, cue_info: dict) -> None:
+    def _get_target_dmx_for_cue(self, cue_info: dict) -> bytearray:
+        """Calculate the 512-channel DMX target buffer for a given cue based on patched fixtures."""
+        target = bytearray(512)
         palette = cue_info.get("color", {})
-        intensity = int(cue_info.get("dimmer", 255)) if cue_info.get("active", True) else 0
-        rgbw = [
-            int(palette.get("R", 255)),
-            int(palette.get("G", 255)),
-            int(palette.get("B", 255)),
-            int(palette.get("W", 0)),
-        ]
-        # Each 8-channel PAR uses Ch1 dimmer, Ch2-5 RGBW, Ch6 strobe, Ch7 program, Ch8 speed.
-        for fixture_index in range(4):
-            base = fixture_index * 8
-            frame = [intensity, *rgbw, 0, 0, 0]
-            self.dmx_buffer[base:base + 8] = bytes(frame)
-            for offset, value in enumerate(frame):
-                self.tab_mixer.set_channel_value(base + offset + 1, value, silent=True)
+        intensity = max(0, min(255, int(cue_info.get("dimmer", 255)))) if cue_info.get("active", True) else 0
+        r_val = max(0, min(255, int(palette.get("R", 255))))
+        g_val = max(0, min(255, int(palette.get("G", 255))))
+        b_val = max(0, min(255, int(palette.get("B", 255))))
+        w_val = max(0, min(255, int(palette.get("W", 0))))
+        is_flash = (cue_info.get("type") == "flash")
 
-        # Hanya mengirim paket jika tombol Play aktif (is_transmitting == True)
+        patched_boxes = [box for box in self.tab_address.grid_area.boxes.values() if box.is_patched]
+        if patched_boxes:
+            for box in patched_boxes:
+                ch = box.channel_num
+                ctype = box.channel_type.lower()
+                val = 0
+                if "dim" in ctype:
+                    val = intensity
+                elif "red" in ctype:
+                    val = r_val
+                elif "green" in ctype:
+                    val = g_val
+                elif "blue" in ctype:
+                    val = b_val
+                elif "white" in ctype:
+                    val = w_val
+                elif "strobe" in ctype:
+                    val = 255 if is_flash else 0
+                elif ctype in ["program", "speed", "empty"]:
+                    val = 0
+                target[ch - 1] = max(0, min(255, val))
+        else:
+            # Fallback when no patch is active: default 4 PARs at channels 1..32
+            for fix_idx in range(4):
+                base = fix_idx * 8
+                target[base] = intensity
+                target[base + 1] = r_val
+                target[base + 2] = g_val
+                target[base + 3] = b_val
+                target[base + 4] = w_val
+
+        return target
+
+    def _apply_dmx_buffer(self, buf: bytearray | list[int]) -> None:
+        """Applies buffer to dmx_buffer, updates mixer faders, transmits Art-Net, and updates visualizer."""
+        self.dmx_buffer[:] = bytes(buf)
+        for ch in range(1, 257):
+            val = self.dmx_buffer[ch - 1]
+            self.tab_mixer.set_channel_value(ch, val, silent=True)
+
         if self.is_transmitting:
             self.artnet_sender.send_raw(self.dmx_buffer)
 
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx(self.dmx_buffer)
+
+    def _on_cue_activated(self, cue_info: dict) -> None:
+        """Smoothly or instantly crossfades stage lighting to the triggered cue."""
+        target = self._get_target_dmx_for_cue(cue_info)
+        fade_time = float(cue_info.get("fade_time", cue_info.get("fade_in", 0.0)))
+        is_flash = (cue_info.get("type") == "flash")
+
+        if fade_time <= 0.05 or is_flash or not HAS_QT:
+            if self._crossfade_timer.isActive():
+                self._crossfade_timer.stop()
+            self._apply_dmx_buffer(target)
+        else:
+            self._fade_start = bytearray(self.dmx_buffer)
+            self._fade_target = bytearray(target)
+            self._fade_duration = max(0.1, fade_time)
+            self._fade_elapsed = 0.0
+            self._crossfade_timer.start()
+
+    def _on_crossfade_tick(self) -> None:
+        self._fade_elapsed += 0.023
+        progress = min(1.0, self._fade_elapsed / self._fade_duration)
+        # Cosine S-curve interpolation
+        factor = 0.5 * (1.0 - math.cos(math.pi * progress))
+
+        buf = bytearray(512)
+        for i in range(512):
+            s = self._fade_start[i]
+            t = self._fade_target[i]
+            buf[i] = int(round(s + (t - s) * factor))
+
+        self._apply_dmx_buffer(buf)
+
+        if progress >= 1.0:
+            self._crossfade_timer.stop()
 
     # -----------------------------------------------------------------
     # FILE MANAGEMENT (.zlx)

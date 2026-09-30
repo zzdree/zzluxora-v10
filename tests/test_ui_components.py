@@ -208,6 +208,89 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_alien_and_kuma_autopatch_addressing(self):
+        """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        # 1. Test Alien AL36 4x GIA Stage Patch
+        win.tab_address._on_patch_alien_gia()
+        alien_starts = [1, 17, 33, 49]
+        for idx, start_ch in enumerate(alien_starts):
+            # Ch 1: Dimmer
+            self.assertTrue(win.tab_address.grid_area.boxes[start_ch].is_patched)
+            self.assertEqual(win.tab_address.grid_area.boxes[start_ch].channel_type, "dimmer")
+            self.assertEqual(win.tab_address.grid_area.boxes[start_ch].fixture_name, f"Alien AL36 #{idx + 1} (8CH)")
+            # Ch 5: Empty (Alien has no white)
+            self.assertEqual(win.tab_address.grid_area.boxes[start_ch + 4].channel_type, "empty")
+            # Ch 8: Emptz (Empty)
+            self.assertEqual(win.tab_address.grid_area.boxes[start_ch + 7].channel_type, "empty")
+
+        # Verify gaps between fixtures are unpatched
+        self.assertFalse(win.tab_address.grid_area.boxes[9].is_patched)
+        self.assertFalse(win.tab_address.grid_area.boxes[16].is_patched)
+        self.assertFalse(win.tab_address.grid_area.boxes[25].is_patched)
+        self.assertFalse(win.tab_address.grid_area.boxes[32].is_patched)
+        self.assertFalse(win.tab_address.grid_area.boxes[41].is_patched)
+        self.assertFalse(win.tab_address.grid_area.boxes[48].is_patched)
+        self.assertFalse(win.tab_address.grid_area.boxes[57].is_patched)
+
+        # 2. Test Kumastb STL47 Bench Test Patch
+        win.tab_address._on_patch_kuma_bench()
+        self.assertTrue(win.tab_address.grid_area.boxes[1].is_patched)
+        self.assertEqual(win.tab_address.grid_area.boxes[1].channel_type, "dimmer")
+        self.assertEqual(win.tab_address.grid_area.boxes[1].fixture_name, "Kumastb STL47 (8CH RGBW)")
+        # Ch 5: White (Kumastb has dedicated white)
+        self.assertEqual(win.tab_address.grid_area.boxes[5].channel_type, "white")
+        self.assertFalse(win.tab_address.grid_area.boxes[9].is_patched)
+        self.assertFalse(win.tab_address.grid_area.boxes[17].is_patched)
+
+        win.close()
+
+    def test_perform_tab_cue_generation_and_crossfade(self):
+        """Verifies song selection auto-populates section cues and triggers smooth crossfading."""
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        # Add sample worship song to playlist
+        sample_worship = {
+            "title": "Kebaikan Tuhan (Goodness of God)",
+            "quadrant": "Q3 Worship",
+            "bpm": 72.0,
+            "palette": {"R": 180, "G": 90, "B": 240, "W": 40},
+        }
+        win.tab_perform.add_analyzed_song(sample_worship)
+        self.assertEqual(len(win.tab_perform.playlist), 1)
+
+        # Cues should auto-populate in cue_table (6 section cues: Intro, Verse 1, Chorus, Verse 2, Bridge, Ending)
+        self.assertEqual(win.tab_perform.cue_table.rowCount(), 6)
+        self.assertEqual(win.tab_perform.cue_table.item(0, 0).text(), "Intro")
+        self.assertEqual(win.tab_perform.cue_table.item(2, 0).text(), "Chorus")
+        self.assertEqual(win.tab_perform.cue_table.item(4, 0).text(), "Bridge")
+
+        # Test GO+ master playback
+        win.tab_perform._on_go_clicked()
+        self.assertEqual(win.tab_perform.active_cue_index, 0)
+        self.assertIn("INTRO", win.tab_perform.lbl_cue_status.text())
+
+        # Test triggering next cue
+        win.tab_perform._on_go_clicked()
+        self.assertEqual(win.tab_perform.active_cue_index, 1)
+
+        # Test crossfade tick simulation
+        self.assertTrue(win._crossfade_timer.isActive())
+        # Simulate timer tick
+        win._on_crossfade_tick()
+        self.assertIsNotNone(win.dmx_buffer)
+
+        # Test fade black
+        win.tab_perform._on_fade_black_clicked()
+        self.assertIn("BLACKOUT", win.tab_perform.lbl_cue_status.text())
+
+        win.close()
+
 
 if __name__ == "__main__":
     unittest.main()

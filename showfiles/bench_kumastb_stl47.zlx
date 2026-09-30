@@ -1,0 +1,75 @@
+{
+  "app": "ZZLUXORA",
+  "version": "10.0.0",
+  "project_name": "Bench Test Kumastb STL47 (RGBW)",
+  "target_ip": "127.0.0.1",
+  "universe": 0,
+  "master_dimmer": 255,
+  "patches": [
+    {
+      "start_channel": 1,
+      "model": "Kumastb STL47 (8CH RGBW)",
+      "channels": [
+        {"index": 1, "type": "dimmer", "label": "Dimmer"},
+        {"index": 2, "type": "red", "label": "Red"},
+        {"index": 3, "type": "green", "label": "Green"},
+        {"index": 4, "type": "blue", "label": "Blue"},
+        {"index": 5, "type": "white", "label": "White"},
+        {"index": 6, "type": "strobe", "label": "Strobe"},
+        {"index": 7, "type": "program", "label": "Program"},
+        {"index": 8, "type": "speed", "label": "Speed"}
+      ]
+    }
+  ],
+  "songs": [
+    {
+      "title": "Kebaikan Tuhan (Goodness of God)",
+      "duration_sec": 240.0,
+      "bpm": 72.0,
+      "valence": 0.65,
+      "arousal": -0.42,
+      "quadrant": "Q3 Worship",
+      "palette": {"R": 180, "G": 90, "B": 240, "W": 40}
+    },
+    {
+      "title": "Nyanyi Bagi Dia (Praise the Lord)",
+      "duration_sec": 210.0,
+      "bpm": 128.0,
+      "valence": 0.82,
+      "arousal": 0.74,
+      "quadrant": "Q1 Praise",
+      "palette": {"R": 255, "G": 210, "B": 30, "W": 60}
+    }
+  ],
+  "cues": [
+    {
+      "label": "RGBW TEST\nPure White",
+      "type": "scene",
+      "color": {"R": 0, "G": 0, "B": 0, "W": 255},
+      "dimmer": 255,
+      "fade_time": 1.0
+    },
+    {
+      "label": "DEEP WORSHIP\nWarm Glow",
+      "type": "scene",
+      "color": {"R": 180, "G": 90, "B": 240, "W": 60},
+      "dimmer": 220,
+      "fade_time": 2.0
+    },
+    {
+      "label": "PRAISE\nFull Amber",
+      "type": "scene",
+      "color": {"R": 255, "G": 180, "B": 40, "W": 40},
+      "dimmer": 255,
+      "fade_time": 1.5
+    },
+    {
+      "label": "STROBE FLASH\nInstant White",
+      "type": "flash",
+      "color": {"R": 255, "G": 255, "B": 255, "W": 255},
+      "dimmer": 255,
+      "fade_time": 0.0
+    }
+  ],
+  "faders": {"0": 255}
+}

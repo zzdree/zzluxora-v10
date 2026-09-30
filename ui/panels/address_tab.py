@@ -203,9 +203,20 @@ class AddressTab(QWidget if HAS_QT else object):
         self.btn_redo.setEnabled(False)
         ctrl_bar.addWidget(self.btn_redo)
 
-        self.btn_auto_patch = QPushButton("AUTO PATCH (4 PAR)")
-        self.btn_auto_patch.clicked.connect(self._on_auto_patch_default)
-        ctrl_bar.addWidget(self.btn_auto_patch)
+        self.btn_patch_alien = QPushButton("PATCH 4x ALIEN (GIA)")
+        self.btn_patch_alien.setToolTip("Auto-patch 4x Alien AL36 di DMX001, DMX017, DMX033, DMX049 (Panggung GIA Deliksari)")
+        self.btn_patch_alien.setStyleSheet(f"border-color: {Theme.ACCENT_CYAN}; color: #ffffff; font-weight: bold;")
+        self.btn_patch_alien.clicked.connect(self._on_patch_alien_gia)
+        ctrl_bar.addWidget(self.btn_patch_alien)
+
+        self.btn_patch_kuma = QPushButton("PATCH 1x KUMA (BENCH)")
+        self.btn_patch_kuma.setToolTip("Auto-patch 1x Kumastb STL47 di DMX001 (Unit Uji Laboratorium RGBW)")
+        self.btn_patch_kuma.setStyleSheet(f"border-color: {Theme.ACCENT_AMBER}; color: #ffffff; font-weight: bold;")
+        self.btn_patch_kuma.clicked.connect(self._on_patch_kuma_bench)
+        ctrl_bar.addWidget(self.btn_patch_kuma)
+
+        # Legacy alias for backward compatibility
+        self.btn_auto_patch = self.btn_patch_alien
 
         self.btn_clear = QPushButton("CLEAR PATCH")
         self.btn_clear.setStyleSheet(f"color: {Theme.COLOR_DANGER}; border-color: {Theme.BORDER_STRONG};")
@@ -274,7 +285,7 @@ class AddressTab(QWidget if HAS_QT else object):
         if not channels: return
 
         self.record_undo()
-        fixture_name = fixture_data.get("model", "Fixture")
+        fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
 
         for idx, ch_info in enumerate(channels):
             target_ch = start_channel + idx
@@ -301,26 +312,52 @@ class AddressTab(QWidget if HAS_QT else object):
                 box.set_unpatched()
             self.patch_changed.emit()
 
-    def _on_auto_patch_default(self) -> None:
-        """Auto-patch four requested 8-channel PAR fixture profiles (channels 1-32)."""
-        channels_pattern = [
-            ("dimmer", "Dimmer"), ("red", "Red"), ("green", "Green"),
-            ("blue", "Blue"), ("white", "White"), ("strobe", "Strobe"),
-            ("program", "Program"), ("speed", "Speed"),
+    def _on_patch_alien_gia(self) -> None:
+        """Auto-patch four Alien AL36 (8CH RGB) fixtures at DMX001, DMX017, DMX033, DMX049."""
+        self.record_undo()
+        for box in self.grid_area.boxes.values():
+            box.set_unpatched()
+
+        alien_channels = [
+            {"type": "dimmer", "label": "Dimmer"},
+            {"type": "red", "label": "Red"},
+            {"type": "green", "label": "Green"},
+            {"type": "blue", "label": "Blue"},
+            {"type": "empty", "label": "Empty"},
+            {"type": "program", "label": "Program"},
+            {"type": "speed", "label": "Speed"},
+            {"type": "empty", "label": "Emptz"},
         ]
-        self._on_fixture_dropped(1, {
-            "model": "PAR RGBW 8CH",
-            "channels": [
-                {"type": channel_type, "label": label}
-                for channel_type, label in channels_pattern
-            ],
-        })
-        for fixture_index in range(1, 4):
-            start_channel = fixture_index * 8 + 1
-            self._on_fixture_dropped(start_channel, {
-                "model": "PAR RGBW 8CH",
-                "channels": [
-                    {"type": channel_type, "label": label}
-                    for channel_type, label in channels_pattern
-                ],
-            })
+        start_addresses = [1, 17, 33, 49]
+        for fixture_idx, start_ch in enumerate(start_addresses):
+            fixture_data = {
+                "name": f"Alien AL36 #{fixture_idx + 1} (8CH)",
+                "channels": alien_channels,
+            }
+            self._on_fixture_dropped(start_ch, fixture_data)
+
+    def _on_patch_kuma_bench(self) -> None:
+        """Auto-patch one Kumastb STL47 (8CH RGBW) fixture at DMX001."""
+        self.record_undo()
+        for box in self.grid_area.boxes.values():
+            box.set_unpatched()
+
+        kuma_channels = [
+            {"type": "dimmer", "label": "Dimmer"},
+            {"type": "red", "label": "Red"},
+            {"type": "green", "label": "Green"},
+            {"type": "blue", "label": "Blue"},
+            {"type": "white", "label": "White"},
+            {"type": "strobe", "label": "Strobe"},
+            {"type": "program", "label": "Program"},
+            {"type": "speed", "label": "Speed"},
+        ]
+        fixture_data = {
+            "name": "Kumastb STL47 (8CH RGBW)",
+            "channels": kuma_channels,
+        }
+        self._on_fixture_dropped(1, fixture_data)
+
+    def _on_auto_patch_default(self) -> None:
+        """Legacy compatibility method pointing to Alien AL36 4x GIA setup."""
+        self._on_patch_alien_gia()
