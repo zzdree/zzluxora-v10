@@ -212,10 +212,12 @@ class TestUIModules(unittest.TestCase):
         win._on_open_about()
         self.assertTrue(win.win_about.isVisible())
 
-        # Verify all 6 top-level menus exist (Editor eliminated in favor of Fixture dropdown)
+        # Verify top-level menus and direct actions exist (Preview is direct action without dropdown)
         from ui.qt_compat import QMenu
+        action_texts = [a.text() for a in win.menuBar().actions()]
+        self.assertIn("Preview", action_texts)
         menu_titles = [m.title() for m in win.menuBar().findChildren(QMenu)]
-        for title in ["File", "Fixture", "Preview", "Setting", "Help", "About"]:
+        for title in ["File", "Fixture", "Setting", "Help", "About"]:
             self.assertIn(title, menu_titles)
         self.assertNotIn("Editor", menu_titles)
 
@@ -361,7 +363,12 @@ class TestUIModules(unittest.TestCase):
         self.assertIsInstance(sy, float)
         self.assertGreater(sz, 0)
 
-        # Verify DMX update propagates to both 2D and 3D
+        # Verify DMX update propagates to both 2D and 3D after patching
+        win.tab_address._on_patch_alien_gia()
+        vis.sync_fixtures(win.tab_address.get_patched_fixtures())
+        self.assertEqual(len(vis.canvas_2d.fixtures), 4)
+        self.assertEqual(len(vis.canvas_3d.fixtures_3d), 4)
+
         dmx_data = bytearray(512)
         # Patch Alien #1 at 1 (dimmer 255, red 200, green 100, blue 50)
         dmx_data[0] = 255
@@ -385,7 +392,7 @@ class TestUIModules(unittest.TestCase):
         editor = FixtureEditorWindow()
         self.assertEqual(editor.windowTitle(), "Fixture Editor")
         self.assertEqual(editor.txt_model.text(), "LED")
-        self.assertEqual(editor.txt_maker.text(), "generic")
+        self.assertEqual(editor.txt_maker.text(), "Generic")
         self.assertEqual(editor.spin_channels.value(), 4)
 
         # Verify table headers and rows

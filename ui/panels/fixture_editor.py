@@ -116,7 +116,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
 
         lbl_maker = QLabel("Manufacture:")
         lbl_maker.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
-        self.txt_maker = QLineEdit("generic")
+        self.txt_maker = QLineEdit("Generic")
         self.txt_maker.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
         form_layout.addWidget(lbl_maker)
         form_layout.addWidget(self.txt_maker, 2)
@@ -163,12 +163,12 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         btn_bar.addStretch()
 
         self.btn_save = QPushButton("Save")
-        self.btn_save.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN}; font-weight: bold; min-width: 90px; padding: 6px 14px;")
+        self.btn_save.setStyleSheet("background-color: #16a34a; color: #ffffff; font-weight: bold; min-width: 90px; padding: 6px 14px; border-radius: 4px; border: none;")
         self.btn_save.clicked.connect(self._on_save_file)
         btn_bar.addWidget(self.btn_save)
 
         self.btn_close = QPushButton("Close")
-        self.btn_close.setStyleSheet("min-width: 90px; padding: 6px 14px;")
+        self.btn_close.setStyleSheet("min-width: 90px; padding: 6px 14px; border-radius: 4px;")
         self.btn_close.clicked.connect(self.close)
         btn_bar.addWidget(self.btn_close)
 
@@ -232,7 +232,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
     def _on_new_fixture(self) -> None:
         self.current_file_path = None
         self.txt_model.setText("LED")
-        self.txt_maker.setText("generic")
+        self.txt_maker.setText("Generic")
         self.spin_channels.setValue(4)
         self._populate_table_rows(4)
         self.setWindowTitle("Fixture Editor")
@@ -242,14 +242,14 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             self,
             "Buka Berkas Profil Fixture",
             str(Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"),
-            "ZZLUXORA Fixtures (*.zfx *.json);;All Files (*.*)",
+            "ZZLUXORA Fixture (*.zfx)",
         )
         if not path: return
         try:
             with open(path, "r", encoding="utf-8") as fp:
                 data = json.load(fp)
                 self.txt_model.setText(data.get("name", Path(path).stem))
-                self.txt_maker.setText(data.get("manufacturer", "generic"))
+                self.txt_maker.setText(data.get("manufacturer", "Generic"))
                 channels = data.get("channels", [])
                 self.spin_channels.setValue(len(channels))
                 self._populate_table_rows(len(channels))
@@ -288,9 +288,11 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             self,
             "Simpan Profil Fixture",
             str(default_dir / default_name),
-            "ZZLUXORA Fixture (*.zfx);;JSON Fixture (*.json)",
+            "ZZLUXORA Fixture (*.zfx)",
         )
         if path:
+            if not path.endswith(".zfx"):
+                path += ".zfx"
             self._write_file(Path(path))
 
     def _write_file(self, target_path: Path) -> None:

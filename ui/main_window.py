@@ -135,14 +135,12 @@ class MainWindow(QMainWindow if HAS_QT else object):
         act_fix_edit.triggered.connect(self._on_open_fixture_editor)
         menu_fix.addAction(act_fix_edit)
 
-        # 3. Preview Menu
-        menu_prev = mb.addMenu("Preview")
-        act_stage_vis = QAction("Stage Lighting Visualizer (2D & 3D)...", self)
-        act_stage_vis.setShortcut(QKeySequence("Ctrl+P"))
-        act_stage_vis.triggered.connect(self._on_open_visualizer)
-        menu_prev.addAction(act_stage_vis)
+        # 3. Preview Action (Direct Pop-up, No Dropdown)
+        act_preview = mb.addAction("Preview")
+        act_preview.setShortcut(QKeySequence("Ctrl+P"))
+        act_preview.triggered.connect(self._on_open_visualizer)
 
-        # 5. Setting Menu
+        # 4. Setting Menu
         menu_set = mb.addMenu("Setting")
         act_net_settings = QAction("Network & Art-Net Configuration...", self)
         act_net_settings.setShortcut(QKeySequence("Ctrl+Shift+P"))
@@ -328,6 +326,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
     def _on_open_visualizer(self) -> None:
         if self.win_visualizer is None:
             self.win_visualizer = StageVisualizerWindow(parent=self)
+        if hasattr(self, 'tab_address'):
+            fixtures = self.tab_address.get_patched_fixtures()
+            self.win_visualizer.sync_fixtures(fixtures)
         self.win_visualizer.update_dmx(self.dmx_buffer)
         self.win_visualizer.showNormal()
         self.win_visualizer.show()
@@ -442,7 +443,10 @@ class MainWindow(QMainWindow if HAS_QT else object):
         return (channel_number - 1) % footprint
 
     def _on_patch_changed(self) -> None:
-        pass
+        if self.win_visualizer is not None:
+            fixtures = self.tab_address.get_patched_fixtures()
+            self.win_visualizer.sync_fixtures(fixtures)
+            self.win_visualizer.update_dmx(self.dmx_buffer)
 
     # -----------------------------------------------------------------
     # WORKFLOW INTEGRATION ACROSS TABS

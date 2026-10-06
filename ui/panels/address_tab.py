@@ -324,6 +324,40 @@ class AddressTab(QWidget if HAS_QT else object):
 
         self.patch_changed.emit()
 
+    def get_patched_fixtures(self) -> list[dict]:
+        """Returns list of active patched fixture blocks from the address grid."""
+        fixtures = []
+        visited = set()
+        for ch in range(1, 257):
+            if ch in visited:
+                continue
+            box = self.grid_area.boxes.get(ch)
+            if box and box.is_patched and box.fixture_name:
+                fname = box.fixture_name
+                start_ch = ch
+                fixture_channels = []
+                cur = ch
+                while cur <= 256:
+                    cbox = self.grid_area.boxes.get(cur)
+                    if cbox and cbox.is_patched and cbox.fixture_name == fname:
+                        fixture_channels.append({
+                            "channel": cur,
+                            "type": cbox.channel_type,
+                            "label": cbox.channel_label,
+                        })
+                        visited.add(cur)
+                        cur += 1
+                    else:
+                        break
+                fixtures.append({
+                    "id": len(fixtures) + 1,
+                    "name": fname,
+                    "start_channel": start_ch,
+                    "channels": fixture_channels,
+                    "channel_count": len(fixture_channels),
+                })
+        return fixtures
+
     def _on_clear_patch_confirm(self) -> None:
         reply = QMessageBox.question(
             self,

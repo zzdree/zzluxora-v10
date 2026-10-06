@@ -111,10 +111,12 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         btn_bar.addStretch()
 
         self.btn_refresh = QPushButton("RELOAD")
+        self.btn_refresh.setStyleSheet("background-color: #16a34a; color: #ffffff; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
         self.btn_refresh.clicked.connect(self.reload_fixtures)
         btn_bar.addWidget(self.btn_refresh)
 
         self.btn_close = QPushButton("CLOSE")
+        self.btn_close.setStyleSheet("padding: 6px 14px; border-radius: 4px;")
         self.btn_close.clicked.connect(self.close)
         btn_bar.addWidget(self.btn_close)
 
@@ -125,7 +127,8 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         if not self.fixtures_dir.exists():
             return
 
-        files = sorted(list(self.fixtures_dir.glob("*.json")) + list(self.fixtures_dir.glob("*.zfx")))
+        # Strictly load official .zfx fixture definitions
+        files = sorted(list(self.fixtures_dir.glob("*.zfx")))
         for f in files:
             try:
                 with open(f, "r", encoding="utf-8") as fp:
@@ -153,14 +156,14 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         channels = data.get("channels", [])
         lines = [
             f"Model       : {data.get('name', 'Unknown')}",
-            f"Manufaktur  : {data.get('manufacturer', 'Generic')}",
-            f"Jumlah Kanal: {len(channels)} Channels",
-            "=" * 40,
+            f"Manufacture : {data.get('manufacturer', 'Generic')}",
+            f"Channel     : {len(channels)}",
+            "-" * 36,
         ]
         for ch in channels:
             idx = ch.get("index", 1)
             lbl = ch.get("label", "Channel")
             ctype = ch.get("type", "dimmer")
-            lines.append(f"Ch {idx:02d} : [{ctype.upper():8s}] {lbl}")
+            lines.append(f"{idx:02d} | {lbl} ({ctype.title()})")
 
         self.inspector_text.setPlainText("\n".join(lines))
