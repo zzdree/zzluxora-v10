@@ -89,7 +89,7 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         # Inspector preview directly in splitter without groupbox title
         self.inspector_text = QTextEdit()
         self.inspector_text.setReadOnly(True)
-        self.inspector_text.setPlaceholderText("Pilih profil fixture untuk melihat susunan kanal DMX...")
+        self.inspector_text.setPlaceholderText("Select a fixture profile to view DMX channel footprint...")
         self.inspector_text.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {Theme.BG_INPUT};
@@ -103,7 +103,8 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         """)
         splitter.addWidget(self.inspector_text)
 
-        splitter.setSizes([270, 150])
+        # Center splitter divider by default
+        splitter.setSizes([220, 220])
         main_layout.addWidget(splitter, 1)
 
         # Bottom Buttons
@@ -134,10 +135,10 @@ class FixtureListWindow(QWidget if HAS_QT else object):
                 with open(f, "r", encoding="utf-8") as fp:
                     data = json.load(fp)
                     name = data.get("name", f.stem)
-                    ch_count = data.get("channel_count", len(data.get("channels", [])))
                     mfr = data.get("manufacturer", "Generic")
 
-                    item = QListWidgetItem(f"{mfr} | {name} ({ch_count} Ch)")
+                    # Display clean Manufacturer | Model
+                    item = QListWidgetItem(f"{mfr} | {name}")
                     item.setData(Qt.UserRole, data)
                     self.list_widget.addItem(item)
             except Exception:
@@ -154,8 +155,9 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         if not data: return
 
         channels = data.get("channels", [])
+        model_name = data.get("model") or data.get("name", "Unknown")
         lines = [
-            f"Model       : {data.get('name', 'Unknown')}",
+            f"Model       : {model_name}",
             f"Manufacture : {data.get('manufacturer', 'Generic')}",
             f"Channel     : {len(channels)}",
             "-" * 36,

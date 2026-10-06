@@ -92,7 +92,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
-        self.setWindowTitle("Import Audio dari YouTube — ZZLUXORA")
+        self.setWindowTitle("Import YouTube Audio — ZZLUXORA")
         self.setFixedSize(540, 260)
         self.setStyleSheet(CONSOLE_QSS)
 
@@ -107,13 +107,12 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         layout.setSpacing(14)
 
         # Header Title
-        title_lbl = QLabel("🌐 Import Lagu Rohani dari YouTube")
+        title_lbl = QLabel("Import Audio from YouTube")
         title_lbl.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
         layout.addWidget(title_lbl)
 
         desc_lbl = QLabel(
-            "Masukkan tautan video YouTube lagu puji-pujian atau penyembahan. "
-            "Sistem akan mengunduh stream audio berkualitas tinggi untuk dianalisis STFT."
+            "Enter a YouTube video link. The system will download high-quality audio stream for STFT analysis."
         )
         desc_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
         desc_lbl.setWordWrap(True)
@@ -146,7 +145,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         layout.addWidget(self.progress_bar)
 
         # Status message label
-        self.status_lbl = QLabel("Siap mengunduh.")
+        self.status_lbl = QLabel("Ready to download.")
         self.status_lbl.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
         layout.addWidget(self.status_lbl)
 
@@ -154,11 +153,11 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        self.btn_cancel = QPushButton("Batal")
+        self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.clicked.connect(self.close)
         btn_layout.addWidget(self.btn_cancel)
 
-        self.btn_download = QPushButton("⬇ Download & Extract Audio")
+        self.btn_download = QPushButton("Download & Extract Audio")
         self.btn_download.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN};")
         self.btn_download.clicked.connect(self._on_start_download)
         btn_layout.addWidget(self.btn_download)
@@ -168,13 +167,13 @@ class YouTubeDialog(QDialog if HAS_QT else object):
     def _on_start_download(self) -> None:
         url = self.url_input.text().strip()
         if not url:
-            QMessageBox.warning(self, "Tautan Kosong", "Silakan masukkan URL YouTube terlebih dahulu.")
+            QMessageBox.warning(self, "Empty URL", "Please enter a valid YouTube video link first.")
             return
 
         self.btn_download.setEnabled(False)
         self.url_input.setEnabled(False)
         self.progress_bar.setValue(5)
-        self.status_lbl.setText("Memulai proses unduhan...")
+        self.status_lbl.setText("Starting download process...")
 
         self.worker = YouTubeDownloaderWorker(url, self.output_dir)
         self.worker.progress_updated.connect(self._on_progress)
@@ -188,12 +187,12 @@ class YouTubeDialog(QDialog if HAS_QT else object):
 
     def _on_finished(self, file_path: str) -> None:
         self.progress_bar.setValue(100)
-        self.status_lbl.setText("✓ Audio berhasil diunduh dan siap dianalisis.")
+        self.status_lbl.setText("✓ Audio successfully downloaded and ready for analysis.")
         self.audio_imported.emit(file_path)
         QMessageBox.information(
             self,
-            "Ekstraksi Audio Berhasil",
-            f"Audio berhasil diekstrak dan disimpan ke:\n{Path(file_path).name}\n\nAudio otomatis dimuat ke Tab Analyze.",
+            "Audio Extracted",
+            f"Audio successfully extracted and saved to:\n{Path(file_path).name}\n\nLoaded into Analyze tab.",
         )
         self.accept()
 
@@ -201,5 +200,5 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         self.btn_download.setEnabled(True)
         self.url_input.setEnabled(True)
         self.progress_bar.setValue(0)
-        self.status_lbl.setText("Gagal mengunduh audio.")
-        QMessageBox.critical(self, "Error Unduhan", f"Terjadi kesalahan saat mengunduh audio:\n{error_msg}")
+        self.status_lbl.setText("Failed to download audio.")
+        QMessageBox.critical(self, "Download Error", f"An error occurred while downloading audio:\n{error_msg}")

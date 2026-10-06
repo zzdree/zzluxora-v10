@@ -26,7 +26,7 @@ try:
         QTableWidget, QTableWidgetItem, QHeaderView, QListWidget,
         QListWidgetItem, QScrollArea, QSplitter, QGroupBox, QLineEdit,
         QSpinBox, QDoubleSpinBox, QComboBox, QProgressBar, QTextEdit,
-        QButtonGroup, QInputDialog, QTabWidget
+        QButtonGroup, QInputDialog, QTabWidget, QSlider
     )
     QT_BINDING = "PySide6"
 except ImportError:
@@ -49,7 +49,7 @@ except ImportError:
             QTableWidget, QTableWidgetItem, QHeaderView, QListWidget,
             QListWidgetItem, QScrollArea, QSplitter, QGroupBox, QLineEdit,
             QSpinBox, QDoubleSpinBox, QComboBox, QProgressBar, QTextEdit,
-            QButtonGroup, QInputDialog, QTabWidget
+            QButtonGroup, QInputDialog, QTabWidget, QSlider
         )
 
         # Promote PyQt6 scoped enums onto parent classes for 100% PySide parity

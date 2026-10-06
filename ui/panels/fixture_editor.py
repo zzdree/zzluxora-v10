@@ -109,14 +109,14 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
 
         lbl_model = QLabel("Model:")
         lbl_model.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
-        self.txt_model = QLineEdit("LED")
+        self.txt_model = QLineEdit("")
         self.txt_model.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
         form_layout.addWidget(lbl_model)
         form_layout.addWidget(self.txt_model, 2)
 
         lbl_maker = QLabel("Manufacture:")
         lbl_maker.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
-        self.txt_maker = QLineEdit("Generic")
+        self.txt_maker = QLineEdit("")
         self.txt_maker.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
         form_layout.addWidget(lbl_maker)
         form_layout.addWidget(self.txt_maker, 2)
@@ -231,8 +231,8 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
 
     def _on_new_fixture(self) -> None:
         self.current_file_path = None
-        self.txt_model.setText("LED")
-        self.txt_maker.setText("Generic")
+        self.txt_model.setText("")
+        self.txt_maker.setText("")
         self.spin_channels.setValue(4)
         self._populate_table_rows(4)
         self.setWindowTitle("Fixture Editor")
@@ -240,7 +240,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
     def _on_open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Buka Berkas Profil Fixture",
+            "Open Fixture Profile",
             str(Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"),
             "ZZLUXORA Fixture (*.zfx)",
         )
@@ -271,7 +271,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
                 self.current_file_path = Path(path)
                 self.setWindowTitle(f"Fixture Editor [{self.current_file_path.name}]")
         except Exception as e:
-            QMessageBox.critical(self, "Error Buka Berkas", f"Gagal membaca profil fixture:\n{e}")
+            QMessageBox.critical(self, "Open Error", f"Failed to open fixture profile:\n{e}")
 
     def _on_save_file(self) -> None:
         if self.current_file_path:
@@ -282,11 +282,12 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
     def _on_save_as_file(self) -> None:
         default_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures"
         default_dir.mkdir(parents=True, exist_ok=True)
-        default_name = f"{self.txt_model.text().lower().replace(' ', '_')}.zfx"
+        model_name = self.txt_model.text().strip() or "new_fixture"
+        default_name = f"{model_name.lower().replace(' ', '_')}.zfx"
 
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Simpan Profil Fixture",
+            "Save Fixture Profile",
             str(default_dir / default_name),
             "ZZLUXORA Fixture (*.zfx)",
         )
@@ -302,6 +303,6 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
                 json.dump(data, fp, indent=2)
             self.current_file_path = target_path
             self.setWindowTitle(f"Fixture Editor [{target_path.name}]")
-            QMessageBox.information(self, "Berhasil Disimpan", f"Profil fixture berhasil disimpan ke:\n{target_path.name}")
+            QMessageBox.information(self, "Saved", f"Fixture profile successfully saved to:\n{target_path.name}")
         except Exception as e:
-            QMessageBox.critical(self, "Error Simpan", f"Gagal menyimpan profil fixture:\n{e}")
+            QMessageBox.critical(self, "Save Error", f"Failed to save fixture profile:\n{e}")

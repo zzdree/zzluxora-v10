@@ -250,7 +250,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         splitter.setStyleSheet("QSplitter::handle { background-color: #333844; }")
 
         # Left Container: Song List
-        left_box = QGroupBox("Daftar Lagu Sesi Analisis")
+        left_box = QGroupBox("Session Audio Playlist")
         left_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         left_layout = QVBoxLayout(left_box)
         self.song_list_widget = QListWidget()
@@ -272,7 +272,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         splitter.addWidget(left_box)
 
         # Right Container: Analysis Visualization & Status
-        right_box = QGroupBox("Status DSP & Bidang Afektif Russell 2D")
+        right_box = QGroupBox("DSP Engine & Russell 2D Affective Plane")
         right_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         right_layout = QVBoxLayout(right_box)
 
@@ -318,7 +318,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
     def _on_load_audio_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Pilih Berkas Audio Rohani",
+            "Select Audio File",
             "",
             "Audio Files (*.wav *.mp3 *.flac *.ogg);;All Files (*.*)",
         )
@@ -336,7 +336,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         self.song_list_widget.setCurrentRow(len(self.loaded_songs) - 1)
         self.btn_analyze.setEnabled(True)
         self.btn_remove.setEnabled(True)
-        self.lbl_dsp_status.setText(f"Lagu siap: {Path(path_str).name}")
+        self.lbl_dsp_status.setText(f"Track ready: {Path(path_str).name}")
 
     def _on_song_selected(self, row: int) -> None:
         has_sel = row >= 0 and row < len(self.loaded_songs)
@@ -387,12 +387,12 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         self.russell_plane.set_coordinates(v, a, quad)
 
         self.stats_label.setText(
-            f"<b>Lagu:</b> {res.get('title')}<br>"
-            f"<b>Durasi:</b> {res.get('duration_sec'):.1f} s | <b>Frames STFT:</b> {res.get('frames_count')}<br>"
-            f"<b>Estimasi BPM:</b> {bpm:.1f} | <b>Energy RMS:</b> {rms:.3f}<br>"
+            f"<b>Track:</b> {res.get('title')}<br>"
+            f"<b>Duration:</b> {res.get('duration_sec'):.1f} s | <b>STFT Frames:</b> {res.get('frames_count')}<br>"
+            f"<b>Estimated BPM:</b> {bpm:.1f} | <b>RMS Energy:</b> {rms:.3f}<br>"
             f"<b>Russell Affective:</b> Valence = {v:+.2f}, Arousal = {a:+.2f}<br>"
-            f"<b>Kuadran Ibadah:</b> <span style='color: {Theme.ACCENT_AMBER}; font-weight: bold;'>{quad}</span><br>"
-            f"<b>Warna Panggung:</b> RGBW ({res['palette']['R']}, {res['palette']['G']}, {res['palette']['B']}, {res['palette']['W']})"
+            f"<b>Worship Mood:</b> <span style='color: {Theme.ACCENT_AMBER}; font-weight: bold;'>{quad}</span><br>"
+            f"<b>Stage Color:</b> RGBW ({res['palette']['R']}, {res['palette']['G']}, {res['palette']['B']}, {res['palette']['W']})"
         )
 
         self.analysis_ready.emit(res)
@@ -402,5 +402,5 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         self.btn_load_file.setEnabled(True)
         self.btn_import_yt.setEnabled(True)
         self.progress_bar.setValue(0)
-        self.lbl_dsp_status.setText("Gagal melakukan analisis audio.")
-        QMessageBox.critical(self, "Error DSP Analisis", f"Gagal menganalisis audio:\n{err_msg}")
+        self.lbl_dsp_status.setText("Audio analysis failed.")
+        QMessageBox.critical(self, "DSP Analysis Error", f"Failed to analyze audio:\n{err_msg}")

@@ -19,7 +19,7 @@ class AboutDialog(QDialog if HAS_QT else object):
         if not HAS_QT: return
         super().__init__(parent)
         self.setWindowFlags(Qt.Window | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
-        self.setWindowTitle("Tentang Pengembang & Aplikasi — ZZLUXORA")
+        self.setWindowTitle("About Developer & System — ZZLUXORA")
         self.resize(620, 520)
         self.setStyleSheet(CONSOLE_QSS)
 
@@ -49,9 +49,9 @@ class AboutDialog(QDialog if HAS_QT else object):
 
         # Header Title
         title_box = QVBoxLayout()
-        title = QLabel("TENTANG SISTEM ZZLUXORA v10")
+        title = QLabel("ABOUT ZZLUXORA v10")
         title.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        subtitle = QLabel("Intelligent Audio-Reactive Stage Lighting Controller • S1 Teknik Komputer FT UNNES")
+        subtitle = QLabel("Intelligent Audio-Reactive Stage Lighting Controller • Computer Engineering FT UNNES")
         subtitle.setStyleSheet(f"font-size: 11px; color: {Theme.ACCENT_CYAN};")
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
@@ -74,16 +74,16 @@ class AboutDialog(QDialog if HAS_QT else object):
 
         fields = [
             ("1. Application", "ZZLUXORA (v10.0.0 Next-Gen Production Stage Console)"),
-            ("2. Deskripsi", "Sistem Audio-Reactive Lighting Design Berbasis Analisis Mood Lagu Rohani dengan Pemetaan Warna HSV-RGBW dan Protokol Art-Net DMX512"),
-            ("3. Author / Peneliti", "Andreas Restuawanta Christwara"),
-            ("4. NIM", "5312422036"),
-            ("5. Program Studi", "S1 Teknik Komputer"),
-            ("6. Jurusan", "Teknik Elektro"),
-            ("7. Fakultas", "Fakultas Teknik"),
-            ("8. Universitas", "Universitas Negeri Semarang (UNNES)"),
-            ("9. Dosen Pembimbing", "Mario Norman Syah, S.Pd., M.Eng. (NIP: 199304212024061001)"),
-            ("10. Judul Skripsi", "Rancang Bangun Sistem Audio-Reactive Lighting Design Berbasis Analisis Mood Lagu Rohani dengan Pemetaan Warna HSV-RGBW dan Protokol Art-Net DMX512"),
-            ("11. Lokasi Riset", "Gereja GIA Deliksari, Kota Semarang"),
+            ("2. Description", "Audio-Reactive Stage Lighting Design System based on Worship Music Mood Analysis with HSV-RGBW Color Mapping and Art-Net DMX512 Protocol"),
+            ("3. Author / Researcher", "Andreas Restuawanta Christwara"),
+            ("4. Student ID (NIM)", "5312422036"),
+            ("5. Study Program", "Computer Engineering (S1)"),
+            ("6. Department", "Electrical Engineering"),
+            ("7. Faculty", "Faculty of Engineering"),
+            ("8. University", "Universitas Negeri Semarang (UNNES)"),
+            ("9. Thesis Advisor", "Mario Norman Syah, S.Pd., M.Eng. (NIP: 199304212024061001)"),
+            ("10. Research Title", "Rancang Bangun Sistem Audio-Reactive Lighting Design Berbasis Analisis Mood Lagu Rohani dengan Pemetaan Warna HSV-RGBW dan Protokol Art-Net DMX512"),
+            ("11. Field Location", "Gereja Isa Almasih (GIA) Deliksari, Semarang"),
         ]
 
         for label_text, val_text in fields:
@@ -105,7 +105,7 @@ class AboutDialog(QDialog if HAS_QT else object):
         # Bottom Close Button
         btn_bar = QHBoxLayout()
         btn_bar.addStretch()
-        btn_close = QPushButton("Tutup")
+        btn_close = QPushButton("Close")
         btn_close.clicked.connect(self.close)
         btn_bar.addWidget(btn_close)
         main_layout.addLayout(btn_bar)

@@ -210,7 +210,7 @@ class AddressTab(QWidget if HAS_QT else object):
         title_box = QVBoxLayout()
         lbl_title = QLabel("DMX ADDRESS PATCH SHEET")
         lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY}; letter-spacing: 0.5px;")
-        lbl_desc = QLabel("Matriks 256 Kanal DMX (Maks 24 Kolom) | Drag fixture dari Fixture List untuk melakukan patching.")
+        lbl_desc = QLabel("256 DMX Channel Matrix (Max 24 Columns) | Drag & drop fixtures from Fixture Library to patch.")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -230,13 +230,13 @@ class AddressTab(QWidget if HAS_QT else object):
         ctrl_bar.addWidget(self.btn_redo)
 
         self.btn_patch_alien = QPushButton("PATCH 4x ALIEN (GIA)")
-        self.btn_patch_alien.setToolTip("Auto-patch 4x Alien AL36 di DMX001, DMX017, DMX033, DMX049 (Panggung GIA Deliksari)")
+        self.btn_patch_alien.setToolTip("Auto-patch 4x Alien AL36 at DMX001, DMX017, DMX033, DMX049 (GIA Deliksari Stage)")
         self.btn_patch_alien.setStyleSheet(f"border-color: {Theme.ACCENT_CYAN}; color: #ffffff; font-weight: bold;")
         self.btn_patch_alien.clicked.connect(self._on_patch_alien_gia)
         ctrl_bar.addWidget(self.btn_patch_alien)
 
         self.btn_patch_kuma = QPushButton("PATCH 1x KUMA (BENCH)")
-        self.btn_patch_kuma.setToolTip("Auto-patch 1x Kumastb STL47 di DMX001 (Unit Uji Laboratorium RGBW)")
+        self.btn_patch_kuma.setToolTip("Auto-patch 1x Kumastb STL47 at DMX001 (RGBW Bench Testing Unit)")
         self.btn_patch_kuma.setStyleSheet(f"border-color: {Theme.ACCENT_AMBER}; color: #ffffff; font-weight: bold;")
         self.btn_patch_kuma.clicked.connect(self._on_patch_kuma_bench)
         ctrl_bar.addWidget(self.btn_patch_kuma)
@@ -361,8 +361,8 @@ class AddressTab(QWidget if HAS_QT else object):
     def _on_clear_patch_confirm(self) -> None:
         reply = QMessageBox.question(
             self,
-            "Konfirmasi Clear All Patch",
-            "Apakah Anda yakin ingin mengosongkan seluruh patch DMX?\n\n(Aksi ini dapat dibatalkan dengan tombol Undo)",
+            "Confirm Clear Patch",
+            "Are you sure you want to clear all DMX patches?\n\n(This action can be undone with Undo / Ctrl+Z)",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )

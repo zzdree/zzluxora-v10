@@ -35,9 +35,9 @@ class ResultTab(QWidget if HAS_QT else object):
         # Header Title
         top_bar = QHBoxLayout()
         title_box = QVBoxLayout()
-        lbl_title = QLabel("HASIL ANALISIS AFEKTIF & METRIK AUDIO")
+        lbl_title = QLabel("AFFECTIVE ANALYSIS & AUDIO METRICS")
         lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Hasil Komputasi Sinyal Lagu Rohani | Model Afektif Russell 2D & Rekomendasi Suasana Panggung")
+        lbl_desc = QLabel("Music Signal Computation Results | Russell 2D Affective Plane & Stage Mood Recommendation")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -61,28 +61,28 @@ class ResultTab(QWidget if HAS_QT else object):
         splitter = QSplitter(Qt.Horizontal)
 
         # Left: Metric Details Table
-        left_box = QGroupBox("Tabel Metrik Akustik & Karakteristik Lagu")
+        left_box = QGroupBox("Acoustic Metrics & Song Characteristics")
         left_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         left_layout = QVBoxLayout(left_box)
 
         self.table = QTableWidget(12, 2)
-        self.table.setHorizontalHeaderLabels(["Parameter Saintifik & DSP", "Nilai Komputasi"])
+        self.table.setHorizontalHeaderLabels(["Scientific & DSP Parameter", "Computed Value"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
 
         metrics = [
-            ("Judul Lagu", "Belum ada analisis"),
-            ("Estimasi Tempo", "-"),
-            ("Durasi & Frame STFT", "-"),
+            ("Song Title", "No analysis yet"),
+            ("Estimated Tempo", "-"),
+            ("Duration & STFT Frames", "-"),
             ("RMS Energy (Parseval)", "-"),
             ("Spectral Centroid", "-"),
-            ("Chroma STFT & Tonalitas", "-"),
+            ("Chroma STFT & Tonality", "-"),
             ("MFCC Acoustic Density", "-"),
             ("Spectral Flux (Onsets)", "-"),
-            ("Valence (Valensi)", "-"),
-            ("Arousal (Gairah)", "-"),
-            ("Klasifikasi Kuadran", "-"),
-            ("Dekomposisi Physical RGBW", "-"),
+            ("Valence (Mood)", "-"),
+            ("Arousal (Energy)", "-"),
+            ("Quadrant Classification", "-"),
+            ("Physical RGBW Decomposition", "-"),
         ]
         for row, (param, val) in enumerate(metrics):
             i1 = QTableWidgetItem(param)
@@ -98,14 +98,14 @@ class ResultTab(QWidget if HAS_QT else object):
         splitter.addWidget(left_box)
 
         # Right: Russell 2D Plane Display
-        right_box = QGroupBox("Pemetaan Bidang Emosi Russell (Valence-Arousal)")
+        right_box = QGroupBox("Russell Emotion Plane Mapping (Valence-Arousal)")
         right_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         right_layout = QVBoxLayout(right_box)
 
         self.russell_plane = RussellPlaneWidget()
         right_layout.addWidget(self.russell_plane, alignment=Qt.AlignCenter)
 
-        self.lbl_palette_desc = QLabel("Palet Warna Panggung: Belum ditentukan.")
+        self.lbl_palette_desc = QLabel("Stage Color Palette: Not assigned.")
         self.lbl_palette_desc.setStyleSheet(f"font-size: 12px; color: {Theme.TEXT_SECONDARY};")
         self.lbl_palette_desc.setAlignment(Qt.AlignCenter)
         right_layout.addWidget(self.lbl_palette_desc)
@@ -147,8 +147,8 @@ class ResultTab(QWidget if HAS_QT else object):
             f"{chroma_key}",
             f"{mfcc_dens:.3f} (Indeks Tekstur Akustik)",
             f"{flux_val:.3f} (Kepadatan Onset Ritmik)",
-            f"{v:+.2f} ({'Sukacita/Praise' if v >= 0 else 'Khidmat/Worship'})",
-            f"{a:+.2f} ({'Enerjik/Kuat' if a >= 0 else 'Tenang/Teduh'})",
+            f"{v:+.2f} ({'Praise/Joyful' if v >= 0 else 'Worship/Solemn'})",
+            f"{a:+.2f} ({'Dynamic/High' if a >= 0 else 'Ambient/Calm'})",
             f"{quad}",
             f"R:{r} G:{g} B:{b} W:{w} (Anti-Washout)",
         ]
@@ -156,7 +156,7 @@ class ResultTab(QWidget if HAS_QT else object):
             self.table.item(row, 1).setText(val_str)
 
         self.lbl_palette_desc.setText(
-            f"<b>Rekomendasi Warna Pencahayaan:</b><br>"
+            f"<b>Recommended Stage Lighting Color:</b><br>"
             f"<span style='color: rgb({r},{g},{b}); font-size: 14px;'>■■■ RGBW: ({r}, {g}, {b}, {w})</span>"
         )
 

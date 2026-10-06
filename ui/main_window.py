@@ -140,14 +140,12 @@ class MainWindow(QMainWindow if HAS_QT else object):
         act_preview.setShortcut(QKeySequence("Ctrl+P"))
         act_preview.triggered.connect(self._on_open_visualizer)
 
-        # 4. Setting Menu
-        menu_set = mb.addMenu("Setting")
-        act_net_settings = QAction("Network & Art-Net Configuration...", self)
-        act_net_settings.setShortcut(QKeySequence("Ctrl+Shift+P"))
-        act_net_settings.triggered.connect(self._on_open_settings)
-        menu_set.addAction(act_net_settings)
+        # 4. Setting Action (Direct Pop-up, No Dropdown)
+        act_setting = mb.addAction("Setting")
+        act_setting.setShortcut(QKeySequence("Ctrl+Shift+P"))
+        act_setting.triggered.connect(self._on_open_settings)
 
-        # 6. Help Menu
+        # 5. Help Menu
         menu_help = mb.addMenu("Help")
         act_shortcuts = QAction("User Guide & Keyboard Shortcuts...", self)
         act_shortcuts.setShortcut(QKeySequence("F1"))
@@ -620,18 +618,18 @@ class MainWindow(QMainWindow if HAS_QT else object):
                 self.dmx_buffer[channel - 1] = round(raw_value * master_scale)
 
             if notify:
-                QMessageBox.information(self, "Project Dimuat", f"Proyek berhasil dibuka:\n{Path(path).name}")
+                QMessageBox.information(self, "Project Loaded", f"Project successfully loaded from:\n{Path(path).name}")
         except Exception as e:
-            QMessageBox.critical(self, "Error Buka Proyek", f"Gagal membuka berkas proyek:\n{e}")
+            QMessageBox.critical(self, "Open Error", f"Failed to load project file:\n{e}")
 
     def _on_open_project(self) -> None:
         showfiles_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "showfiles"
         showfiles_dir.mkdir(parents=True, exist_ok=True)
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Buka File Proyek ZZLUXORA",
+            "Open ZZLUXORA Project",
             str(showfiles_dir),
-            "ZZLUXORA Project (*.zlx);;All Files (*.*)",
+            "ZZLUXORA Project (*.zlx)",
         )
         if path:
             self.load_project_file(path)
@@ -647,7 +645,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         showfiles_dir.mkdir(parents=True, exist_ok=True)
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Simpan Proyek ZZLUXORA",
+            "Save ZZLUXORA Project",
             str(showfiles_dir / "Untitled.zlx"),
             "ZZLUXORA Project (*.zlx)",
         )
@@ -693,9 +691,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
             self.current_project_path = path
             self._update_title_bar()
-            QMessageBox.information(self, "Project Disimpan", f"Proyek berhasil disimpan ke:\n{Path(path).name}")
+            QMessageBox.information(self, "Project Saved", f"Project successfully saved to:\n{Path(path).name}")
         except Exception as e:
-            QMessageBox.critical(self, "Error Simpan Proyek", f"Gagal menyimpan berkas proyek:\n{e}")
+            QMessageBox.critical(self, "Save Error", f"Failed to save project file:\n{e}")
 
     def closeEvent(self, event) -> None:
         self.stream_timer.stop()

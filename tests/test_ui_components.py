@@ -212,12 +212,13 @@ class TestUIModules(unittest.TestCase):
         win._on_open_about()
         self.assertTrue(win.win_about.isVisible())
 
-        # Verify top-level menus and direct actions exist (Preview is direct action without dropdown)
+        # Verify top-level menus and direct actions exist (Preview & Setting are direct actions without dropdown)
         from ui.qt_compat import QMenu
         action_texts = [a.text() for a in win.menuBar().actions()]
         self.assertIn("Preview", action_texts)
+        self.assertIn("Setting", action_texts)
         menu_titles = [m.title() for m in win.menuBar().findChildren(QMenu)]
-        for title in ["File", "Fixture", "Setting", "Help", "About"]:
+        for title in ["File", "Fixture", "Help", "About"]:
             self.assertIn(title, menu_titles)
         self.assertNotIn("Editor", menu_titles)
 
@@ -350,12 +351,12 @@ class TestUIModules(unittest.TestCase):
         self.assertTrue(vis.isVisible())
         self.assertEqual(vis.tabs.count(), 2)
 
-        # Verify 3D Canvas properties and haze
-        self.assertTrue(vis.canvas_3d.haze_enabled)
-        vis._on_toggle_haze()
+        # Verify 3D Canvas properties and haze (Default: False / OFF)
         self.assertFalse(vis.canvas_3d.haze_enabled)
         vis._on_toggle_haze()
         self.assertTrue(vis.canvas_3d.haze_enabled)
+        vis._on_toggle_haze()
+        self.assertFalse(vis.canvas_3d.haze_enabled)
 
         # Verify 3D projection math
         sx, sy, sz = vis.canvas_3d.project(0, 0, 0, 400, 300)
@@ -391,8 +392,8 @@ class TestUIModules(unittest.TestCase):
         # 1. Test FixtureEditorWindow
         editor = FixtureEditorWindow()
         self.assertEqual(editor.windowTitle(), "Fixture Editor")
-        self.assertEqual(editor.txt_model.text(), "LED")
-        self.assertEqual(editor.txt_maker.text(), "Generic")
+        self.assertEqual(editor.txt_model.text(), "")
+        self.assertEqual(editor.txt_maker.text(), "")
         self.assertEqual(editor.spin_channels.value(), 4)
 
         # Verify table headers and rows

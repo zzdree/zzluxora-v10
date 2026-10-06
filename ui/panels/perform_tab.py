@@ -39,7 +39,7 @@ class PerformTab(QWidget if HAS_QT else object):
         title_box = QVBoxLayout()
         lbl_title = QLabel("LIVE STAGE SHOW CONTROLLER & PERFORMANCE")
         lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Pengaturan Playlist Pertunjukan Live | Section Cues, Crossfade [GO+], & Transisi Fade")
+        lbl_desc = QLabel("Live Stage Show Playlist Management | Section Cues, [GO+] Crossfader, & Fade Transitions")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -70,7 +70,7 @@ class PerformTab(QWidget if HAS_QT else object):
         splitter = QSplitter(Qt.Horizontal)
 
         # Left: Playlist List
-        left_box = QGroupBox("Playlist Urutan Pertunjukan Live")
+        left_box = QGroupBox("Live Show Playlist")
         left_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         left_layout = QVBoxLayout(left_box)
 
@@ -93,13 +93,13 @@ class PerformTab(QWidget if HAS_QT else object):
         splitter.addWidget(left_box)
 
         # Right: Section Cues & Master Playback
-        right_box = QGroupBox("Section Cues & Timing Pencahayaan Lagu Terpilih")
+        right_box = QGroupBox("Section Cues & Stage Lighting Timing")
         right_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         right_layout = QVBoxLayout(right_box)
 
         self.cue_table = QTableWidget(0, 6)
         self.cue_table.setHorizontalHeaderLabels([
-            "Bagian Lagu", "Suasana / Mood", "Fade In", "Fade Out", "Dimmer", "Trigger"
+            "Section", "Mood", "Fade In", "Fade Out", "Dimmer", "Trigger"
         ])
         self.cue_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.cue_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
@@ -521,6 +521,6 @@ class PerformTab(QWidget if HAS_QT else object):
         self.export_to_page.emit(generated_cues)
         QMessageBox.information(
             self,
-            "Ekspor Selesai",
-            f"Berhasil membangkitkan {len(generated_cues)} tombol eksekutor virtual di Tab Page!",
+            "Executors Generated",
+            f"Successfully generated {len(generated_cues)} virtual executor buttons in Page Tab!",
         )

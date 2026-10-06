@@ -39,7 +39,7 @@ class MixerTab(QWidget if HAS_QT else object):
         title_box = QVBoxLayout()
         lbl_title = QLabel("GRANDMA3 INDUSTRIAL CONSOLE MIXER (257 FADERS)")
         lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY}; letter-spacing: 0.5px;")
-        lbl_desc = QLabel("1 Grand Master Dimmer + 256 Kanal DMX Output | Rel Fader Ber-LED Menyala & Skala Kalibrasi Analog")
+        lbl_desc = QLabel("1 Grand Master Dimmer + 256 DMX Output Channels | Illuminated LED Rails & Analog Calibration Scales")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)

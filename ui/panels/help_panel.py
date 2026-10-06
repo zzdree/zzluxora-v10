@@ -18,7 +18,7 @@ class HelpDialog(QDialog if HAS_QT else object):
         if not HAS_QT: return
         super().__init__(parent)
         self.setWindowFlags(Qt.Window | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
-        self.setWindowTitle("Panduan & Keyboard Shortcuts — ZZLUXORA")
+        self.setWindowTitle("Keyboard Shortcuts Reference — ZZLUXORA")
         self.resize(580, 520)
         self.setStyleSheet(CONSOLE_QSS)
         self._init_ui()
@@ -30,36 +30,36 @@ class HelpDialog(QDialog if HAS_QT else object):
 
         # Header Title
         title_box = QVBoxLayout()
-        title = QLabel("TABEL SHORTCUT KEYBOARD KONSOL")
+        title = QLabel("CONSOLE KEYBOARD SHORTCUTS")
         title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        desc = QLabel("Gunakan tombol pintas berikut untuk mempercepat pengoperasian pencahayaan panggung.")
+        desc = QLabel("Use the following hotkeys for rapid live stage lighting operations.")
         desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px;")
         title_box.addWidget(title)
         title_box.addWidget(desc)
         main_layout.addLayout(title_box)
 
         # Table
-        grp = QGroupBox("Daftar Shortcut Global & Workspace")
+        grp = QGroupBox("Global & Tool Shortcuts")
         grp.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         grp_layout = QVBoxLayout(grp)
 
         self.table = QTableWidget(11, 2)
-        self.table.setHorizontalHeaderLabels(["Fungsi / Aksi", "Tombol Pintas"])
+        self.table.setHorizontalHeaderLabels(["Action / Function", "Shortcut Key"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
 
         shortcuts = [
-            ("Buka File Project (.zlx)", "Ctrl + O"),
-            ("Simpan Project", "Ctrl + S"),
-            ("Simpan Sebagai (Save As)", "Ctrl + Shift + S"),
+            ("Open Project (.zlx)", "Ctrl + O"),
+            ("Save Project", "Ctrl + S"),
+            ("Save As Project", "Ctrl + Shift + S"),
             ("Toggle Play / Stop Art-Net Stream", "Space"),
             ("Instant Grand Master Blackout", "Escape / B"),
-            ("Global Undo (Batal Aksi)", "Ctrl + Z"),
-            ("Global Redo (Ulang Aksi)", "Ctrl + Shift + Z / Ctrl + Y"),
-            ("Workspace: Address Tab", "F1"),
-            ("Workspace: Analyze Tab", "F2"),
-            ("Workspace: Result Tab", "F3"),
-            ("Workspace: Mixer Desk (257 Faders)", "F6"),
+            ("Global Undo", "Ctrl + Z"),
+            ("Global Redo", "Ctrl + Shift + Z / Ctrl + Y"),
+            ("Open Fixture Library", "Ctrl + F"),
+            ("Open Fixture Definition Editor", "Ctrl + E"),
+            ("Open Stage Lighting Visualizer", "Ctrl + P"),
+            ("Open Network & Art-Net Settings", "Ctrl + Shift + P"),
         ]
 
         for row, (action_text, key_text) in enumerate(shortcuts):
@@ -79,7 +79,7 @@ class HelpDialog(QDialog if HAS_QT else object):
         # Bottom Close Button
         btn_bar = QHBoxLayout()
         btn_bar.addStretch()
-        btn_close = QPushButton("Tutup")
+        btn_close = QPushButton("Close")
         btn_close.clicked.connect(self.close)
         btn_bar.addWidget(btn_close)
         main_layout.addLayout(btn_bar)

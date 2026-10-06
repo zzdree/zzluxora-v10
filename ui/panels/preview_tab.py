@@ -2,7 +2,7 @@
 preview_tab.py — Standalone Floating Stage Visualizer Window (2D & 3D with Haze/Smoke)
 Provides high-fidelity stage lighting simulation with dynamic RGBW PAR LED beam glows,
 3D perspective volumetric beams, overhead truss rigging, atmospheric haze/smoke FX,
-full mouse camera control (orbit, pan, zoom), center-aligned auto layout, and collapsible side drawer.
+inverted orbit mouse control, zoom limits, center-aligned 2D/3D auto layout, and collapsible drawer.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from pathlib import Path
 
 from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QSpinBox, QTabWidget,
+    QFrame, QSpinBox, QSlider, QTabWidget,
     Qt, QPoint, QPointF, QRectF, Signal, QPainter, QColor, QPen, QPolygonF,
     QRadialGradient, QLinearGradient, QBrush, QFont, QTimer, QIcon
 )
@@ -20,11 +20,11 @@ from ui.styles import Theme, CONSOLE_QSS
 
 
 # -----------------------------------------------------------------------------
-# 1. 2D STAGE CANVAS (FRONT VIEW WITH CENTER-ALIGNED RIGGING)
+# 1. 2D STAGE CANVAS (FRONT VIEW WITH CENTER-ALIGNED VERTICAL & HORIZONTAL LAYOUT)
 # -----------------------------------------------------------------------------
 class Stage2DCanvas(QFrame if HAS_QT else object):
-    """Front-view 2D Stage Canvas with RGBW beam projection, halos, floor bounce, and center alignment."""
-    fixture_selected = Signal(int, int, int)
+    """Front-view 2D Stage Canvas with RGBW beam projection, halos, floor bounce, and click selection."""
+    fixture_selected = Signal(int)
 
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
@@ -34,7 +34,6 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         # Starts empty by default (Clean initial state for untitled project)
         self.fixtures: list[dict] = []
         self.selected_idx = -1
-        self._drag_active = False
 
         # Pivot offsets (linked with 3D)
         self.pivot_x = 0
@@ -47,7 +46,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         self.update()
 
     def set_fixtures(self, fixtures_data: list[dict]) -> None:
-        """Loads patched fixtures and auto-arranges them center-aligned."""
+        """Loads patched fixtures and auto-arranges them center-aligned in 2D."""
         self.fixtures = []
         for idx, fix in enumerate(fixtures_data):
             self.fixtures.append({
@@ -68,14 +67,17 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         self.update()
 
     def recompute_layout(self) -> None:
-        """Computes center-aligned positions for all active fixtures."""
+        """Computes center-aligned horizontal and vertical positions for active fixtures."""
         n = len(self.fixtures)
         if n == 0:
             return
 
         w = max(400, self.width() if self.width() > 100 else 800)
+        h = max(350, self.height() if self.height() > 100 else 550)
+
         center_x = w / 2.0 + self.pivot_x
-        base_y = 80 + self.pivot_y
+        # Vertically centered in the upper stage area
+        base_y = (h * 0.35) + self.pivot_y
         spacing = min(150.0, max(85.0, (w - 140.0) / max(1, n)))
 
         for i, fix in enumerate(self.fixtures):
@@ -93,7 +95,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             return
 
         for fix in self.fixtures:
-            start = fix["start_channel"] - 1  # 0-indexed
+            start = fix["start_channel"] - 1
             channels = fix.get("channels", [])
 
             dim = 255
@@ -114,7 +116,6 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
                         elif ctype == "blue": b = val
                         elif ctype == "white": w = val
             else:
-                # Default 8CH footprint fallback
                 if start + 4 < len(dmx_channels):
                     dim = dmx_channels[start]
                     r = dmx_channels[start + 1]
@@ -131,28 +132,16 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         self.update()
 
     def mousePressEvent(self, event) -> None:
+        # Left click selects fixture without changing its position
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
             for idx, fix in enumerate(self.fixtures):
                 fx, fy = fix["x"], fix["y"]
                 if (pos.x() - fx)**2 + (pos.y() - fy)**2 <= 30**2:
                     self.selected_idx = idx
-                    self._drag_active = True
-                    self.fixture_selected.emit(fix["id"], fx, fy)
+                    self.fixture_selected.emit(fix["id"])
                     self.update()
                     break
-
-    def mouseMoveEvent(self, event) -> None:
-        if not self._drag_active or self.selected_idx < 0: return
-        pos = event.position().toPoint()
-        self.fixtures[self.selected_idx]["x"] = max(35, min(self.width() - 35, pos.x()))
-        self.fixtures[self.selected_idx]["y"] = max(35, min(self.height() - 75, pos.y()))
-        fix = self.fixtures[self.selected_idx]
-        self.fixture_selected.emit(fix["id"], fix["x"], fix["y"])
-        self.update()
-
-    def mouseReleaseEvent(self, event) -> None:
-        self._drag_active = False
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -161,19 +150,19 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         w = self.width()
         h = self.height()
         floor_y = h - 45
-        truss_y = 80 + self.pivot_y
+        truss_y = (h * 0.35) - 40 + self.pivot_y
 
         # 1. Truss Rigging Bar at Top
         pen_truss_main = QPen(QColor("#2d3340"), 6)
         painter.setPen(pen_truss_main)
-        painter.drawLine(20, truss_y, w - 20, truss_y)
+        painter.drawLine(20, int(truss_y), w - 20, int(truss_y))
 
         # Truss diagonal cross bracing
         pen_truss_sub = QPen(QColor("#1e222a"), 2)
         painter.setPen(pen_truss_sub)
         for tx in range(25, w - 25, 40):
-            painter.drawLine(tx, truss_y - 8, tx + 20, truss_y + 8)
-            painter.drawLine(tx + 20, truss_y + 8, tx + 40, truss_y - 8)
+            painter.drawLine(tx, int(truss_y - 8), tx + 20, int(truss_y + 8))
+            painter.drawLine(tx + 20, int(truss_y + 8), tx + 40, int(truss_y - 8))
 
         # 2. Stage Floor Platform
         painter.fillRect(0, floor_y, w, h - floor_y, QColor("#101319"))
@@ -188,7 +177,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             painter.drawText(
                 QRectF(0, h / 2 - 20, w, 40),
                 Qt.AlignCenter,
-                "Panggung Siap • Patch fixture di Tab Address untuk memvisualisasikan lampu"
+                "Stage Ready • Patch fixtures in Address tab to visualize lighting"
             )
             painter.end()
             return
@@ -203,7 +192,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
 
             # Cable Drop from Truss to Fixture
             painter.setPen(QPen(QColor("#14161a"), 2))
-            painter.drawLine(fx, truss_y, fx, fy - 18)
+            painter.drawLine(fx, int(truss_y), fx, fy - 18)
 
             # A. Light Conical Beam Projection downwards
             if dim > 0.05:
@@ -262,31 +251,35 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
 
 
 # -----------------------------------------------------------------------------
-# 2. 3D STAGE CANVAS (FULL MOUSE CONTROL: ORBIT, ZOOM, PAN & PIVOT OFFSETS)
+# 2. 3D STAGE CANVAS (INVERTED ORBIT, ZOOM LIMITS, PAN MOVE, FRONT DEFAULT)
 # -----------------------------------------------------------------------------
 class Stage3DCanvas(QFrame if HAS_QT else object):
     """
     True Perspective 3D Stage Visualizer.
     Features overhead aluminum box-truss, 3D fixture housings, perspective conical volumetric beams,
-    stage floor bounce pools, full mouse controls (left orbit, wheel zoom, right pan),
-    center-aligned dynamic layout, and dynamic atmospheric haze/smoke simulation.
+    stage floor bounce pools, inverted mouse orbit, bounded zoom, right-drag pan,
+    default front camera, center-aligned dynamic layout, and atmospheric haze FX.
     """
+    fixture_selected = Signal(int)
+
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
         self.setStyleSheet("background-color: #050608; border: 1px solid #333844; border-radius: 6px;")
 
-        # Camera Orbit Angles & Pan
-        self.yaw = math.radians(-12.0)
-        self.pitch = math.radians(24.0)
-        self.cam_distance = 580.0  # Zoom parameter (min 200, max 1400)
-        self.pan_x = 0.0           # Move camera horizontal
-        self.pan_y = 0.0           # Move camera vertical
+        # Default Camera: Straight Front Perspective View
+        self.yaw = 0.0                      # Straight from front (0 degrees)
+        self.pitch = math.radians(16.0)     # Slight elegant elevation angle
+        self.cam_distance = 600.0           # Zoom parameter (min 250, max 1100)
+        self.pan_x = 0.0                    # Move camera horizontal
+        self.pan_y = 0.0                    # Move camera vertical
 
         # Drag state
         self.is_orbiting = False
         self.is_panning = False
         self.last_mouse_pos = QPoint()
+        self.press_pos = QPoint()
+        self.selected_idx = -1
 
         # Pivot Offsets (linked with 2D)
         self.pivot_x = 0
@@ -296,8 +289,8 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         # Starts empty by default (Clean initial state for untitled project)
         self.fixtures_3d: list[dict] = []
 
-        # Atmospheric Haze / Smoke Simulation State
-        self.haze_enabled = True
+        # Atmospheric Haze / Smoke Simulation State (Default: OFF per feedback)
+        self.haze_enabled = False
         self.haze_density = 0.5
         self.smoke_particles = []
         for _ in range(32):
@@ -315,7 +308,6 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         self.anim_timer = QTimer(self)
         self.anim_timer.setInterval(33)
         self.anim_timer.timeout.connect(self._on_animation_tick)
-        self.anim_timer.start()
 
     def set_pivots(self, px: int, py: int, pz: int = 0) -> None:
         self.pivot_x = px
@@ -342,6 +334,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
                 "w": 40,
                 "dim": 240,
             })
+        self.selected_idx = 0 if self.fixtures_3d else -1
         self.recompute_layout()
         self.update()
 
@@ -362,15 +355,19 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
 
     def set_haze_enabled(self, enabled: bool) -> None:
         self.haze_enabled = enabled
-        if enabled and not self.anim_timer.isActive():
-            self.anim_timer.start()
+        if enabled:
+            if not self.anim_timer.isActive():
+                self.anim_timer.start()
+        else:
+            if self.anim_timer.isActive():
+                self.anim_timer.stop()
         self.update()
 
     def reset_camera(self) -> None:
-        """Resets camera orientation, zoom, and pan back to defaults."""
-        self.yaw = math.radians(-12.0)
-        self.pitch = math.radians(24.0)
-        self.cam_distance = 580.0
+        """Resets camera to front-facing perspective with default zoom & pan."""
+        self.yaw = 0.0
+        self.pitch = math.radians(16.0)
+        self.cam_distance = 600.0
         self.pan_x = 0.0
         self.pan_y = 0.0
         self.update()
@@ -430,9 +427,10 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         self.update()
 
     # -------------------------------------------------------------------------
-    # MOUSE CONTROLS: LEFT (ORBIT), MIDDLE (NONE), WHEEL (ZOOM), RIGHT (PAN)
+    # MOUSE CONTROLS: LEFT (INVERTED ORBIT & SELECT), MIDDLE (NONE), WHEEL (ZOOM), RIGHT (PAN)
     # -------------------------------------------------------------------------
     def mousePressEvent(self, event) -> None:
+        self.press_pos = event.position().toPoint()
         self.last_mouse_pos = event.position().toPoint()
         if event.button() == Qt.LeftButton:
             self.is_orbiting = True
@@ -448,12 +446,12 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         self.last_mouse_pos = cur_pos
 
         if self.is_orbiting:
-            # Orbit yaw & pitch
-            self.yaw += dx * 0.008
-            self.pitch = max(math.radians(5), min(math.radians(85), self.pitch + dy * 0.008))
+            # Inverted orbit: drag right turns camera left, drag up pitches up naturally
+            self.yaw -= dx * 0.008
+            self.pitch = max(math.radians(2), min(math.radians(85), self.pitch - dy * 0.008))
             self.update()
         elif self.is_panning:
-            # Pan position right/left and up/down
+            # Right drag: pan camera horizontally and vertically
             self.pan_x += dx * 0.8
             self.pan_y += dy * 0.8
             self.update()
@@ -461,6 +459,20 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self.is_orbiting = False
+            # Check if this was a click (select fixture) without dragging
+            cur_pos = event.position().toPoint()
+            if (cur_pos - self.press_pos).manhattanLength() < 5:
+                w = self.width()
+                h = self.height()
+                cx = w / 2.0
+                cy = h / 2.0 + 40.0
+                for idx, fix in enumerate(self.fixtures_3d):
+                    sx, sy, _ = self.project(fix["x"], fix["y"], fix["z"], cx, cy)
+                    if (cur_pos.x() - sx)**2 + (cur_pos.y() - sy)**2 <= 25**2:
+                        self.selected_idx = idx
+                        self.fixture_selected.emit(fix["id"])
+                        self.update()
+                        break
         elif event.button() == Qt.RightButton:
             self.is_panning = False
 
@@ -468,11 +480,11 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         """Zoom in and zoom out via scroll wheel, bounded within limits."""
         delta = event.angleDelta().y()
         if delta > 0:
-            # Zoom In
-            self.cam_distance = max(200.0, self.cam_distance - 40.0)
+            # Zoom In (limit min distance)
+            self.cam_distance = max(250.0, self.cam_distance - 40.0)
         elif delta < 0:
-            # Zoom Out
-            self.cam_distance = min(1400.0, self.cam_distance + 40.0)
+            # Zoom Out (limit max distance to prevent vanishing)
+            self.cam_distance = min(1100.0, self.cam_distance + 40.0)
         self.update()
 
     def project(self, x: float, y: float, z: float, cx: float, cy: float, fov_scale: float = 460.0) -> tuple[float, float, float]:
@@ -604,7 +616,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             painter.setBrush(QBrush(floor_glow))
             painter.drawPolygon(QPolygonF(floor_ellipse_pts))
 
-        # 4. Atmospheric Haze / Stage Smoke Layer
+        # 4. Atmospheric Haze / Stage Smoke Layer (when enabled)
         if self.haze_enabled:
             for p in self.smoke_particles:
                 sx, sy, sz = self.project(p["x"], p["y"], p["z"], cx, cy)
@@ -622,7 +634,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
                     painter.drawEllipse(QPointF(sx, sy), radius_proj, radius_proj * 0.7)
 
         # 5. 3D Fixture Head Housings, Rigging Cables & Labels
-        for fix in self.fixtures_3d:
+        for idx, fix in enumerate(self.fixtures_3d):
             lx, ly, lz = fix["x"], fix["y"], fix["z"]
             head_sx, head_sy, head_sz = self.project(lx, ly, lz, cx, cy)
             scale = 450.0 / head_sz
@@ -642,7 +654,8 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             painter.drawLine(QPointF(head_sx, head_sy - 16 * scale), QPointF(head_sx, head_sy - 4 * scale))
 
             # Yoke Bracket
-            painter.setPen(QPen(QColor("#404654"), 2.5))
+            is_sel = (idx == self.selected_idx)
+            painter.setPen(QPen(QColor(Theme.ACCENT_CYAN if is_sel else "#404654"), 2.5))
             yoke_rect = QRectF(head_sx - 14 * scale, head_sy - 6 * scale, 28 * scale, 22 * scale)
             painter.drawArc(yoke_rect, 0, 180 * 16)
 
@@ -683,7 +696,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         if not HAS_QT: return
         super().__init__(parent, Qt.Window)
         self.setWindowTitle("Stage Visualizer")
-        self.resize(900, 600)
+        self.resize(920, 600)
         self.setStyleSheet(CONSOLE_QSS)
 
         logo_path = Path(__file__).resolve().parent.parent / "assets" / "logo_zz.png"
@@ -766,9 +779,10 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
 
         content_layout.addWidget(self.tabs, 1)
 
-        # Side Control Drawer
+        # Side Control Drawer (Default: Hidden at start per feedback)
         self.drawer_widget = QFrame()
-        self.drawer_widget.setFixedWidth(210)
+        self.drawer_widget.setFixedWidth(230)
+        self.drawer_widget.setVisible(False)  # Hidden by default
         self.drawer_widget.setStyleSheet(f"""
             QFrame {{
                 background-color: {Theme.BG_SURFACE};
@@ -779,11 +793,6 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         drawer_layout = QVBoxLayout(self.drawer_widget)
         drawer_layout.setContentsMargins(12, 14, 12, 14)
         drawer_layout.setSpacing(12)
-
-        # Drawer Title
-        lbl_panel = QLabel("CONTROL PANEL")
-        lbl_panel.setStyleSheet(f"font-size: 11px; font-weight: 800; color: {Theme.TEXT_SECONDARY}; letter-spacing: 1px;")
-        drawer_layout.addWidget(lbl_panel)
 
         # --- 3D Specific Section ---
         self.box_3d_controls = QFrame()
@@ -810,71 +819,113 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         self.btn_reset_cam.clicked.connect(self._on_reset_camera_clicked)
         box_3d_layout.addWidget(self.btn_reset_cam)
 
-        # Haze FX Switch (Green when ON, Grey when OFF)
-        self.btn_haze = QPushButton("Haze: ON")
-        self.btn_haze.setStyleSheet("background-color: #16a34a; border: none; border-radius: 4px; color: #ffffff; font-weight: bold; padding: 6px;")
+        # Haze FX Switch (Default: OFF grey, Green when ON)
+        self.btn_haze = QPushButton("Haze FX: OFF")
+        self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: normal; padding: 6px;")
         self.btn_haze.clicked.connect(self._on_toggle_haze)
         box_3d_layout.addWidget(self.btn_haze)
 
         drawer_layout.addWidget(self.box_3d_controls)
 
-        # Divider
-        divider = QFrame()
-        divider.setFixedHeight(1)
-        divider.setStyleSheet(f"background-color: {Theme.BORDER_SUBTLE}; border: none;")
-        drawer_layout.addWidget(divider)
+        # Divider between Camera and Fixture Position
+        self.divider_3d = QFrame()
+        self.divider_3d.setFixedHeight(1)
+        self.divider_3d.setStyleSheet(f"background-color: {Theme.BORDER_SUBTLE}; border: none;")
+        drawer_layout.addWidget(self.divider_3d)
 
-        # --- Pivot Position Section (Linked 2D & 3D) ---
-        lbl_pivot = QLabel("POSISI FIXTURE")
-        lbl_pivot.setStyleSheet(f"font-size: 11px; font-weight: 800; color: {Theme.TEXT_SECONDARY};")
+        # --- Pivot Position Section (Linked 2D & 3D with interactive slider + spinbox) ---
+        lbl_pivot = QLabel("FIXTURE POSITION")
+        lbl_pivot.setStyleSheet(f"font-size: 11px; font-weight: 800; color: {Theme.TEXT_SECONDARY}; letter-spacing: 1px;")
         drawer_layout.addWidget(lbl_pivot)
 
-        # Pivot X
-        row_px = QHBoxLayout()
+        # Pivot X (Slider + SpinBox)
+        col_px = QVBoxLayout()
+        col_px.setSpacing(4)
         lbl_px = QLabel("Pivot X:")
-        lbl_px.setFixedWidth(55)
         lbl_px.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
-        self.spin_pivot_x = QSpinBox()
-        self.spin_pivot_x.setRange(-500, 500)
-        self.spin_pivot_x.setValue(0)
-        self.spin_pivot_x.setSingleStep(10)
-        self.spin_pivot_x.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
-        self.spin_pivot_x.valueChanged.connect(self._on_pivots_changed)
-        row_px.addWidget(lbl_px)
-        row_px.addWidget(self.spin_pivot_x)
-        drawer_layout.addLayout(row_px)
+        col_px.addWidget(lbl_px)
 
-        # Pivot Y
-        row_py = QHBoxLayout()
+        row_px = QHBoxLayout()
+        self.slider_pivot_x = QSlider(Qt.Horizontal)
+        self.slider_pivot_x.setRange(-300, 300)
+        self.slider_pivot_x.setValue(0)
+        self.slider_pivot_x.setStyleSheet(f"""
+            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
+        """)
+        self.spin_pivot_x = QSpinBox()
+        self.spin_pivot_x.setRange(-300, 300)
+        self.spin_pivot_x.setValue(0)
+        self.spin_pivot_x.setFixedWidth(65)
+        self.spin_pivot_x.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
+
+        self.slider_pivot_x.valueChanged.connect(self.spin_pivot_x.setValue)
+        self.spin_pivot_x.valueChanged.connect(self.slider_pivot_x.setValue)
+        self.spin_pivot_x.valueChanged.connect(self._on_pivots_changed)
+        row_px.addWidget(self.slider_pivot_x, 1)
+        row_px.addWidget(self.spin_pivot_x)
+        col_px.addLayout(row_px)
+        drawer_layout.addLayout(col_px)
+
+        # Pivot Y (Slider + SpinBox)
+        col_py = QVBoxLayout()
+        col_py.setSpacing(4)
         lbl_py = QLabel("Pivot Y:")
-        lbl_py.setFixedWidth(55)
         lbl_py.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
+        col_py.addWidget(lbl_py)
+
+        row_py = QHBoxLayout()
+        self.slider_pivot_y = QSlider(Qt.Horizontal)
+        self.slider_pivot_y.setRange(-300, 300)
+        self.slider_pivot_y.setValue(0)
+        self.slider_pivot_y.setStyleSheet(f"""
+            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
+        """)
         self.spin_pivot_y = QSpinBox()
         self.spin_pivot_y.setRange(-300, 300)
         self.spin_pivot_y.setValue(0)
-        self.spin_pivot_y.setSingleStep(10)
+        self.spin_pivot_y.setFixedWidth(65)
         self.spin_pivot_y.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
+
+        self.slider_pivot_y.valueChanged.connect(self.spin_pivot_y.setValue)
+        self.spin_pivot_y.valueChanged.connect(self.slider_pivot_y.setValue)
         self.spin_pivot_y.valueChanged.connect(self._on_pivots_changed)
-        row_py.addWidget(lbl_py)
+        row_py.addWidget(self.slider_pivot_y, 1)
         row_py.addWidget(self.spin_pivot_y)
-        drawer_layout.addLayout(row_py)
+        col_py.addLayout(row_py)
+        drawer_layout.addLayout(col_py)
 
         # Pivot Z (Only active for 3D)
-        self.row_pz_widget = QWidget()
-        row_pz = QHBoxLayout(self.row_pz_widget)
-        row_pz.setContentsMargins(0, 0, 0, 0)
+        self.col_pz_widget = QWidget()
+        col_pz = QVBoxLayout(self.col_pz_widget)
+        col_pz.setContentsMargins(0, 0, 0, 0)
+        col_pz.setSpacing(4)
         lbl_pz = QLabel("Pivot Z:")
-        lbl_pz.setFixedWidth(55)
         lbl_pz.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
+        col_pz.addWidget(lbl_pz)
+
+        row_pz = QHBoxLayout()
+        self.slider_pivot_z = QSlider(Qt.Horizontal)
+        self.slider_pivot_z.setRange(-300, 300)
+        self.slider_pivot_z.setValue(0)
+        self.slider_pivot_z.setStyleSheet(f"""
+            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
+        """)
         self.spin_pivot_z = QSpinBox()
         self.spin_pivot_z.setRange(-300, 300)
         self.spin_pivot_z.setValue(0)
-        self.spin_pivot_z.setSingleStep(10)
+        self.spin_pivot_z.setFixedWidth(65)
         self.spin_pivot_z.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
+
+        self.slider_pivot_z.valueChanged.connect(self.spin_pivot_z.setValue)
+        self.spin_pivot_z.valueChanged.connect(self.slider_pivot_z.setValue)
         self.spin_pivot_z.valueChanged.connect(self._on_pivots_changed)
-        row_pz.addWidget(lbl_pz)
+        row_pz.addWidget(self.slider_pivot_z, 1)
         row_pz.addWidget(self.spin_pivot_z)
-        drawer_layout.addWidget(self.row_pz_widget)
+        col_pz.addLayout(row_pz)
+        drawer_layout.addWidget(self.col_pz_widget)
 
         drawer_layout.addStretch()
         content_layout.addWidget(self.drawer_widget)
@@ -885,7 +936,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         root_layout.addLayout(header_row)
         root_layout.addLayout(content_layout, 1)
 
-        # Initial Tab Setup (Default: 2D view, hide 3D specific controls)
+        # Initial Tab Setup (Default: 2D view)
         self._on_tab_changed(0)
 
     def _toggle_drawer(self) -> None:
@@ -896,10 +947,12 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         # Index 1: 3D Perspective View
         if index == 0:
             self.box_3d_controls.setVisible(False)
-            self.row_pz_widget.setVisible(False)
+            self.divider_3d.setVisible(False)
+            self.col_pz_widget.setVisible(False)
         else:
             self.box_3d_controls.setVisible(True)
-            self.row_pz_widget.setVisible(True)
+            self.divider_3d.setVisible(True)
+            self.col_pz_widget.setVisible(True)
 
     def _on_reset_camera_clicked(self) -> None:
         self.canvas_3d.reset_camera()
@@ -926,10 +979,10 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         new_state = not self.canvas_3d.haze_enabled
         self.canvas_3d.set_haze_enabled(new_state)
         if new_state:
-            self.btn_haze.setText("Haze: ON")
+            self.btn_haze.setText("Haze FX: ON")
             self.btn_haze.setStyleSheet("background-color: #16a34a; border: none; border-radius: 4px; color: #ffffff; font-weight: bold; padding: 6px;")
         else:
-            self.btn_haze.setText("Haze: OFF")
+            self.btn_haze.setText("Haze FX: OFF")
             self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: normal; padding: 6px;")
 
     def _on_pivots_changed(self) -> None:
