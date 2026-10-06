@@ -4,9 +4,11 @@ Presents official student credentials, advisor information, UNNES affiliation, a
 """
 
 from __future__ import annotations
+from pathlib import Path
 
 from ui.qt_compat import (
-    HAS_QT, QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton, Qt
+    HAS_QT, QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton,
+    QPixmap, QIcon, Qt
 )
 from ui.styles import Theme, CONSOLE_QSS
 
@@ -20,12 +22,30 @@ class AboutDialog(QDialog if HAS_QT else object):
         self.setWindowTitle("Tentang Pengembang & Aplikasi — ZZLUXORA")
         self.resize(620, 520)
         self.setStyleSheet(CONSOLE_QSS)
+
+        logo_path = Path(__file__).resolve().parent.parent / "assets" / "logo_zz.png"
+        if logo_path.exists():
+            self.setWindowIcon(QIcon(str(logo_path)))
+
         self._init_ui()
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(22, 20, 22, 20)
         main_layout.setSpacing(14)
+
+        logo_path = Path(__file__).resolve().parent.parent / "assets" / "logo_zz.png"
+
+        # Header Row (Official Logo Badge + Title)
+        header_row = QHBoxLayout()
+        header_row.setSpacing(14)
+        if logo_path.exists():
+            logo_lbl = QLabel()
+            pix = QPixmap(str(logo_path)).scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_lbl.setPixmap(pix)
+            logo_lbl.setFixedSize(48, 48)
+            logo_lbl.setStyleSheet("border-radius: 4px; background: #000000;")
+            header_row.addWidget(logo_lbl)
 
         # Header Title
         title_box = QVBoxLayout()
@@ -35,7 +55,9 @@ class AboutDialog(QDialog if HAS_QT else object):
         subtitle.setStyleSheet(f"font-size: 11px; color: {Theme.ACCENT_CYAN};")
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
-        main_layout.addLayout(title_box)
+        header_row.addLayout(title_box)
+        header_row.addStretch()
+        main_layout.addLayout(header_row)
 
         # Card
         card = QFrame()

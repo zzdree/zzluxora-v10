@@ -96,11 +96,14 @@ def main(argv: list[str] | None = None) -> None:
     else:
         # Check if Qt (PySide6 or PyQt6) is available for GUI
         try:
-            from ui.qt_compat import QApplication, HAS_QT
+            from ui.qt_compat import QApplication, QIcon, HAS_QT
             if not HAS_QT:
                 raise ImportError("No Qt binding available")
             from ui.main_window import MainWindow
             app = QApplication(sys.argv)
+            logo_path = BASE_DIR / "ui" / "assets" / "logo_zz.png"
+            if logo_path.exists():
+                app.setWindowIcon(QIcon(str(logo_path)))
             window = MainWindow()
             if args.project:
                 window.load_project_file(args.project, notify=False)
