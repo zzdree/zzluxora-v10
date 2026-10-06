@@ -35,9 +35,21 @@ class Theme:
     CH_GREEN = "#16a34a"            # Vivid Green
     CH_BLUE = "#2563eb"             # Royal Blue
     CH_WHITE = "#f8fafc"            # Neutral Stage White
+    CH_AMBER = "#f59e0b"            # Warm Amber
+    CH_UV = "#7c3aed"               # Deep Violet UV
+    CH_CYAN = "#06b6d4"             # Neon Cyan
+    CH_MAGENTA = "#d946ef"          # Vivid Magenta
+    CH_YELLOW = "#eab308"           # Electric Yellow
     CH_STROBE = "#eab308"           # Electric Flash Yellow
+    CH_SHUTTER = "#eab308"          # Shutter Flash Yellow
     CH_PAN_TILT = "#8b5cf6"         # Violet Moving Head
     CH_COLOR_MACRO = "#ec4899"      # Rainbow Macro
+    CH_GOBO = "#0284c7"             # Deep Sky Blue Gobo
+    CH_PRISM = "#6366f1"            # Indigo Prism
+    CH_PROGRAM = "#9333ea"          # Purple Program
+    CH_SPEED = "#475569"            # Slate Grey Speed
+    CH_EFFECT = "#ec4899"           # Hot Pink FX
+    CH_MAINTENANCE = "#4a5264"      # Dark Slate Maint
     CH_EMPTY = "#282c34"            # Dark Grey Unpatched Cell
 
 

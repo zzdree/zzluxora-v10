@@ -212,11 +212,12 @@ class TestUIModules(unittest.TestCase):
         win._on_open_about()
         self.assertTrue(win.win_about.isVisible())
 
-        # Verify all 7 top-level menus exist
+        # Verify all 6 top-level menus exist (Editor eliminated in favor of Fixture dropdown)
         from ui.qt_compat import QMenu
         menu_titles = [m.title() for m in win.menuBar().findChildren(QMenu)]
-        for title in ["File", "Fixture", "Editor", "Preview", "Setting", "Help", "About"]:
+        for title in ["File", "Fixture", "Preview", "Setting", "Help", "About"]:
             self.assertIn(title, menu_titles)
+        self.assertNotIn("Editor", menu_titles)
 
         win.close()
 
@@ -371,6 +372,61 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual(vis.canvas_2d.fixtures[0]["dim"], 255)
         self.assertEqual(vis.canvas_3d.fixtures_3d[0]["dim"], 255)
 
+        win.close()
+
+    def test_fixture_editor_and_library_feedback_v4(self):
+        """Verifies Feedback v4 polish: Fixture Editor defaults, table columns, and Fixture Library window."""
+        self._application()
+        from ui.panels.fixture_editor import FixtureEditorWindow, CHANNEL_TYPES
+        from ui.panels.fixture_list import FixtureListWindow
+        from ui.main_window import MainWindow
+
+        # 1. Test FixtureEditorWindow
+        editor = FixtureEditorWindow()
+        self.assertEqual(editor.windowTitle(), "Fixture Editor")
+        self.assertEqual(editor.txt_model.text(), "LED")
+        self.assertEqual(editor.txt_maker.text(), "generic")
+        self.assertEqual(editor.spin_channels.value(), 4)
+
+        # Verify table headers and rows
+        self.assertEqual(editor.table.columnCount(), 3)
+        self.assertEqual(editor.table.horizontalHeaderItem(0).text(), "Channel")
+        self.assertEqual(editor.table.horizontalHeaderItem(1).text(), "Label")
+        self.assertEqual(editor.table.horizontalHeaderItem(2).text(), "Type")
+
+        self.assertEqual(editor.table.rowCount(), 4)
+        self.assertEqual(editor.table.item(0, 0).text(), "01")
+        self.assertEqual(editor.table.item(1, 0).text(), "02")
+        self.assertEqual(editor.table.item(2, 0).text(), "03")
+        self.assertEqual(editor.table.item(3, 0).text(), "04")
+
+        # Verify QLC+ channel types support
+        for expected_type in ["Dimmer", "Red", "Green", "Blue", "White", "Amber", "UV", "Cyan", "Magenta", "Yellow", "Pan", "Tilt", "Gobo", "Prism", "Strobe", "Shutter"]:
+            self.assertIn(expected_type, CHANNEL_TYPES)
+
+        # Test changing channel count to 8
+        editor.spin_channels.setValue(8)
+        self.assertEqual(editor.table.rowCount(), 8)
+        self.assertEqual(editor.table.item(7, 0).text(), "08")
+
+        # Verify bottom buttons: Save and Close only
+        self.assertEqual(editor.btn_save.text(), "Save")
+        self.assertEqual(editor.btn_close.text(), "Close")
+        editor.close()
+
+        # 2. Test FixtureListWindow
+        lib = FixtureListWindow()
+        self.assertEqual(lib.windowTitle(), "Fixture Library")
+        self.assertIsNotNone(lib.list_widget)
+        self.assertIsNotNone(lib.inspector_text)
+        lib.close()
+
+        # 3. Test Title Bar behavior in MainWindow
+        win = MainWindow()
+        self.assertEqual(win.windowTitle(), "ZZLUXORA [Untitled.zlx]")
+        win.current_project_path = "/home/zzdree/ANDREAS/zzluxora_v10/showfiles/custom_worship.zlx"
+        win._update_title_bar()
+        self.assertEqual(win.windowTitle(), "ZZLUXORA [/home/zzdree/ANDREAS/zzluxora_v10/showfiles/custom_worship.zlx]")
         win.close()
 
 

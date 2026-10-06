@@ -9,10 +9,10 @@ import json
 from pathlib import Path
 
 from ui.qt_compat import (
-    HAS_QT, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
+    HAS_QT, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QSpinBox, QTableWidget, QTableWidgetItem,
-    QComboBox, QFileDialog, QMessageBox, QGroupBox, QHeaderView, QMenuBar, QMenu,
-    Qt, QAction, QKeySequence, QFont, QColor
+    QComboBox, QFileDialog, QMessageBox, QHeaderView,
+    Qt, QAction, QKeySequence, QFont, QColor, QIcon
 )
 from ui.styles import Theme, CONSOLE_QSS
 
@@ -24,10 +24,21 @@ CHANNEL_TYPES = [
     "Blue",
     "White",
     "Amber",
+    "UV",
+    "Cyan",
+    "Magenta",
+    "Yellow",
     "Strobe",
+    "Shutter",
     "Pan",
     "Tilt",
     "Color Macro",
+    "Gobo",
+    "Prism",
+    "Program",
+    "Speed",
+    "Effect",
+    "Maintenance",
     "Empty",
 ]
 
@@ -40,9 +51,13 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent, Qt.Window)
-        self.setWindowTitle("Fixture Definition Editor: ZZLUXORA")
+        self.setWindowTitle("Fixture Editor")
         self.resize(680, 560)
         self.setStyleSheet(CONSOLE_QSS)
+
+        logo_path = Path(__file__).resolve().parent.parent / "assets" / "logo_zz.png"
+        if logo_path.exists():
+            self.setWindowIcon(QIcon(str(logo_path)))
 
         self.current_file_path: Path | None = None
         self._init_menu_bar()
@@ -57,7 +72,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         act_new.triggered.connect(self._on_new_fixture)
         menu_file.addAction(act_new)
 
-        act_open = QAction("Open Fixture...", self)
+        act_open = QAction("Open Fixture", self)
         act_open.setShortcut(QKeySequence("Ctrl+O"))
         act_open.triggered.connect(self._on_open_file)
         menu_file.addAction(act_open)
@@ -69,13 +84,15 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         act_save.triggered.connect(self._on_save_file)
         menu_file.addAction(act_save)
 
-        act_save_as = QAction("Save As...", self)
+        act_save_as = QAction("Save As Fixture", self)
         act_save_as.setShortcut(QKeySequence("Ctrl+Shift+S"))
         act_save_as.triggered.connect(self._on_save_as_file)
         menu_file.addAction(act_save_as)
 
         menu_file.addSeparator()
-        act_close = QAction("Close Editor", self)
+
+        act_close = QAction("Close", self)
+        act_close.setShortcut(QKeySequence("Alt+F5"))
         act_close.triggered.connect(self.close)
         menu_file.addAction(act_close)
 
@@ -83,55 +100,75 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(18, 14, 18, 14)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(16, 12, 16, 12)
+        main_layout.setSpacing(10)
 
-        # Top Header Form
-        form_group = QGroupBox("Spesifikasi Model & Pabrikan Lampu")
-        form_group.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
-        form_layout = QGridLayout(form_group)
-        form_layout.setSpacing(10)
+        # Form Model, Manufacture, Channel (No decorative box title)
+        form_layout = QHBoxLayout()
+        form_layout.setSpacing(12)
 
-        form_layout.addWidget(QLabel("Nama Model:"), 0, 0)
-        self.txt_model = QLineEdit("Generic PAR LED RGBW 4CH")
-        form_layout.addWidget(self.txt_model, 0, 1)
+        lbl_model = QLabel("Model:")
+        lbl_model.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
+        self.txt_model = QLineEdit("LED")
+        self.txt_model.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
+        form_layout.addWidget(lbl_model)
+        form_layout.addWidget(self.txt_model, 2)
 
-        form_layout.addWidget(QLabel("Manufaktur:"), 0, 2)
-        self.txt_maker = QLineEdit("Generic")
-        form_layout.addWidget(self.txt_maker, 0, 3)
+        lbl_maker = QLabel("Manufacture:")
+        lbl_maker.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
+        self.txt_maker = QLineEdit("generic")
+        self.txt_maker.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
+        form_layout.addWidget(lbl_maker)
+        form_layout.addWidget(self.txt_maker, 2)
 
-        form_layout.addWidget(QLabel("Jumlah Kanal DMX:"), 1, 0)
+        lbl_ch = QLabel("Channel:")
+        lbl_ch.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
         self.spin_channels = QSpinBox()
-        self.spin_channels.setRange(1, 64)
+        self.spin_channels.setRange(1, 512)
         self.spin_channels.setValue(4)
+        self.spin_channels.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
         self.spin_channels.valueChanged.connect(self._on_channel_count_changed)
-        form_layout.addWidget(self.spin_channels, 1, 1)
+        form_layout.addWidget(lbl_ch)
+        form_layout.addWidget(self.spin_channels, 1)
 
-        main_layout.addWidget(form_group)
+        main_layout.addLayout(form_layout)
 
-        # Channel Mapping Table
-        tbl_box = QGroupBox("Tabel Pemetaan Kanal DMX (Channel Footprint)")
-        tbl_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
-        tbl_layout = QVBoxLayout(tbl_box)
-
+        # Channel Mapping Table (Directly displayed without groupbox header)
         self.table = QTableWidget(4, 3)
-        self.table.setHorizontalHeaderLabels(["Kanal", "Label / Deskripsi", "Tipe Fungsi"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setHorizontalHeaderLabels(["Channel", "Label", "Type"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
-        tbl_layout.addWidget(self.table)
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {Theme.BG_SURFACE};
+                border: 1px solid {Theme.BORDER_STRONG};
+                border-radius: 4px;
+                color: {Theme.TEXT_PRIMARY};
+                gridline-color: {Theme.BORDER_SUBTLE};
+            }}
+            QHeaderView::section {{
+                background-color: {Theme.BG_ELEVATED};
+                color: {Theme.TEXT_PRIMARY};
+                font-weight: 700;
+                padding: 6px;
+                border: 1px solid {Theme.BORDER_SUBTLE};
+            }}
+        """)
+        main_layout.addWidget(self.table, 1)
 
-        main_layout.addWidget(tbl_box, 1)
-
-        # Bottom Action Bar
+        # Bottom Action Bar: Save and Close only
         btn_bar = QHBoxLayout()
         btn_bar.addStretch()
 
-        self.btn_save = QPushButton("SAVE FIXTURE (.zfx)")
-        self.btn_save.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN}; font-weight: bold;")
+        self.btn_save = QPushButton("Save")
+        self.btn_save.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN}; font-weight: bold; min-width: 90px; padding: 6px 14px;")
         self.btn_save.clicked.connect(self._on_save_file)
         btn_bar.addWidget(self.btn_save)
 
-        self.btn_close = QPushButton("CLOSE")
+        self.btn_close = QPushButton("Close")
+        self.btn_close.setStyleSheet("min-width: 90px; padding: 6px 14px;")
         self.btn_close.clicked.connect(self.close)
         btn_bar.addWidget(self.btn_close)
 
@@ -143,18 +180,21 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         self.table.setRowCount(count)
         default_names = ["Red", "Green", "Blue", "White", "Dimmer", "Strobe", "Amber", "Macro"]
         for i in range(count):
-            item_no = QTableWidgetItem(f"Ch {i+1:02d}")
+            item_no = QTableWidgetItem(f"{i+1:02d}")
             item_no.setTextAlignment(Qt.AlignCenter)
             item_no.setFlags(Qt.ItemIsEnabled)
             item_no.setForeground(QColor(Theme.TEXT_SECONDARY))
+            item_no.setFont(QFont("monospace", 10, QFont.Bold))
             self.table.setItem(i, 0, item_no)
 
             init_label = default_names[i] if i < len(default_names) else f"Channel {i+1}"
             edit_label = QLineEdit(init_label)
+            edit_label.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
             self.table.setCellWidget(i, 1, edit_label)
 
             combo = QComboBox()
             combo.addItems(CHANNEL_TYPES)
+            combo.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
             matched = "Empty"
             for t in CHANNEL_TYPES:
                 if t.lower() in init_label.lower():
@@ -191,10 +231,11 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
 
     def _on_new_fixture(self) -> None:
         self.current_file_path = None
-        self.txt_model.setText("New PAR LED RGBW")
-        self.txt_maker.setText("Generic")
+        self.txt_model.setText("LED")
+        self.txt_maker.setText("generic")
         self.spin_channels.setValue(4)
-        self.setWindowTitle("Fixture Definition Editor — [New Fixture]")
+        self._populate_table_rows(4)
+        self.setWindowTitle("Fixture Editor")
 
     def _on_open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -208,7 +249,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             with open(path, "r", encoding="utf-8") as fp:
                 data = json.load(fp)
                 self.txt_model.setText(data.get("name", Path(path).stem))
-                self.txt_maker.setText(data.get("manufacturer", "Generic"))
+                self.txt_maker.setText(data.get("manufacturer", "generic"))
                 channels = data.get("channels", [])
                 self.spin_channels.setValue(len(channels))
                 self._populate_table_rows(len(channels))
@@ -218,12 +259,17 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
                     combo = self.table.cellWidget(i, 2)
                     if isinstance(edit, QLineEdit): edit.setText(ch.get("label", ""))
                     if isinstance(combo, QComboBox):
-                        # capitalize
-                        t = ch.get("type", "dimmer").capitalize()
-                        if t in CHANNEL_TYPES: combo.setCurrentText(t)
+                        t = ch.get("type", "dimmer").title()
+                        if t in CHANNEL_TYPES:
+                            combo.setCurrentText(t)
+                        else:
+                            for ct in CHANNEL_TYPES:
+                                if ct.lower() == ch.get("type", "").lower():
+                                    combo.setCurrentText(ct)
+                                    break
 
                 self.current_file_path = Path(path)
-                self.setWindowTitle(f"Fixture Definition Editor [{self.current_file_path.name}]")
+                self.setWindowTitle(f"Fixture Editor [{self.current_file_path.name}]")
         except Exception as e:
             QMessageBox.critical(self, "Error Buka Berkas", f"Gagal membaca profil fixture:\n{e}")
 
@@ -253,7 +299,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             with open(target_path, "w", encoding="utf-8") as fp:
                 json.dump(data, fp, indent=2)
             self.current_file_path = target_path
-            self.setWindowTitle(f"Fixture Definition Editor — [{target_path.name}]")
+            self.setWindowTitle(f"Fixture Editor [{target_path.name}]")
             QMessageBox.information(self, "Berhasil Disimpan", f"Profil fixture berhasil disimpan ke:\n{target_path.name}")
         except Exception as e:
             QMessageBox.critical(self, "Error Simpan", f"Gagal menyimpan profil fixture:\n{e}")

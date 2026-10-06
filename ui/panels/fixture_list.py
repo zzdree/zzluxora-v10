@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QListWidget, QListWidgetItem, QGroupBox, QSplitter, QTextEdit,
+    QListWidget, QListWidgetItem, QSplitter, QTextEdit, QIcon,
     Qt, QMimeData, QPoint, QDrag, QFont
 )
 from ui.styles import Theme, CONSOLE_QSS
@@ -45,9 +45,13 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         if not HAS_QT: return
         # Set as an independent window with minimize, maximize, and close buttons
         super().__init__(parent, Qt.Window)
-        self.setWindowTitle("Daftar Fixture Lampu — ZZLUXORA")
+        self.setWindowTitle("Fixture Library")
         self.resize(520, 480)
         self.setStyleSheet(CONSOLE_QSS)
+
+        logo_path = Path(__file__).resolve().parent.parent / "assets" / "logo_zz.png"
+        if logo_path.exists():
+            self.setWindowIcon(QIcon(str(logo_path)))
 
         self.fixtures_dir = fixtures_dir or (Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures")
         self._init_ui()
@@ -55,20 +59,10 @@ class FixtureListWindow(QWidget if HAS_QT else object):
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 14, 16, 14)
+        main_layout.setContentsMargins(14, 12, 14, 12)
         main_layout.setSpacing(10)
 
-        # Header Title
-        title_box = QVBoxLayout()
-        lbl_title = QLabel("PERPUSTAKAAN FIXTURE PROFIL LAMPU")
-        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Drag & Drop fixture langsung ke kotak matriks Tab Address untuk patching otomatis.")
-        lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
-        title_box.addWidget(lbl_title)
-        title_box.addWidget(lbl_desc)
-        main_layout.addLayout(title_box)
-
-        # Splitter: Top List, Bottom Channel Inspector
+        # Splitter: Top List, Bottom Channel Inspector (No decorative headers)
         splitter = QSplitter(Qt.Vertical)
 
         self.list_widget = DraggableFixtureListWidget(self)
@@ -92,26 +86,24 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         self.list_widget.currentItemChanged.connect(self._on_item_selected)
         splitter.addWidget(self.list_widget)
 
-        # Inspector preview
-        inspector_box = QGroupBox("Detail Footprint Kanal Fixture")
-        inspector_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
-        insp_layout = QVBoxLayout(inspector_box)
-
+        # Inspector preview directly in splitter without groupbox title
         self.inspector_text = QTextEdit()
         self.inspector_text.setReadOnly(True)
+        self.inspector_text.setPlaceholderText("Pilih profil fixture untuk melihat susunan kanal DMX...")
         self.inspector_text.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {Theme.BG_INPUT};
                 border: 1px solid {Theme.BORDER_STRONG};
+                border-radius: 4px;
                 color: {Theme.TEXT_SECONDARY};
                 font-family: 'JetBrains Mono', 'Consolas', monospace;
                 font-size: 11px;
+                padding: 6px;
             }}
         """)
-        insp_layout.addWidget(self.inspector_text)
-        splitter.addWidget(inspector_box)
+        splitter.addWidget(self.inspector_text)
 
-        splitter.setSizes([260, 160])
+        splitter.setSizes([270, 150])
         main_layout.addWidget(splitter, 1)
 
         # Bottom Buttons

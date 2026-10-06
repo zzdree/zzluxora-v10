@@ -101,7 +101,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         # 1. File Menu
         menu_file = mb.addMenu("File")
 
-        act_open = QAction("Open Project (.zlx)...", self)
+        act_open = QAction("Open Project", self)
         act_open.setShortcut(QKeySequence("Ctrl+O"))
         act_open.triggered.connect(self._on_open_project)
         menu_file.addAction(act_open)
@@ -111,7 +111,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         act_save.triggered.connect(self._on_save_project)
         menu_file.addAction(act_save)
 
-        act_save_as = QAction("Save As Project...", self)
+        act_save_as = QAction("Save As Project", self)
         act_save_as.setShortcut(QKeySequence("Ctrl+Shift+S"))
         act_save_as.triggered.connect(self._on_save_as_project)
         menu_file.addAction(act_save_as)
@@ -125,27 +125,17 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
         # 2. Fixture Menu
         menu_fix = mb.addMenu("Fixture")
-        act_fix_list = QAction("Fixture Library (Drag & Drop)...", self)
+        act_fix_list = QAction("Fixture Library", self)
         act_fix_list.setShortcut(QKeySequence("Ctrl+F"))
         act_fix_list.triggered.connect(self._on_open_fixture_list)
         menu_fix.addAction(act_fix_list)
 
-        act_fix_edit = QAction("Fixture Definition Editor (.zfx)...", self)
+        act_fix_edit = QAction("Fixture Editor", self)
         act_fix_edit.setShortcut(QKeySequence("Ctrl+E"))
         act_fix_edit.triggered.connect(self._on_open_fixture_editor)
         menu_fix.addAction(act_fix_edit)
 
-        # 3. Editor Menu
-        menu_edit = mb.addMenu("Editor")
-        act_edit_profile = QAction("Open Fixture Editor...", self)
-        act_edit_profile.triggered.connect(self._on_open_fixture_editor)
-        menu_edit.addAction(act_edit_profile)
-
-        act_clear_patch = QAction("Clear DMX Address Grid Patch", self)
-        act_clear_patch.triggered.connect(lambda: self.tab_address.clear_patch())
-        menu_edit.addAction(act_clear_patch)
-
-        # 4. Preview Menu
+        # 3. Preview Menu
         menu_prev = mb.addMenu("Preview")
         act_stage_vis = QAction("Stage Lighting Visualizer (2D & 3D)...", self)
         act_stage_vis.setShortcut(QKeySequence("Ctrl+P"))
@@ -311,7 +301,10 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.tab_buttons[index].setChecked(True)
 
     def _update_title_bar(self) -> None:
-        self.setWindowTitle(f"ZZLUXORA [{Path(self.current_project_path).name}]")
+        if not self.current_project_path or self.current_project_path == "Untitled.zlx":
+            self.setWindowTitle("ZZLUXORA [Untitled.zlx]")
+        else:
+            self.setWindowTitle(f"ZZLUXORA [{self.current_project_path}]")
 
     # -----------------------------------------------------------------
     # MENU POP-UP ACTIONS (WINDOWED INDEPENDENT TOOLS)

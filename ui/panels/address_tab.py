@@ -55,15 +55,29 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         self.fixture_name = fixture_name
 
         short_label = self.channel_label[:4].upper()
-        if "dim" in self.channel_type: short_label = "DIM"
-        elif "strobe" in self.channel_type: short_label = "STR"
-        elif "red" in self.channel_type: short_label = "RED"
-        elif "green" in self.channel_type: short_label = "GRN"
-        elif "blue" in self.channel_type: short_label = "BLU"
-        elif "white" in self.channel_type: short_label = "WHT"
-        elif "program" in self.channel_type or "macro" in self.channel_type: short_label = "PRG"
-        elif "speed" in self.channel_type: short_label = "SPD"
-        elif "empt" in self.channel_type: short_label = "EMP"
+        ct = self.channel_type
+        if "dim" in ct: short_label = "DIM"
+        elif "strobe" in ct: short_label = "STR"
+        elif "shutter" in ct: short_label = "SHT"
+        elif "red" in ct: short_label = "RED"
+        elif "green" in ct: short_label = "GRN"
+        elif "blue" in ct: short_label = "BLU"
+        elif "white" in ct: short_label = "WHT"
+        elif "amber" in ct: short_label = "AMB"
+        elif "uv" in ct: short_label = "UV"
+        elif "cyan" in ct: short_label = "CYN"
+        elif "magenta" in ct: short_label = "MAG"
+        elif "yellow" in ct: short_label = "YEL"
+        elif "pan" in ct: short_label = "PAN"
+        elif "tilt" in ct: short_label = "TLT"
+        elif "gobo" in ct: short_label = "GOB"
+        elif "prism" in ct: short_label = "PRS"
+        elif "program" in ct: short_label = "PRG"
+        elif "macro" in ct: short_label = "MAC"
+        elif "speed" in ct: short_label = "SPD"
+        elif "effect" in ct: short_label = "FX"
+        elif "maint" in ct: short_label = "MNT"
+        elif "empt" in ct: short_label = "EMP"
 
         self.lbl_type.setText(short_label)
         self.update_style()
@@ -84,17 +98,29 @@ class DMXChannelBox(QFrame if HAS_QT else object):
             "green": Theme.CH_GREEN,
             "blue": Theme.CH_BLUE,
             "white": Theme.CH_WHITE,
+            "amber": Theme.CH_AMBER,
+            "uv": Theme.CH_UV,
+            "cyan": Theme.CH_CYAN,
+            "magenta": Theme.CH_MAGENTA,
+            "yellow": Theme.CH_YELLOW,
             "strobe": Theme.CH_STROBE,
+            "shutter": Theme.CH_SHUTTER,
             "pan": Theme.CH_PAN_TILT,
             "tilt": Theme.CH_PAN_TILT,
             "color macro": Theme.CH_COLOR_MACRO,
-            "program": Theme.CH_COLOR_MACRO,
-            "speed": Theme.BORDER_STRONG,
+            "macro": Theme.CH_COLOR_MACRO,
+            "gobo": Theme.CH_GOBO,
+            "prism": Theme.CH_PRISM,
+            "program": Theme.CH_PROGRAM,
+            "speed": Theme.CH_SPEED,
+            "effect": Theme.CH_EFFECT,
+            "maintenance": Theme.CH_MAINTENANCE,
             "empty": Theme.CH_EMPTY,
         }
         bg = color_map.get(self.channel_type, Theme.CH_EMPTY)
         border = Theme.BORDER_HIGHLIGHT if self.is_patched else Theme.BORDER_SUBTLE
-        text_color = "#000000" if self.channel_type in ["dimmer", "white", "green", "strobe", "speed"] else "#ffffff"
+        light_types = ["dimmer", "white", "green", "amber", "yellow", "cyan", "strobe", "shutter"]
+        text_color = "#000000" if self.channel_type in light_types else "#ffffff"
 
         self.setStyleSheet(f"""
             QFrame#DMXBox {{
