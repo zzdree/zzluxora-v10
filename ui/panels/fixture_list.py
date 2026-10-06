@@ -137,8 +137,8 @@ class FixtureListWindow(QWidget if HAS_QT else object):
                     name = data.get("name", f.stem)
                     mfr = data.get("manufacturer", "Generic")
 
-                    # Display clean Manufacturer | Model
-                    item = QListWidgetItem(f"{mfr} | {name}")
+                    # Display clean name (Alien-AL36, Kumastb-STL47)
+                    item = QListWidgetItem(name)
                     item.setData(Qt.UserRole, data)
                     self.list_widget.addItem(item)
             except Exception:
@@ -157,15 +157,15 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         channels = data.get("channels", [])
         model_name = data.get("model") or data.get("name", "Unknown")
         lines = [
-            f"Model       : {model_name}",
-            f"Manufacture : {data.get('manufacturer', 'Generic')}",
-            f"Channel     : {len(channels)}",
+            f"Model\t\t: {model_name}",
+            f"Manufacture\t: {data.get('manufacturer', 'Generic')}",
+            f"Channel\t\t: {len(channels)}",
             "-" * 36,
         ]
         for ch in channels:
             idx = ch.get("index", 1)
             lbl = ch.get("label", "Channel")
             ctype = ch.get("type", "dimmer")
-            lines.append(f"{idx:02d} | {lbl} ({ctype.title()})")
+            lines.append(f"{idx:02d}\t| {lbl} ({ctype.title()})")
 
         self.inspector_text.setPlainText("\n".join(lines))

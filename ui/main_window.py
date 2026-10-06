@@ -145,24 +145,14 @@ class MainWindow(QMainWindow if HAS_QT else object):
         act_setting.setShortcut(QKeySequence("Ctrl+Shift+P"))
         act_setting.triggered.connect(self._on_open_settings)
 
-        # 5. Help Menu
-        menu_help = mb.addMenu("Help")
-        act_shortcuts = QAction("User Guide & Keyboard Shortcuts...", self)
-        act_shortcuts.setShortcut(QKeySequence("F1"))
-        act_shortcuts.triggered.connect(self._on_open_help)
-        menu_help.addAction(act_shortcuts)
+        # 5. Help Action (Direct Pop-up, No Dropdown)
+        act_help = mb.addAction("Help")
+        act_help.setShortcut(QKeySequence("F1"))
+        act_help.triggered.connect(self._on_open_help)
 
-        menu_help.addSeparator()
-
-        act_about_app = QAction("About ZZLUXORA...", self)
-        act_about_app.triggered.connect(self._on_open_about)
-        menu_help.addAction(act_about_app)
-
-        # 7. About Menu (Direct Top-Level Access)
-        menu_about = mb.addMenu("About")
-        act_direct_about = QAction("Academic Info & Developer Details...", self)
-        act_direct_about.triggered.connect(self._on_open_about)
-        menu_about.addAction(act_direct_about)
+        # 6. About Action (Direct Pop-up, No Dropdown)
+        act_about = mb.addAction("About")
+        act_about.triggered.connect(self._on_open_about)
 
     def _init_ui(self) -> None:
         central_widget = QWidget(self)

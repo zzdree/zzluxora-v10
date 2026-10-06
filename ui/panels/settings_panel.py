@@ -1,7 +1,7 @@
 """
 settings_panel.py — Standalone Network & Art-Net Configuration Dialog
 Provides automatic interface scanning and presets: 127.0.0.1 (SITL QLC+),
-192.168.4.1 (ESP32 AP mode), and Custom IP with UDP Port & Universe 0-3 configuration.
+192.168.4.1 (ESP32 AP mode), Subnet Broadcast (Router Mode), and Custom IP with UDP Port & Universe 0-3 configuration.
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ class SettingsDialog(QDialog if HAS_QT else object):
         if not HAS_QT: return
         super().__init__(parent)
         self.setWindowFlags(Qt.Window | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
-        self.setWindowTitle("Settings")
-        self.resize(540, 440)
+        self.setWindowTitle("Setting")
+        self.resize(560, 450)
         self.setStyleSheet(CONSOLE_QSS)
 
         logo_path = Path(__file__).resolve().parent.parent / "assets" / "logo_zz.png"
@@ -42,8 +42,8 @@ class SettingsDialog(QDialog if HAS_QT else object):
         main_layout.setContentsMargins(16, 14, 16, 14)
         main_layout.setSpacing(10)
 
-        # Target Configuration Group
-        grp_target = QGroupBox("Target")
+        # Target Interface Configuration Group
+        grp_target = QGroupBox("Target Interface")
         grp_target.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         target_layout = QVBoxLayout(grp_target)
         target_layout.setSpacing(8)
@@ -56,10 +56,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
         row_preset.addWidget(lbl_preset)
 
         self.combo_presets = QComboBox()
-        self.combo_presets.addItem("127.0.0.1 - Localhost (SITL QLC+)", "127.0.0.1")
-        self.combo_presets.addItem("192.168.4.1 - ESP32 AP Mode", "192.168.4.1")
-        self.combo_presets.addItem("255.255.255.255 - Subnet Broadcast", "255.255.255.255")
-        self.combo_presets.addItem("Custom IP", "custom")
+        self._populate_presets()
         self.combo_presets.currentIndexChanged.connect(self._on_preset_changed)
         row_preset.addWidget(self.combo_presets, 1)
         target_layout.addLayout(row_preset)
@@ -99,7 +96,6 @@ class SettingsDialog(QDialog if HAS_QT else object):
         self.combo_universe.addItem("1", 1)
         self.combo_universe.addItem("2", 2)
         self.combo_universe.addItem("3", 3)
-        # Select matching universe (0-3)
         uni_idx = min(3, max(0, self.current_universe))
         self.combo_universe.setCurrentIndex(uni_idx)
         self.combo_universe.setFixedWidth(70)
@@ -157,8 +153,8 @@ class SettingsDialog(QDialog if HAS_QT else object):
         btn_bar = QHBoxLayout()
         btn_bar.addStretch()
 
-        self.btn_rescan = QPushButton("Scan Interfaces")
-        self.btn_rescan.setStyleSheet("padding: 6px 14px; border-radius: 4px;")
+        self.btn_rescan = QPushButton("Refresh")
+        self.btn_rescan.setStyleSheet("background-color: #2563eb; color: #ffffff; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
         self.btn_rescan.clicked.connect(self._scan_network_interfaces)
         btn_bar.addWidget(self.btn_rescan)
 
@@ -174,12 +170,37 @@ class SettingsDialog(QDialog if HAS_QT else object):
 
         main_layout.addLayout(btn_bar)
 
-    def _scan_network_interfaces() -> None:
-        pass
+    def _populate_presets(self, bcast_ip: str | None = None) -> None:
+        """Populates presets in QLC+ standard routing style with short dash."""
+        prev_custom = self.txt_ip.text() if hasattr(self, 'txt_ip') else self.current_ip
+        self.combo_presets.blockSignals(True)
+        self.combo_presets.clear()
+
+        self.combo_presets.addItem("127.0.0.1 - Localhost (SITL QLC+)", "127.0.0.1")
+        self.combo_presets.addItem("192.168.4.1 - ESP32 AP Direct", "192.168.4.1")
+        self.combo_presets.addItem("255.255.255.255 - Limited Broadcast (Auto-Detect)", "255.255.255.255")
+
+        if bcast_ip and bcast_ip != "255.255.255.255":
+            self.combo_presets.addItem(f"{bcast_ip} - Subnet Broadcast (WiFi Router)", bcast_ip)
+
+        self.combo_presets.addItem("Custom IP", "custom")
+
+        # Restore matching preset or set to Custom
+        matched = False
+        for idx in range(self.combo_presets.count()):
+            if self.combo_presets.itemData(idx) == prev_custom:
+                self.combo_presets.setCurrentIndex(idx)
+                matched = True
+                break
+        if not matched:
+            self.combo_presets.setCurrentIndex(self.combo_presets.count() - 1)
+
+        self.combo_presets.blockSignals(False)
 
     def _scan_network_interfaces(self) -> None:
         self.table_adapters.setRowCount(0)
         adapters = [("Local Loopback (SITL QLC+)", "127.0.0.1")]
+        bcast_found = None
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
@@ -188,8 +209,8 @@ class SettingsDialog(QDialog if HAS_QT else object):
             adapters.append(("Active Wi-Fi / LAN Adapter", lan_ip))
             parts = lan_ip.split(".")
             if len(parts) == 4:
-                bcast_ip = f"{parts[0]}.{parts[1]}.{parts[2]}.255"
-                adapters.append(("Subnet Broadcast (Auto ESP32)", bcast_ip))
+                bcast_found = f"{parts[0]}.{parts[1]}.{parts[2]}.255"
+                adapters.append(("Subnet Broadcast (WiFi Router)", bcast_found))
         except Exception:
             try:
                 hostname = socket.gethostname()
@@ -197,6 +218,9 @@ class SettingsDialog(QDialog if HAS_QT else object):
                 adapters.append((f"Host ({hostname})", local_ip))
             except Exception:
                 pass
+
+        if bcast_found:
+            self._populate_presets(bcast_found)
 
         self.table_adapters.setRowCount(len(adapters))
         for row, (name, ip) in enumerate(adapters):
@@ -213,6 +237,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
             ip = item.text().strip()
             self.combo_presets.setCurrentIndex(self.combo_presets.count() - 1)  # Custom IP
             self.txt_ip.setText(ip)
+            self.txt_ip.setEnabled(True)
 
     def _on_preset_changed(self, index: int) -> None:
         val = self.combo_presets.currentData()

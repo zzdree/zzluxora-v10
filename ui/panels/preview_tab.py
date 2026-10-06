@@ -1,8 +1,9 @@
 """
 preview_tab.py — Standalone Floating Stage Visualizer Window (2D & 3D with Haze/Smoke)
 Provides high-fidelity stage lighting simulation with dynamic RGBW PAR LED beam glows,
-3D perspective volumetric beams, overhead truss rigging, atmospheric haze/smoke FX,
-inverted orbit mouse control, zoom limits, center-aligned 2D/3D auto layout, and collapsible drawer.
+3D perspective volumetric beams, multi-cell LED lens emitters, adjustable beam spread,
+overhead truss rigging, atmospheric haze/smoke FX, full mouse camera controls (orbit, pan, zoom),
+center-aligned 2D/3D layout, multi-selection (Shift+Click), and side drawer controls.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from pathlib import Path
 
 from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QSpinBox, QSlider, QTabWidget,
+    QFrame, QSpinBox, QSlider, QStackedWidget,
     Qt, QPoint, QPointF, QRectF, Signal, QPainter, QColor, QPen, QPolygonF,
     QRadialGradient, QLinearGradient, QBrush, QFont, QTimer, QIcon
 )
@@ -24,7 +25,8 @@ from ui.styles import Theme, CONSOLE_QSS
 # -----------------------------------------------------------------------------
 class Stage2DCanvas(QFrame if HAS_QT else object):
     """Front-view 2D Stage Canvas with RGBW beam projection, halos, floor bounce, and click selection."""
-    fixture_selected = Signal(int)
+    fixture_selected = Signal(int)       # Primary selected fixture ID
+    selection_changed = Signal(list)     # List of selected fixture IDs
 
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
@@ -33,17 +35,11 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
 
         # Starts empty by default (Clean initial state for untitled project)
         self.fixtures: list[dict] = []
-        self.selected_idx = -1
+        self.selected_ids: set[int] = set()
 
-        # Pivot offsets (linked with 3D)
+        # Global stage pivot offsets
         self.pivot_x = 0
         self.pivot_y = 0
-
-    def set_pivots(self, px: int, py: int) -> None:
-        self.pivot_x = px
-        self.pivot_y = py
-        self.recompute_layout()
-        self.update()
 
     def set_fixtures(self, fixtures_data: list[dict]) -> None:
         """Loads patched fixtures and auto-arranges them center-aligned in 2D."""
@@ -54,15 +50,17 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
                 "name": fix.get("name", f"Fixture #{idx + 1}"),
                 "start_channel": fix.get("start_channel", 1),
                 "channels": fix.get("channels", []),
-                "x": 0,
-                "y": 0,
+                "base_x": 0,
+                "base_y": 0,
+                "offset_x": 0,
+                "offset_y": 0,
                 "r": 255,
                 "g": 180,
                 "b": 0,
                 "w": 40,
                 "dim": 240,
             })
-        self.selected_idx = 0 if self.fixtures else -1
+        self.selected_ids = {self.fixtures[0]["id"]} if self.fixtures else set()
         self.recompute_layout()
         self.update()
 
@@ -75,19 +73,49 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         w = max(400, self.width() if self.width() > 100 else 800)
         h = max(350, self.height() if self.height() > 100 else 550)
 
+        # Centered both horizontally and vertically
         center_x = w / 2.0 + self.pivot_x
-        # Vertically centered in the upper stage area
-        base_y = (h * 0.35) + self.pivot_y
+        center_y = (h / 2.0) - 20 + self.pivot_y
         spacing = min(150.0, max(85.0, (w - 140.0) / max(1, n)))
 
         for i, fix in enumerate(self.fixtures):
-            fx = int(center_x + (i - (n - 1) / 2.0) * spacing)
-            fix["x"] = fx
-            fix["y"] = int(base_y)
+            fix["base_x"] = int(center_x + (i - (n - 1) / 2.0) * spacing)
+            fix["base_y"] = int(center_y)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self.recompute_layout()
+
+    def set_selected_offsets(self, ox: int, oy: int) -> None:
+        """Updates offset position for selected fixtures."""
+        if not self.selected_ids:
+            self.pivot_x = ox
+            self.pivot_y = oy
+            self.recompute_layout()
+        else:
+            for fix in self.fixtures:
+                if fix["id"] in self.selected_ids:
+                    fix["offset_x"] = ox
+                    fix["offset_y"] = oy
+        self.update()
+
+    def align_fixtures_horizontal(self) -> None:
+        """Aligns selected (or all) fixtures to a horizontal line."""
+        targets = [f for f in self.fixtures if f["id"] in self.selected_ids] if self.selected_ids else self.fixtures
+        if not targets: return
+        avg_oy = sum(f["offset_y"] for f in targets) // len(targets)
+        for f in targets:
+            f["offset_y"] = avg_oy
+        self.update()
+
+    def align_fixtures_vertical(self) -> None:
+        """Aligns selected (or all) fixtures to a vertical line."""
+        targets = [f for f in self.fixtures if f["id"] in self.selected_ids] if self.selected_ids else self.fixtures
+        if not targets: return
+        avg_ox = sum(f["offset_x"] for f in targets) // len(targets)
+        for f in targets:
+            f["offset_x"] = avg_ox
+        self.update()
 
     def update_dmx_frame(self, dmx_channels: list[int] | bytearray) -> None:
         """Parses DMX channels dynamically based on each fixture's start channel and channel types."""
@@ -132,16 +160,30 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         self.update()
 
     def mousePressEvent(self, event) -> None:
-        # Left click selects fixture without changing its position
+        # Left click selects fixture. Shift+Click enables multi-selection.
+        # Position is never altered by mouse dragging.
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
-            for idx, fix in enumerate(self.fixtures):
-                fx, fy = fix["x"], fix["y"]
+            clicked_id = None
+            for fix in self.fixtures:
+                fx = fix["base_x"] + fix["offset_x"]
+                fy = fix["base_y"] + fix["offset_y"]
                 if (pos.x() - fx)**2 + (pos.y() - fy)**2 <= 30**2:
-                    self.selected_idx = idx
-                    self.fixture_selected.emit(fix["id"])
-                    self.update()
+                    clicked_id = fix["id"]
                     break
+
+            if clicked_id is not None:
+                if event.modifiers() & Qt.ShiftModifier:
+                    if clicked_id in self.selected_ids:
+                        self.selected_ids.remove(clicked_id)
+                    else:
+                        self.selected_ids.add(clicked_id)
+                else:
+                    self.selected_ids = {clicked_id}
+
+                self.fixture_selected.emit(clicked_id)
+                self.selection_changed.emit(list(self.selected_ids))
+                self.update()
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -150,7 +192,10 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         w = self.width()
         h = self.height()
         floor_y = h - 45
-        truss_y = (h * 0.35) - 40 + self.pivot_y
+
+        # Vertical Center for Fixtures & Overhead Truss Rigging
+        center_y = (h / 2.0) - 20 + self.pivot_y
+        truss_y = center_y - 48
 
         # 1. Truss Rigging Bar at Top
         pen_truss_main = QPen(QColor("#2d3340"), 6)
@@ -183,14 +228,15 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             return
 
         # 4. Render Fixtures, Volumetric Beams, Floor Pools, and Cables
-        for idx, fix in enumerate(self.fixtures):
-            fx, fy = fix["x"], fix["y"]
+        for fix in self.fixtures:
+            fx = fix["base_x"] + fix["offset_x"]
+            fy = fix["base_y"] + fix["offset_y"]
             r = min(255, fix["r"] + fix["w"])
             g = min(255, fix["g"] + fix["w"])
             b = min(255, fix["b"] + fix["w"])
             dim = fix["dim"] / 255.0
 
-            # Cable Drop from Truss to Fixture
+            # Power/DMX Drop Cable from Truss to Fixture
             painter.setPen(QPen(QColor("#14161a"), 2))
             painter.drawLine(fx, int(truss_y), fx, fy - 18)
 
@@ -231,16 +277,33 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             painter.setBrush(QBrush(rad_grad))
             painter.drawEllipse(fx - 45, fy - 45, 90, 90)
 
-            # C. Fixture Casing Housing
-            is_sel = (idx == self.selected_idx)
-            painter.setPen(QPen(QColor(Theme.ACCENT_CYAN if is_sel else Theme.BORDER_STRONG), 2))
+            # C. Fixture Casing Housing & Selection Highlight
+            is_sel = fix["id"] in self.selected_ids
+            if is_sel:
+                # Cyan Selection Ring
+                painter.setPen(QPen(QColor(Theme.ACCENT_CYAN), 2.5))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawEllipse(fx - 23, fy - 23, 46, 46)
+
+            painter.setPen(QPen(QColor("#4a5264"), 1.5))
             painter.setBrush(QColor("#181c24"))
             painter.drawEllipse(fx - 18, fy - 18, 36, 36)
 
-            # D. Lens Center Emitter
+            # D. PAR LED Multi-Cell Lens Array (Matrix of LED emitters)
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(r, g, b, int(255 * max(0.2, dim))))
+            center_color = QColor(r, g, b, int(255 * max(0.2, dim)))
+            painter.setBrush(center_color)
             painter.drawEllipse(fx - 11, fy - 11, 22, 22)
+
+            # Concentric LED Lens Beads
+            painter.setBrush(QColor(255, 255, 255, int(200 * max(0.25, dim))))
+            bead_r = 1.8
+            for angle in [0, 60, 120, 180, 240, 300]:
+                rad = math.radians(angle)
+                bx = fx + math.cos(rad) * 6
+                by = fy + math.sin(rad) * 6
+                painter.drawEllipse(QPointF(bx, by), bead_r, bead_r)
+            painter.drawEllipse(QPointF(fx, fy), 2.2, 2.2)
 
             # E. Telemetry: ONLY Fixture Name
             painter.setFont(QFont("Inter", 8, QFont.Bold))
@@ -251,40 +314,44 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
 
 
 # -----------------------------------------------------------------------------
-# 2. 3D STAGE CANVAS (INVERTED ORBIT, ZOOM LIMITS, PAN MOVE, FRONT DEFAULT)
+# 2. 3D STAGE CANVAS (INVERTED ORBIT, ZOOM LIMITS, PAN MOVE, FRONT EYE-LEVEL DEFAULT)
 # -----------------------------------------------------------------------------
 class Stage3DCanvas(QFrame if HAS_QT else object):
     """
     True Perspective 3D Stage Visualizer.
-    Features overhead aluminum box-truss, 3D fixture housings, perspective conical volumetric beams,
-    stage floor bounce pools, inverted mouse orbit, bounded zoom, right-drag pan,
-    default front camera, center-aligned dynamic layout, and atmospheric haze FX.
+    Features overhead aluminum box-truss, 3D PAR LED fixture housings with lens array,
+    adjustable beam spread angle, perspective conical volumetric beams, floor pools,
+    uninhibited inverted mouse orbit, bounded zoom, right-drag pan, eye-level front default,
+    center-aligned dynamic layout, and atmospheric haze FX.
     """
     fixture_selected = Signal(int)
+    selection_changed = Signal(list)
 
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
         self.setStyleSheet("background-color: #050608; border: 1px solid #333844; border-radius: 6px;")
 
-        # Default Camera: Straight Front Perspective View
-        self.yaw = 0.0                      # Straight from front (0 degrees)
-        self.pitch = math.radians(16.0)     # Slight elegant elevation angle
-        self.cam_distance = 600.0           # Zoom parameter (min 250, max 1100)
-        self.pan_x = 0.0                    # Move camera horizontal
-        self.pan_y = 0.0                    # Move camera vertical
+        # Default Camera: Eye-Level Straight Front Perspective View
+        self.yaw = 0.0                      # Straight ahead (0.0 rad)
+        self.pitch = 0.0                    # Eye level (0.0 rad)
+        self.cam_distance = 600.0           # Zoom distance (bounded 200..1200)
+        self.pan_x = 0.0                    # Camera horizontal pan
+        self.pan_y = 0.0                    # Camera vertical pan
 
         # Drag state
         self.is_orbiting = False
         self.is_panning = False
         self.last_mouse_pos = QPoint()
         self.press_pos = QPoint()
-        self.selected_idx = -1
 
-        # Pivot Offsets (linked with 2D)
+        # Global stage pivot offsets
         self.pivot_x = 0
         self.pivot_y = 0
         self.pivot_z = 0
+
+        # Multi-selection support
+        self.selected_ids: set[int] = set()
 
         # Starts empty by default (Clean initial state for untitled project)
         self.fixtures_3d: list[dict] = []
@@ -309,13 +376,6 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         self.anim_timer.setInterval(33)
         self.anim_timer.timeout.connect(self._on_animation_tick)
 
-    def set_pivots(self, px: int, py: int, pz: int = 0) -> None:
-        self.pivot_x = px
-        self.pivot_y = py
-        self.pivot_z = pz
-        self.recompute_layout()
-        self.update()
-
     def set_fixtures(self, fixtures_data: list[dict]) -> None:
         """Loads patched fixtures and auto-arranges them center-aligned in 3D."""
         self.fixtures_3d = []
@@ -325,16 +385,23 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
                 "name": fix.get("name", f"Fixture #{idx + 1}"),
                 "start_channel": fix.get("start_channel", 1),
                 "channels": fix.get("channels", []),
-                "x": 0,
-                "y": 240,
-                "z": 0,
+                "base_x": 0.0,
+                "base_y": 240.0,
+                "base_z": 0.0,
+                "offset_x": 0.0,
+                "offset_y": 0.0,
+                "offset_z": 0.0,
+                "rot_x": 0.0,       # Pitch tilt in degrees
+                "rot_y": 0.0,       # Yaw pan in degrees
+                "rot_z": 0.0,       # Roll in degrees
+                "beam_angle": 28.0, # Lens spread angle in degrees (15-60)
                 "r": 255,
                 "g": 180,
                 "b": 0,
                 "w": 40,
                 "dim": 240,
             })
-        self.selected_idx = 0 if self.fixtures_3d else -1
+        self.selected_ids = {self.fixtures_3d[0]["id"]} if self.fixtures_3d else set()
         self.recompute_layout()
         self.update()
 
@@ -349,9 +416,58 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         base_z = 0.0 + self.pivot_z
 
         for i, fix in enumerate(self.fixtures_3d):
-            fix["x"] = (i - (n - 1) / 2.0) * spacing_3d + self.pivot_x
-            fix["y"] = base_y
-            fix["z"] = base_z
+            fix["base_x"] = (i - (n - 1) / 2.0) * spacing_3d + self.pivot_x
+            fix["base_y"] = base_y
+            fix["base_z"] = base_z
+
+    def set_selected_offsets(self, ox: float, oy: float, oz: float) -> None:
+        """Applies position offsets to selected fixtures."""
+        if not self.selected_ids:
+            self.pivot_x = int(ox)
+            self.pivot_y = int(oy)
+            self.pivot_z = int(oz)
+            self.recompute_layout()
+        else:
+            for fix in self.fixtures_3d:
+                if fix["id"] in self.selected_ids:
+                    fix["offset_x"] = ox
+                    fix["offset_y"] = oy
+                    fix["offset_z"] = oz
+        self.update()
+
+    def set_selected_rotations(self, rx: float, ry: float, rz: float) -> None:
+        """Applies 3-axis rotation (Pitch, Yaw, Roll) to selected fixtures."""
+        for fix in self.fixtures_3d:
+            if not self.selected_ids or fix["id"] in self.selected_ids:
+                fix["rot_x"] = rx
+                fix["rot_y"] = ry
+                fix["rot_z"] = rz
+        self.update()
+
+    def set_selected_beam_angle(self, angle: float) -> None:
+        """Sets the optical lens beam spread angle in degrees."""
+        for fix in self.fixtures_3d:
+            if not self.selected_ids or fix["id"] in self.selected_ids:
+                fix["beam_angle"] = angle
+        self.update()
+
+    def align_fixtures_horizontal(self) -> None:
+        """Aligns selected (or all) 3D fixtures horizontally (same Y height)."""
+        targets = [f for f in self.fixtures_3d if f["id"] in self.selected_ids] if self.selected_ids else self.fixtures_3d
+        if not targets: return
+        avg_oy = sum(f["offset_y"] for f in targets) / len(targets)
+        for f in targets:
+            f["offset_y"] = avg_oy
+        self.update()
+
+    def align_fixtures_vertical(self) -> None:
+        """Aligns selected (or all) 3D fixtures vertically (same X lateral position)."""
+        targets = [f for f in self.fixtures_3d if f["id"] in self.selected_ids] if self.selected_ids else self.fixtures_3d
+        if not targets: return
+        avg_ox = sum(f["offset_x"] for f in targets) / len(targets)
+        for f in targets:
+            f["offset_x"] = avg_ox
+        self.update()
 
     def set_haze_enabled(self, enabled: bool) -> None:
         self.haze_enabled = enabled
@@ -364,9 +480,9 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         self.update()
 
     def reset_camera(self) -> None:
-        """Resets camera to front-facing perspective with default zoom & pan."""
+        """Resets camera to eye-level front-facing view."""
         self.yaw = 0.0
-        self.pitch = math.radians(16.0)
+        self.pitch = 0.0
         self.cam_distance = 600.0
         self.pan_x = 0.0
         self.pan_y = 0.0
@@ -446,9 +562,9 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         self.last_mouse_pos = cur_pos
 
         if self.is_orbiting:
-            # Inverted orbit: drag right turns camera left, drag up pitches up naturally
+            # Uninhibited inverted orbit: full 360 yaw rotation, wide pitch range
             self.yaw -= dx * 0.008
-            self.pitch = max(math.radians(2), min(math.radians(85), self.pitch - dy * 0.008))
+            self.pitch = max(-math.radians(65), min(math.radians(88), self.pitch - dy * 0.008))
             self.update()
         elif self.is_panning:
             # Right drag: pan camera horizontally and vertically
@@ -459,20 +575,35 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self.is_orbiting = False
-            # Check if this was a click (select fixture) without dragging
             cur_pos = event.position().toPoint()
-            if (cur_pos - self.press_pos).manhattanLength() < 5:
+            # If clicked without significant drag, perform selection / multi-selection
+            if (cur_pos - self.press_pos).manhattanLength() < 6:
                 w = self.width()
                 h = self.height()
                 cx = w / 2.0
                 cy = h / 2.0 + 40.0
-                for idx, fix in enumerate(self.fixtures_3d):
-                    sx, sy, _ = self.project(fix["x"], fix["y"], fix["z"], cx, cy)
-                    if (cur_pos.x() - sx)**2 + (cur_pos.y() - sy)**2 <= 25**2:
-                        self.selected_idx = idx
-                        self.fixture_selected.emit(fix["id"])
-                        self.update()
+                clicked_id = None
+                for fix in self.fixtures_3d:
+                    fx = fix["base_x"] + fix["offset_x"]
+                    fy = fix["base_y"] + fix["offset_y"]
+                    fz = fix["base_z"] + fix["offset_z"]
+                    sx, sy, _ = self.project(fx, fy, fz, cx, cy)
+                    if (cur_pos.x() - sx)**2 + (cur_pos.y() - sy)**2 <= 28**2:
+                        clicked_id = fix["id"]
                         break
+
+                if clicked_id is not None:
+                    if event.modifiers() & Qt.ShiftModifier:
+                        if clicked_id in self.selected_ids:
+                            self.selected_ids.remove(clicked_id)
+                        else:
+                            self.selected_ids.add(clicked_id)
+                    else:
+                        self.selected_ids = {clicked_id}
+
+                    self.fixture_selected.emit(clicked_id)
+                    self.selection_changed.emit(list(self.selected_ids))
+                    self.update()
         elif event.button() == Qt.RightButton:
             self.is_panning = False
 
@@ -480,11 +611,11 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         """Zoom in and zoom out via scroll wheel, bounded within limits."""
         delta = event.angleDelta().y()
         if delta > 0:
-            # Zoom In (limit min distance)
-            self.cam_distance = max(250.0, self.cam_distance - 40.0)
+            # Zoom In
+            self.cam_distance = max(200.0, self.cam_distance - 40.0)
         elif delta < 0:
-            # Zoom Out (limit max distance to prevent vanishing)
-            self.cam_distance = min(1100.0, self.cam_distance + 40.0)
+            # Zoom Out (Bounded to prevent disappearing)
+            self.cam_distance = min(1200.0, self.cam_distance + 40.0)
         self.update()
 
     def project(self, x: float, y: float, z: float, cx: float, cy: float, fov_scale: float = 460.0) -> tuple[float, float, float]:
@@ -568,7 +699,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             painter.drawLine(p1, p2)
             painter.drawLine(p2, p3)
 
-        # 3. Volumetric 3D Beams & Floor Light Pools
+        # 3. Volumetric 3D Beams with Lens Spread Angle & Floor Reflection Pools
         for fix in self.fixtures_3d:
             dim = fix["dim"] / 255.0
             if dim <= 0.04:
@@ -578,15 +709,29 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             g = min(255, fix["g"] + fix["w"])
             b = min(255, fix["b"] + fix["w"])
 
-            lx, ly, lz = fix["x"], fix["y"] - 14, fix["z"]
-            lens_pt = QPointF(*self.project(lx, ly, lz, cx, cy)[:2])
+            fx = fix["base_x"] + fix["offset_x"]
+            fy = fix["base_y"] + fix["offset_y"]
+            fz = fix["base_z"] + fix["offset_z"]
 
-            target_x = fix["x"] * 0.88
-            target_z = 25.0 + fix["z"]
+            # Lens Position
+            lens_pt = QPointF(*self.project(fx, fy - 14, fz, cx, cy)[:2])
+
+            # Apply Fixture 3D Rotation (Pitch RotX, Yaw RotY) to beam target on floor
+            rot_x_rad = math.radians(fix.get("rot_x", 0.0))
+            rot_y_rad = math.radians(fix.get("rot_y", 0.0))
+            beam_spread = fix.get("beam_angle", 28.0)
+
+            # Target position on stage floor with rotation offsets
+            spread_factor = math.tan(math.radians(beam_spread / 2.0))
+            floor_dist = max(50.0, fy)
+            target_x = fx * 0.88 + math.sin(rot_y_rad) * floor_dist * 0.4
+            target_z = 25.0 + fz + math.sin(rot_x_rad) * floor_dist * 0.4
+
+            # Dynamic floor radius computed from lens spread angle
+            radius_x = max(20.0, floor_dist * spread_factor * 0.8)
+            radius_z = max(14.0, radius_x * 0.65)
 
             floor_ellipse_pts = []
-            radius_x = 55.0
-            radius_z = 35.0
             for deg in range(0, 360, 45):
                 rad = math.radians(deg)
                 px = target_x + math.cos(rad) * radius_x
@@ -609,7 +754,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             painter.drawPolygon(QPolygonF(beam_polygon))
 
             # Floor Reflection Pool
-            floor_glow = QRadialGradient(beam_center_floor, 70)
+            floor_glow = QRadialGradient(beam_center_floor, radius_x)
             floor_glow.setColorAt(0.0, QColor(r, g, b, int(170 * dim)))
             floor_glow.setColorAt(0.5, QColor(r, g, b, int(60 * dim)))
             floor_glow.setColorAt(1.0, QColor(r, g, b, 0))
@@ -634,9 +779,12 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
                     painter.drawEllipse(QPointF(sx, sy), radius_proj, radius_proj * 0.7)
 
         # 5. 3D Fixture Head Housings, Rigging Cables & Labels
-        for idx, fix in enumerate(self.fixtures_3d):
-            lx, ly, lz = fix["x"], fix["y"], fix["z"]
-            head_sx, head_sy, head_sz = self.project(lx, ly, lz, cx, cy)
+        for fix in self.fixtures_3d:
+            fx = fix["base_x"] + fix["offset_x"]
+            fy = fix["base_y"] + fix["offset_y"]
+            fz = fix["base_z"] + fix["offset_z"]
+
+            head_sx, head_sy, head_sz = self.project(fx, fy, fz, cx, cy)
             scale = 450.0 / head_sz
 
             r = min(255, fix["r"] + fix["w"])
@@ -645,7 +793,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             dim = fix["dim"] / 255.0
 
             # Power/DMX Drop Cable from Truss Pipe to Fixture Clamp
-            truss_pt = QPointF(*self.project(lx, truss_y, truss_z - 10, cx, cy)[:2])
+            truss_pt = QPointF(*self.project(fx, truss_y, truss_z - 10, cx, cy)[:2])
             painter.setPen(QPen(QColor("#14161a"), 2))
             painter.drawLine(truss_pt, QPointF(head_sx, head_sy - 16 * scale))
 
@@ -653,29 +801,51 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             painter.setPen(QPen(QColor("#717b8f"), 2))
             painter.drawLine(QPointF(head_sx, head_sy - 16 * scale), QPointF(head_sx, head_sy - 4 * scale))
 
-            # Yoke Bracket
-            is_sel = (idx == self.selected_idx)
+            # Yoke Bracket with Knurled Side Adjustment Knobs
+            is_sel = fix["id"] in self.selected_ids
             painter.setPen(QPen(QColor(Theme.ACCENT_CYAN if is_sel else "#404654"), 2.5))
-            yoke_rect = QRectF(head_sx - 14 * scale, head_sy - 6 * scale, 28 * scale, 22 * scale)
+            yoke_rect = QRectF(head_sx - 16 * scale, head_sy - 6 * scale, 32 * scale, 24 * scale)
             painter.drawArc(yoke_rect, 0, 180 * 16)
 
-            # PAR LED Cylindrical Body
+            # Knurled Side Knobs on Yoke
+            knob_pen = QPen(QColor("#808a9d"), 2)
+            painter.setPen(knob_pen)
+            painter.drawLine(QPointF(head_sx - 17 * scale, head_sy + 4 * scale), QPointF(head_sx - 15 * scale, head_sy + 4 * scale))
+            painter.drawLine(QPointF(head_sx + 15 * scale, head_sy + 4 * scale), QPointF(head_sx + 17 * scale, head_sy + 4 * scale))
+
+            # PAR LED Cylindrical Chassis with Rear Cooling Fins
             body_radius = 16 * scale
-            painter.setPen(QPen(QColor(Theme.ACCENT_AMBER if dim > 0.1 else Theme.BORDER_STRONG), 1.5))
+            painter.setPen(QPen(QColor(Theme.ACCENT_CYAN if is_sel else (Theme.ACCENT_AMBER if dim > 0.1 else Theme.BORDER_STRONG)), 1.5))
             painter.setBrush(QColor("#14171f"))
             painter.drawEllipse(QPointF(head_sx, head_sy), body_radius, body_radius)
 
-            # Lens Face Emitter with Bezel
+            # Rear Cooling Fin Lines
+            painter.setPen(QPen(QColor("#242a38"), 1))
+            for f_offset in [-8, -4, 0, 4, 8]:
+                fin_sx = head_sx + f_offset * scale
+                painter.drawLine(QPointF(fin_sx, head_sy - 11 * scale), QPointF(fin_sx, head_sy - 6 * scale))
+
+            # Multi-Cell LED Lens Face Emitter
             lens_color = QColor(r, g, b, int(255 * max(0.2, dim)))
             painter.setPen(Qt.NoPen)
             painter.setBrush(QBrush(lens_color))
             painter.drawEllipse(QPointF(head_sx, head_sy + 2 * scale), body_radius * 0.65, body_radius * 0.65)
 
+            # Matrix of LED Lens Beads on PAR Face
+            painter.setBrush(QColor(255, 255, 255, int(220 * max(0.25, dim))))
+            bead_r = 1.4 * scale
+            for angle in [0, 60, 120, 180, 240, 300]:
+                rad = math.radians(angle)
+                bx = head_sx + math.cos(rad) * (6 * scale)
+                by = (head_sy + 2 * scale) + math.sin(rad) * (6 * scale)
+                painter.drawEllipse(QPointF(bx, by), bead_r, bead_r)
+            painter.drawEllipse(QPointF(head_sx, head_sy + 2 * scale), 1.8 * scale, 1.8 * scale)
+
             # Fixture Telemetry: ONLY Fixture Name
             painter.setFont(QFont("Inter", max(7, int(8 * scale)), QFont.Bold))
             painter.setPen(QColor(Theme.TEXT_PRIMARY))
             painter.drawText(
-                QRectF(head_sx - 60, head_sy - 28 * scale, 120, 16),
+                QRectF(head_sx - 60, head_sy - 30 * scale, 120, 16),
                 Qt.AlignCenter,
                 fix["name"]
             )
@@ -684,13 +854,13 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
 
 
 # -----------------------------------------------------------------------------
-# 3. STANDALONE STAGE VISUALIZER WINDOW (2D & 3D WITH HAMBURGER DRAWER)
+# 3. STANDALONE STAGE VISUALIZER WINDOW (2D & 3D WITH TOP TABS & HAMBURGER DRAWER)
 # -----------------------------------------------------------------------------
 class StageVisualizerWindow(QWidget if HAS_QT else object):
     """
     Standalone Floating Window for Stage Lighting Visualization.
-    Features 2D Front View (default) and 3D Perspective Stage with Haze Simulation,
-    a right-hand collapsible control drawer opened via hamburger [☰], and linked pivots.
+    Features top bar with 2D/3D switch on the left and hamburger [☰] on the right,
+    selection-aware pivot positioning & 3D rotation, and collapsible control drawer.
     """
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
@@ -704,6 +874,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
             self.setWindowIcon(QIcon(str(logo_path)))
 
         self._active_fixtures: list[dict] = []
+        self._current_view = 0  # 0: 2D Front View, 1: 3D Perspective View
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -711,50 +882,48 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         root_layout.setContentsMargins(12, 10, 12, 10)
         root_layout.setSpacing(8)
 
-        # Header Row: Tabs on Left, Hamburger on Right (No decorative titles)
-        header_row = QHBoxLayout()
-        header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.setSpacing(8)
+        # Top Bar: Switch Buttons on the Left, Hamburger on the Right
+        top_bar = QHBoxLayout()
+        top_bar.setContentsMargins(0, 0, 0, 0)
+        top_bar.setSpacing(6)
 
-        # Central Visualizer Tabs: Default 2D Front View (Index 0), then 3D Perspective (Index 1)
-        self.tabs = QTabWidget()
-        self.tabs.setStyleSheet(f"""
-            QTabWidget::pane {{
-                border: 1px solid {Theme.BORDER_SUBTLE};
-                border-radius: 6px;
-                background-color: {Theme.BG_ROOT};
-            }}
-            QTabBar::tab {{
-                background-color: {Theme.BG_SURFACE};
-                border: 1px solid {Theme.BORDER_SUBTLE};
-                color: {Theme.TEXT_SECONDARY};
-                font-weight: 700;
-                font-size: 11px;
-                padding: 6px 18px;
-                margin-right: 4px;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-            }}
-            QTabBar::tab:selected {{
+        self.btn_tab_2d = QPushButton("2D Front View")
+        self.btn_tab_2d.setCheckable(True)
+        self.btn_tab_2d.setChecked(True)
+        self.btn_tab_2d.setStyleSheet(f"""
+            QPushButton {{
                 background-color: {Theme.BG_ELEVATED};
-                border-color: {Theme.ACCENT_CYAN};
+                border: 1px solid {Theme.ACCENT_CYAN};
+                border-radius: 4px;
                 color: #ffffff;
+                font-weight: 700;
+                padding: 6px 16px;
             }}
         """)
+        self.btn_tab_2d.clicked.connect(lambda: self._switch_view(0))
+        top_bar.addWidget(self.btn_tab_2d)
 
-        # Tab 1: 2D Front View (Default - Lightweight cold launch)
-        self.canvas_2d = Stage2DCanvas(self)
-        self.tabs.addTab(self.canvas_2d, "2D Front View")
+        self.btn_tab_3d = QPushButton("3D Perspective View")
+        self.btn_tab_3d.setCheckable(True)
+        self.btn_tab_3d.setChecked(False)
+        self.btn_tab_3d.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.BG_SURFACE};
+                border: 1px solid {Theme.BORDER_SUBTLE};
+                border-radius: 4px;
+                color: {Theme.TEXT_SECONDARY};
+                font-weight: 700;
+                padding: 6px 16px;
+            }}
+        """)
+        self.btn_tab_3d.clicked.connect(lambda: self._switch_view(1))
+        top_bar.addWidget(self.btn_tab_3d)
 
-        # Tab 2: 3D Perspective View (Volumetric & Haze)
-        self.canvas_3d = Stage3DCanvas(self)
-        self.tabs.addTab(self.canvas_3d, "3D Perspective View")
-
-        self.tabs.currentChanged.connect(self._on_tab_changed)
+        top_bar.addStretch()
 
         # Right Hamburger Toggle Button
         self.btn_hamburger = QPushButton("☰")
-        self.btn_hamburger.setToolTip("Toggle Control Panel")
+        self.btn_hamburger.setToolTip("Toggle Controls Drawer")
         self.btn_hamburger.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Theme.BG_SURFACE};
@@ -771,18 +940,31 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
             }}
         """)
         self.btn_hamburger.clicked.connect(self._toggle_drawer)
+        top_bar.addWidget(self.btn_hamburger)
 
-        # Build Main Body with Drawer
+        root_layout.addLayout(top_bar)
+
+        # Main Body: Stacked Canvases & Drawer
         content_layout = QHBoxLayout()
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(8)
 
+        # Central Visualizer Canvases (QStackedWidget)
+        self.tabs = QStackedWidget(self)
+        self.canvas_2d = Stage2DCanvas(self)
+        self.canvas_3d = Stage3DCanvas(self)
+        self.tabs.addWidget(self.canvas_2d)
+        self.tabs.addWidget(self.canvas_3d)
+
+        self.canvas_2d.fixture_selected.connect(self._on_fixture_selected)
+        self.canvas_3d.fixture_selected.connect(self._on_fixture_selected)
+
         content_layout.addWidget(self.tabs, 1)
 
-        # Side Control Drawer (Default: Hidden at start per feedback)
+        # Side Control Drawer (Default: Hidden / Closed)
         self.drawer_widget = QFrame()
-        self.drawer_widget.setFixedWidth(230)
-        self.drawer_widget.setVisible(False)  # Hidden by default
+        self.drawer_widget.setFixedWidth(235)
+        self.drawer_widget.setVisible(False)
         self.drawer_widget.setStyleSheet(f"""
             QFrame {{
                 background-color: {Theme.BG_SURFACE};
@@ -791,17 +973,16 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
             }}
         """)
         drawer_layout = QVBoxLayout(self.drawer_widget)
-        drawer_layout.setContentsMargins(12, 14, 12, 14)
-        drawer_layout.setSpacing(12)
+        drawer_layout.setContentsMargins(12, 12, 12, 12)
+        drawer_layout.setSpacing(10)
 
-        # --- 3D Specific Section ---
+        # 3D Camera Controls Group
         self.box_3d_controls = QFrame()
         self.box_3d_controls.setStyleSheet("border: none; background: transparent;")
         box_3d_layout = QVBoxLayout(self.box_3d_controls)
         box_3d_layout.setContentsMargins(0, 0, 0, 0)
         box_3d_layout.setSpacing(8)
 
-        # Reset Camera Button (Standby Grey, Green on Click)
         self.btn_reset_cam = QPushButton("Reset Camera")
         self.btn_reset_cam.setStyleSheet(f"""
             QPushButton {{
@@ -819,144 +1000,263 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         self.btn_reset_cam.clicked.connect(self._on_reset_camera_clicked)
         box_3d_layout.addWidget(self.btn_reset_cam)
 
-        # Haze FX Switch (Default: OFF grey, Green when ON)
-        self.btn_haze = QPushButton("Haze FX: OFF")
-        self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: normal; padding: 6px;")
+        self.btn_haze = QPushButton("Haze FX")
+        self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: bold; padding: 6px;")
         self.btn_haze.clicked.connect(self._on_toggle_haze)
         box_3d_layout.addWidget(self.btn_haze)
 
         drawer_layout.addWidget(self.box_3d_controls)
 
-        # Divider between Camera and Fixture Position
         self.divider_3d = QFrame()
         self.divider_3d.setFixedHeight(1)
         self.divider_3d.setStyleSheet(f"background-color: {Theme.BORDER_SUBTLE}; border: none;")
         drawer_layout.addWidget(self.divider_3d)
 
-        # --- Pivot Position Section (Linked 2D & 3D with interactive slider + spinbox) ---
-        lbl_pivot = QLabel("FIXTURE POSITION")
-        lbl_pivot.setStyleSheet(f"font-size: 11px; font-weight: 800; color: {Theme.TEXT_SECONDARY}; letter-spacing: 1px;")
-        drawer_layout.addWidget(lbl_pivot)
+        # --- FIXTURE POSITION SECTION ---
+        lbl_pos = QLabel("FIXTURE POSITION")
+        lbl_pos.setStyleSheet(f"font-size: 11px; font-weight: 800; color: {Theme.TEXT_SECONDARY}; letter-spacing: 0.5px;")
+        drawer_layout.addWidget(lbl_pos)
 
-        # Pivot X (Slider + SpinBox)
-        col_px = QVBoxLayout()
-        col_px.setSpacing(4)
-        lbl_px = QLabel("Pivot X:")
-        lbl_px.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
-        col_px.addWidget(lbl_px)
-
-        row_px = QHBoxLayout()
-        self.slider_pivot_x = QSlider(Qt.Horizontal)
-        self.slider_pivot_x.setRange(-300, 300)
-        self.slider_pivot_x.setValue(0)
-        self.slider_pivot_x.setStyleSheet(f"""
-            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
-            QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
-        """)
-        self.spin_pivot_x = QSpinBox()
-        self.spin_pivot_x.setRange(-300, 300)
-        self.spin_pivot_x.setValue(0)
-        self.spin_pivot_x.setFixedWidth(65)
-        self.spin_pivot_x.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
-
+        # Pivot X
+        self.slider_pivot_x, self.spin_pivot_x, col_px = self._create_slider_spin_row("Pivot X:", -300, 300, 0)
         self.slider_pivot_x.valueChanged.connect(self.spin_pivot_x.setValue)
         self.spin_pivot_x.valueChanged.connect(self.slider_pivot_x.setValue)
-        self.spin_pivot_x.valueChanged.connect(self._on_pivots_changed)
-        row_px.addWidget(self.slider_pivot_x, 1)
-        row_px.addWidget(self.spin_pivot_x)
-        col_px.addLayout(row_px)
+        self.spin_pivot_x.valueChanged.connect(self._on_position_changed)
         drawer_layout.addLayout(col_px)
 
-        # Pivot Y (Slider + SpinBox)
-        col_py = QVBoxLayout()
-        col_py.setSpacing(4)
-        lbl_py = QLabel("Pivot Y:")
-        lbl_py.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
-        col_py.addWidget(lbl_py)
-
-        row_py = QHBoxLayout()
-        self.slider_pivot_y = QSlider(Qt.Horizontal)
-        self.slider_pivot_y.setRange(-300, 300)
-        self.slider_pivot_y.setValue(0)
-        self.slider_pivot_y.setStyleSheet(f"""
-            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
-            QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
-        """)
-        self.spin_pivot_y = QSpinBox()
-        self.spin_pivot_y.setRange(-300, 300)
-        self.spin_pivot_y.setValue(0)
-        self.spin_pivot_y.setFixedWidth(65)
-        self.spin_pivot_y.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
-
+        # Pivot Y
+        self.slider_pivot_y, self.spin_pivot_y, col_py = self._create_slider_spin_row("Pivot Y:", -300, 300, 0)
         self.slider_pivot_y.valueChanged.connect(self.spin_pivot_y.setValue)
         self.spin_pivot_y.valueChanged.connect(self.slider_pivot_y.setValue)
-        self.spin_pivot_y.valueChanged.connect(self._on_pivots_changed)
-        row_py.addWidget(self.slider_pivot_y, 1)
-        row_py.addWidget(self.spin_pivot_y)
-        col_py.addLayout(row_py)
+        self.spin_pivot_y.valueChanged.connect(self._on_position_changed)
         drawer_layout.addLayout(col_py)
 
-        # Pivot Z (Only active for 3D)
+        # Pivot Z (3D only)
         self.col_pz_widget = QWidget()
-        col_pz = QVBoxLayout(self.col_pz_widget)
-        col_pz.setContentsMargins(0, 0, 0, 0)
-        col_pz.setSpacing(4)
-        lbl_pz = QLabel("Pivot Z:")
-        lbl_pz.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
-        col_pz.addWidget(lbl_pz)
-
-        row_pz = QHBoxLayout()
-        self.slider_pivot_z = QSlider(Qt.Horizontal)
-        self.slider_pivot_z.setRange(-300, 300)
-        self.slider_pivot_z.setValue(0)
-        self.slider_pivot_z.setStyleSheet(f"""
-            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
-            QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
-        """)
-        self.spin_pivot_z = QSpinBox()
-        self.spin_pivot_z.setRange(-300, 300)
-        self.spin_pivot_z.setValue(0)
-        self.spin_pivot_z.setFixedWidth(65)
-        self.spin_pivot_z.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
-
+        pz_box = QVBoxLayout(self.col_pz_widget)
+        pz_box.setContentsMargins(0, 0, 0, 0)
+        self.slider_pivot_z, self.spin_pivot_z, col_pz = self._create_slider_spin_row("Pivot Z:", -300, 300, 0)
         self.slider_pivot_z.valueChanged.connect(self.spin_pivot_z.setValue)
         self.spin_pivot_z.valueChanged.connect(self.slider_pivot_z.setValue)
-        self.spin_pivot_z.valueChanged.connect(self._on_pivots_changed)
-        row_pz.addWidget(self.slider_pivot_z, 1)
-        row_pz.addWidget(self.spin_pivot_z)
-        col_pz.addLayout(row_pz)
+        self.spin_pivot_z.valueChanged.connect(self._on_position_changed)
+        pz_box.addLayout(col_pz)
         drawer_layout.addWidget(self.col_pz_widget)
+
+        # --- FIXTURE ROTATION SECTION (3D ONLY) ---
+        self.box_rot_widget = QWidget()
+        rot_box = QVBoxLayout(self.box_rot_widget)
+        rot_box.setContentsMargins(0, 0, 0, 0)
+        rot_box.setSpacing(6)
+
+        div_rot = QFrame()
+        div_rot.setFixedHeight(1)
+        div_rot.setStyleSheet(f"background-color: {Theme.BORDER_SUBTLE}; border: none;")
+        rot_box.addWidget(div_rot)
+
+        lbl_rot = QLabel("FIXTURE ROTATION")
+        lbl_rot.setStyleSheet(f"font-size: 11px; font-weight: 800; color: {Theme.TEXT_SECONDARY}; letter-spacing: 0.5px;")
+        rot_box.addWidget(lbl_rot)
+
+        # Rot X (Pitch Tilt)
+        self.slider_rot_x, self.spin_rot_x, col_rx = self._create_slider_spin_row("Rot X (Tilt):", -90, 90, 0)
+        self.slider_rot_x.valueChanged.connect(self.spin_rot_x.setValue)
+        self.spin_rot_x.valueChanged.connect(self.slider_rot_x.setValue)
+        self.spin_rot_x.valueChanged.connect(self._on_rotation_changed)
+        rot_box.addLayout(col_rx)
+
+        # Rot Y (Yaw Pan)
+        self.slider_rot_y, self.spin_rot_y, col_ry = self._create_slider_spin_row("Rot Y (Pan):", -180, 180, 0)
+        self.slider_rot_y.valueChanged.connect(self.spin_rot_y.setValue)
+        self.spin_rot_y.valueChanged.connect(self.slider_rot_y.setValue)
+        self.spin_rot_y.valueChanged.connect(self._on_rotation_changed)
+        rot_box.addLayout(col_ry)
+
+        # Rot Z (Roll)
+        self.slider_rot_z, self.spin_rot_z, col_rz = self._create_slider_spin_row("Rot Z (Roll):", -180, 180, 0)
+        self.slider_rot_z.valueChanged.connect(self.spin_rot_z.setValue)
+        self.spin_rot_z.valueChanged.connect(self.slider_rot_z.setValue)
+        self.spin_rot_z.valueChanged.connect(self._on_rotation_changed)
+        rot_box.addLayout(col_rz)
+
+        # Lens Spread Beam Angle (15° to 60°)
+        self.slider_beam_angle, self.spin_beam_angle, col_beam = self._create_slider_spin_row("Beam Angle:", 15, 60, 28)
+        self.slider_beam_angle.valueChanged.connect(self.spin_beam_angle.setValue)
+        self.spin_beam_angle.valueChanged.connect(self.slider_beam_angle.setValue)
+        self.spin_beam_angle.valueChanged.connect(self._on_beam_angle_changed)
+        rot_box.addLayout(col_beam)
+
+        drawer_layout.addWidget(self.box_rot_widget)
+
+        # --- ALIGNMENT CONTROLS ---
+        div_align = QFrame()
+        div_align.setFixedHeight(1)
+        div_align.setStyleSheet(f"background-color: {Theme.BORDER_SUBTLE}; border: none;")
+        drawer_layout.addWidget(div_align)
+
+        lbl_align = QLabel("ALIGNMENT")
+        lbl_align.setStyleSheet(f"font-size: 11px; font-weight: 800; color: {Theme.TEXT_SECONDARY}; letter-spacing: 0.5px;")
+        drawer_layout.addWidget(lbl_align)
+
+        row_align = QHBoxLayout()
+        row_align.setSpacing(6)
+        self.btn_align_h = QPushButton("Align Horizontal")
+        self.btn_align_h.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; padding: 5px;")
+        self.btn_align_h.clicked.connect(self._on_align_h_clicked)
+        row_align.addWidget(self.btn_align_h)
+
+        self.btn_align_v = QPushButton("Align Vertical")
+        self.btn_align_v.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; padding: 5px;")
+        self.btn_align_v.clicked.connect(self._on_align_v_clicked)
+        row_align.addWidget(self.btn_align_v)
+        drawer_layout.addLayout(row_align)
 
         drawer_layout.addStretch()
         content_layout.addWidget(self.drawer_widget)
 
-        # Set Top Bar
-        header_row.addStretch()
-        header_row.addWidget(self.btn_hamburger)
-        root_layout.addLayout(header_row)
         root_layout.addLayout(content_layout, 1)
 
-        # Initial Tab Setup (Default: 2D view)
-        self._on_tab_changed(0)
+        # Initial view setup: default 2D Front View
+        self._switch_view(0)
+
+    def _create_slider_spin_row(self, label: str, min_val: int, max_val: int, init_val: int) -> tuple[QSlider, QSpinBox, QVBoxLayout]:
+        col = QVBoxLayout()
+        col.setSpacing(3)
+        lbl = QLabel(label)
+        lbl.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
+        col.addWidget(lbl)
+
+        row = QHBoxLayout()
+        slider = QSlider(Qt.Horizontal)
+        slider.setRange(min_val, max_val)
+        slider.setValue(init_val)
+        slider.setStyleSheet(f"""
+            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
+        """)
+        spin = QSpinBox()
+        spin.setRange(min_val, max_val)
+        spin.setValue(init_val)
+        spin.setFixedWidth(60)
+        spin.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
+
+        row.addWidget(slider, 1)
+        row.addWidget(spin)
+        col.addLayout(row)
+        return slider, spin, col
+
+    def _switch_view(self, index: int) -> None:
+        self._current_view = index
+        self.tabs.setCurrentIndex(index)
+        if index == 0:
+            self.btn_tab_2d.setChecked(True)
+            self.btn_tab_3d.setChecked(False)
+            self.btn_tab_2d.setStyleSheet(f"background-color: {Theme.BG_ELEVATED}; border: 1px solid {Theme.ACCENT_CYAN}; border-radius: 4px; color: #ffffff; font-weight: 700; padding: 6px 16px;")
+            self.btn_tab_3d.setStyleSheet(f"background-color: {Theme.BG_SURFACE}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 4px; color: {Theme.TEXT_SECONDARY}; font-weight: 700; padding: 6px 16px;")
+            self.box_3d_controls.setVisible(False)
+            self.divider_3d.setVisible(False)
+            self.col_pz_widget.setVisible(False)
+            self.box_rot_widget.setVisible(False)
+        else:
+            self.btn_tab_2d.setChecked(False)
+            self.btn_tab_3d.setChecked(True)
+            self.btn_tab_2d.setStyleSheet(f"background-color: {Theme.BG_SURFACE}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 4px; color: {Theme.TEXT_SECONDARY}; font-weight: 700; padding: 6px 16px;")
+            self.btn_tab_3d.setStyleSheet(f"background-color: {Theme.BG_ELEVATED}; border: 1px solid {Theme.ACCENT_CYAN}; border-radius: 4px; color: #ffffff; font-weight: 700; padding: 6px 16px;")
+            self.box_3d_controls.setVisible(True)
+            self.divider_3d.setVisible(True)
+            self.col_pz_widget.setVisible(True)
+            self.box_rot_widget.setVisible(True)
 
     def _toggle_drawer(self) -> None:
         self.drawer_widget.setVisible(not self.drawer_widget.isVisible())
 
-    def _on_tab_changed(self, index: int) -> None:
-        # Index 0: 2D Front View
-        # Index 1: 3D Perspective View
-        if index == 0:
-            self.box_3d_controls.setVisible(False)
-            self.divider_3d.setVisible(False)
-            self.col_pz_widget.setVisible(False)
-        else:
-            self.box_3d_controls.setVisible(True)
-            self.divider_3d.setVisible(True)
-            self.col_pz_widget.setVisible(True)
+    def _on_fixture_selected(self, fixture_id: int) -> None:
+        """When a fixture is selected in either 2D or 3D canvas, load its current pivot values into sliders."""
+        target_2d = next((f for f in self.canvas_2d.fixtures if f["id"] == fixture_id), None)
+        target_3d = next((f for f in self.canvas_3d.fixtures_3d if f["id"] == fixture_id), None)
+
+        if target_2d:
+            self.spin_pivot_x.blockSignals(True)
+            self.spin_pivot_y.blockSignals(True)
+            self.slider_pivot_x.blockSignals(True)
+            self.slider_pivot_y.blockSignals(True)
+            ox = int(target_2d.get("offset_x", 0))
+            oy = int(target_2d.get("offset_y", 0))
+            self.spin_pivot_x.setValue(ox)
+            self.slider_pivot_x.setValue(ox)
+            self.spin_pivot_y.setValue(oy)
+            self.slider_pivot_y.setValue(oy)
+            self.spin_pivot_x.blockSignals(False)
+            self.spin_pivot_y.blockSignals(False)
+            self.slider_pivot_x.blockSignals(False)
+            self.slider_pivot_y.blockSignals(False)
+
+        if target_3d:
+            self.spin_pivot_z.blockSignals(True)
+            self.slider_pivot_z.blockSignals(True)
+            self.spin_rot_x.blockSignals(True)
+            self.spin_rot_y.blockSignals(True)
+            self.spin_rot_z.blockSignals(True)
+            self.slider_rot_x.blockSignals(True)
+            self.slider_rot_y.blockSignals(True)
+            self.slider_rot_z.blockSignals(True)
+            self.spin_beam_angle.blockSignals(True)
+            self.slider_beam_angle.blockSignals(True)
+
+            oz = int(target_3d.get("offset_z", 0))
+            rx = int(target_3d.get("rot_x", 0))
+            ry = int(target_3d.get("rot_y", 0))
+            rz = int(target_3d.get("rot_z", 0))
+            ba = int(target_3d.get("beam_angle", 28))
+
+            self.spin_pivot_z.setValue(oz)
+            self.slider_pivot_z.setValue(oz)
+            self.spin_rot_x.setValue(rx)
+            self.slider_rot_x.setValue(rx)
+            self.spin_rot_y.setValue(ry)
+            self.slider_rot_y.setValue(ry)
+            self.spin_rot_z.setValue(rz)
+            self.slider_rot_z.setValue(rz)
+            self.spin_beam_angle.setValue(ba)
+            self.slider_beam_angle.setValue(ba)
+
+            self.spin_pivot_z.blockSignals(False)
+            self.slider_pivot_z.blockSignals(False)
+            self.spin_rot_x.blockSignals(False)
+            self.spin_rot_y.blockSignals(False)
+            self.spin_rot_z.blockSignals(False)
+            self.slider_rot_x.blockSignals(False)
+            self.slider_rot_y.blockSignals(False)
+            self.slider_rot_z.blockSignals(False)
+            self.spin_beam_angle.blockSignals(False)
+            self.slider_beam_angle.blockSignals(False)
+
+    def _on_position_changed(self) -> None:
+        ox = self.spin_pivot_x.value()
+        oy = self.spin_pivot_y.value()
+        oz = self.spin_pivot_z.value()
+        self.canvas_2d.set_selected_offsets(ox, oy)
+        self.canvas_3d.set_selected_offsets(ox, oy, oz)
+
+    def _on_rotation_changed(self) -> None:
+        rx = self.spin_rot_x.value()
+        ry = self.spin_rot_y.value()
+        rz = self.spin_rot_z.value()
+        self.canvas_3d.set_selected_rotations(rx, ry, rz)
+
+    def _on_beam_angle_changed(self) -> None:
+        angle = self.spin_beam_angle.value()
+        self.canvas_3d.set_selected_beam_angle(angle)
+
+    def _on_align_h_clicked(self) -> None:
+        self.canvas_2d.align_fixtures_horizontal()
+        self.canvas_3d.align_fixtures_horizontal()
+
+    def _on_align_v_clicked(self) -> None:
+        self.canvas_2d.align_fixtures_vertical()
+        self.canvas_3d.align_fixtures_vertical()
 
     def _on_reset_camera_clicked(self) -> None:
         self.canvas_3d.reset_camera()
-        # Visual feedback: flash green on click, then return to standby grey
         self.btn_reset_cam.setStyleSheet("background-color: #16a34a; border: none; border-radius: 4px; color: #ffffff; font-weight: bold; padding: 6px;")
         QTimer.singleShot(350, self._restore_reset_cam_style)
 
@@ -979,19 +1279,9 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         new_state = not self.canvas_3d.haze_enabled
         self.canvas_3d.set_haze_enabled(new_state)
         if new_state:
-            self.btn_haze.setText("Haze FX: ON")
             self.btn_haze.setStyleSheet("background-color: #16a34a; border: none; border-radius: 4px; color: #ffffff; font-weight: bold; padding: 6px;")
         else:
-            self.btn_haze.setText("Haze FX: OFF")
-            self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: normal; padding: 6px;")
-
-    def _on_pivots_changed(self) -> None:
-        px = self.spin_pivot_x.value()
-        py = self.spin_pivot_y.value()
-        pz = self.spin_pivot_z.value()
-        # Saling link/sync 2D & 3D
-        self.canvas_2d.set_pivots(px, py)
-        self.canvas_3d.set_pivots(px, py, pz)
+            self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: bold; padding: 6px;")
 
     def sync_fixtures(self, fixtures: list[dict]) -> None:
         """Synchronizes active patched fixtures to both 2D and 3D visualizer canvases."""

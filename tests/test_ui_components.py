@@ -139,6 +139,8 @@ class TestUIModules(unittest.TestCase):
         with open(kuma_zfx_file, "r", encoding="utf-8") as fp:
             kuma_data = json.load(fp)
         self.assertEqual(kuma_data["manufacturer"], "Kumastb")
+        self.assertEqual(kuma_data["name"], "Kumastb-STL47")
+        self.assertEqual(kuma_data["model"], "STL47")
         self.assertEqual(kuma_data["channel_count"], 8)
         self.assertEqual([ch["label"] for ch in kuma_data["channels"]],
                          ["Dimmer", "Red", "Green", "Blue", "White", "Strobe", "Program", "Speed"])
@@ -157,6 +159,8 @@ class TestUIModules(unittest.TestCase):
         with open(alien_zfx_file, "r", encoding="utf-8") as fp:
             alien_data = json.load(fp)
         self.assertEqual(alien_data["manufacturer"], "Alien")
+        self.assertEqual(alien_data["name"], "Alien-AL36")
+        self.assertEqual(alien_data["model"], "AL36")
         self.assertEqual(alien_data["channel_count"], 8)
         self.assertEqual([ch["label"] for ch in alien_data["channels"]],
                          ["Dimmer", "Red", "Green", "Blue", "Empty", "Program", "Speed", "Emptz"])
@@ -212,13 +216,13 @@ class TestUIModules(unittest.TestCase):
         win._on_open_about()
         self.assertTrue(win.win_about.isVisible())
 
-        # Verify top-level menus and direct actions exist (Preview & Setting are direct actions without dropdown)
+        # Verify top-level menus and direct actions exist (Preview, Setting, Help, About are direct actions without dropdown)
         from ui.qt_compat import QMenu
         action_texts = [a.text() for a in win.menuBar().actions()]
-        self.assertIn("Preview", action_texts)
-        self.assertIn("Setting", action_texts)
+        for expected_action in ["File", "Fixture", "Preview", "Setting", "Help", "About"]:
+            self.assertIn(expected_action, action_texts)
         menu_titles = [m.title() for m in win.menuBar().findChildren(QMenu)]
-        for title in ["File", "Fixture", "Help", "About"]:
+        for title in ["File", "Fixture"]:
             self.assertIn(title, menu_titles)
         self.assertNotIn("Editor", menu_titles)
 
