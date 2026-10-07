@@ -1,7 +1,7 @@
 # 🗺️ ROADMAP.md — Big Plan v3 Execution Roadmap (ZZLUXORA v10)
 
 **Peta Jalan Rekayasa Perangkat Lunak & Tahapan Implementasi Terstruktur**  
-*Basis: Feedback v3 & Standar Konsol grandMA2 / grandMA3 onPC / QLC+*
+*Basis: Feedback v3, Standar Konsol grandMA2 / grandMA3 onPC / QLC+, & Impeccable Design System*
 
 ---
 
@@ -17,6 +17,7 @@
 │  FASE 4: Restrukturisasi 6 Tab Workspaces & Clean State    [SELESAI]  │
 │  FASE 5: Pengujian Software-in-the-Loop (SITL QLC+)        [TERUJI]   │
 │  FASE 6: Pengujian Lapangan (ESP32 + PAR LED) & Packaging  [SIAP]     │
+│  FASE 7: Impeccable Design System & FOH Elevation          [SELESAI]  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -102,7 +103,34 @@
 - [x] Pengujian streaming paket DMX 43 FPS dari ZZLUXORA v10 ke QLC+ via Art-Net `127.0.0.1:6454` Universe 0.
 - [x] Verifikasi Play-gated packet transmission: transmisi hanya terjadi saat tombol PLAY menyala.
 - [x] Pengujian Blackout seketika memadamkan seluruh output DMX ke 0.
-- [x] 14 dari 14 unit test di `tests/` lulus 100%.
+- [x] 51 dari 51 unit test di `tests/` lulus 100%.
+
+---
+
+### 🎨 FASE 7: Impeccable Design System & FOH Elevation (STATUS: TUNTAS 100%)
+*Basis: Big Plan Impeccable (commit `f938987`, 7 Oktober 2026)*
+
+**Fase 1 — Design Truth:**
+- [x] `PRODUCT.md` (Impeccable product-schema 1): platform, users (LD/FOH), operate mode, brand commitments.
+- [x] `DESIGN.md` bertoken (YAML frontmatter valid): Creative North Star *"The Obsidian Control Deck"*, 10% accent rule, 7-state matrix.
+
+**Fase 2 — Token Centralization:**
+- [x] 70+ inline hex dipindah ke `Theme` semantic tokens (surface ramp, status tint, hardware drawing, scene/rigging).
+- [x] `CONSOLE_QSS` diperluas: QGroupBox, QSplitter, QProgressBar, QListWidget, QToolTip global.
+
+**Fase 3 — Anti-Slop Chrome:**
+- [x] Transport `[PREV]` / `[GO+]` / `[FADE BLACK]` (emoji dibuang), ikon hamburger vektor QPainter, `[OK]` status, separator pipe `|`.
+
+**Fase 4 — FOH Elevation:**
+- [x] TactileFader: skala terukir `FL`/`50`/`0`, light-pipe LED dual-pass, ribs ganda emboss, dimensi lama dipertahankan (68x230 / 52x190).
+- [x] Mixer: patch-aware tags (`AL36-1:DIM`) + indikator bank aktif mengikuti scroll viewport.
+- [x] Address: bracket boundary fixture (`start`/`mid`/`end`), drag-hover preview mengikuti footprint asli fixture (bukan hardcode 8), kontras WCAG per tipe kanal.
+- [x] Perform: `[GO+]` 48px commanding + hitung mundur crossfade live (`set_crossfade_progress` / `reset_crossfade_progress`).
+
+**Fase 5 — Verifikasi:**
+- [x] 27 unit test baru (total **51/51 lulus**), audit anti-slop 0 em-dash/en-dash/emoji/inline-hex, CLI Art-Net exit 0.
+
+**Ditunda atas pilihan owner:** *Live Cue Ribbon* (swatch RGBW + pan/tilt per cue) — belum dibuat.
 
 ---
 
@@ -110,4 +138,4 @@
 - [ ] Uji coba koneksi Wi-Fi ke SoftAP ESP32 (`192.168.4.1`) di laptop ASUS X407MA.
 - [ ] Uji coba pengontrolan fisik 4 unit PAR LED RGBW via kabel DMX512 XLR 3-pin di Gereja GIA Deliksari.
 - [ ] Build installer executable Windows 11 (`.exe` via Inno Setup) di laptop Acer Swift 3.
-- [ ] Sinkronisasi penuh ke repositori GitHub `zzdree/zzluxora-v10` sebagai Single Source of Truth.
+- [x] Sinkronisasi penuh ke repositori GitHub `zzdree/zzluxora-v10` sebagai Single Source of Truth.

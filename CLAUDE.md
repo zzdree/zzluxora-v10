@@ -133,3 +133,21 @@ zzluxora_v10/
 1. Repositori GitHub `zzdree/zzluxora-v10` dan `zzdree/script` adalah **Single Source of Truth**.
 2. Setiap fitur yang selesai diuji wajib di-commit dan di-push ke branch `main`.
 3. Di laptop utama, sinkronisasi dilakukan hanya dengan `git pull origin main`.
+
+---
+
+## 🎛️ 6. Design System Impeccable & Status Pengujian
+
+**Integrasi Impeccable Design System (7 Okt 2026, commit `f938987`):**
+- `PRODUCT.md` (akar repo): kebenaran produk tahan-lama skema Impeccable 1 — platform desktop, pengguna LD/FOH, mode *operate*, komitmen merek industrial, prinsip produk.
+- `DESIGN.md` (akar repo): spesifikasi sistem desain bertoken (YAML frontmatter) dengan Creative North Star **"The Obsidian Control Deck"**, *10% accent rule*, skala tipografi 4-tier ber-`tabular-nums`, matriks 7-state interaktif, dan aturan anti-slop.
+- `markdowns/DESIGN.md`: ringkasan token untuk kerja UI harian.
+
+**Aturan kerja wajib untuk agent:**
+1. **Semua warna UI wajib dari token `Theme` di `ui/styles.py`** — hex inline dilarang (hanya `ui/styles.py` dan `ui/icons.py` yang boleh memuat literal hex).
+2. **Anti-slop keras:** tanpa emoji di chrome UI, tanpa em-dash/en-dash (`|` atau `-`), tanpa glow/cyberpunk palsu, tanpa biru web generik untuk aksi utama (hijau `#16a34a` / amber / cyan sesuai `DESIGN.md`).
+3. **Kontras WCAG:** teks pada fill channel terang (amber, cyan, yellow, dll) wajib pakai `Theme.SURFACE_VOID`; gelap → `Theme.TEXT_PRIMARY`. Peta lengkap di `ui/panels/address_tab.py::update_style`.
+4. **Test wajib sebelum commit:** `python3 -m unittest discover -s tests -p "test_*.py"` → saat ini **51/51 lulus**. Audit anti-slop: 0 em-dash, 0 emoji, 0 inline hex di luar token/ikon.
+5. **Ditunda:** *Live Cue Ribbon* (swatch RGBW + pan/tilt per cue) — menunggu arahan owner.
+
+**Status uji terakhir:** 51/51 unit test OK · CLI Art-Net exit 0 · audit anti-slop bersih · branch `main` sinkron dengan `origin/main` (`f938987`).
