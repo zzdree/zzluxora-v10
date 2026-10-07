@@ -1,5 +1,5 @@
 """
-youtube_dialog.py — YouTube Audio Importer & Extractor Dialog
+youtube_dialog.py | YouTube Audio Importer & Extractor Dialog
 Provides an independent pop-up window to paste YouTube links, download audio streams asynchronously,
 and automatically load the extracted audio into ZZLUXORA's Analyze workspace.
 """
@@ -92,7 +92,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
-        self.setWindowTitle("Import YouTube Audio — ZZLUXORA")
+        self.setWindowTitle("Import YouTube Audio | ZZLUXORA")
         self.setFixedSize(540, 260)
         self.setStyleSheet(CONSOLE_QSS)
 
@@ -130,7 +130,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setStyleSheet(f"""
             QProgressBar {{
-                background-color: {Theme.BG_INPUT};
+                background-color: {Theme.SURFACE_INPUT};
                 border: 1px solid {Theme.BORDER_STRONG};
                 border-radius: 4px;
                 text-align: center;
@@ -158,7 +158,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         btn_layout.addWidget(self.btn_cancel)
 
         self.btn_download = QPushButton("Download & Extract Audio")
-        self.btn_download.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN};")
+        self.btn_download.setStyleSheet(f"background-color: {Theme.STATUS_INFO_BG}; border-color: {Theme.ACCENT_CYAN};")
         self.btn_download.clicked.connect(self._on_start_download)
         btn_layout.addWidget(self.btn_download)
 
@@ -187,7 +187,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
 
     def _on_finished(self, file_path: str) -> None:
         self.progress_bar.setValue(100)
-        self.status_lbl.setText("✓ Audio successfully downloaded and ready for analysis.")
+        self.status_lbl.setText("[OK] Audio successfully downloaded and ready for analysis.")
         self.audio_imported.emit(file_path)
         QMessageBox.information(
             self,

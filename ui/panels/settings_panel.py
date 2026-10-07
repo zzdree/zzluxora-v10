@@ -1,5 +1,5 @@
 """
-settings_panel.py — Standalone Network & Art-Net Configuration Dialog
+settings_panel.py | Standalone Network & Art-Net Configuration Dialog
 Provides automatic interface scanning and presets: 127.0.0.1 (SITL QLC+),
 192.168.4.1 (ESP32 AP mode), Subnet Broadcast (Router Mode), and Custom IP with UDP Port & Universe 0-3 configuration.
 """
@@ -69,7 +69,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
         row_ip.addWidget(lbl_ip)
 
         self.txt_ip = QLineEdit(self.current_ip)
-        self.txt_ip.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: #ffffff;")
+        self.txt_ip.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY};")
         row_ip.addWidget(self.txt_ip, 1)
 
         lbl_port = QLabel("UDP Port:")
@@ -80,7 +80,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
         self.spin_port.setRange(1024, 65535)
         self.spin_port.setValue(6454)
         self.spin_port.setFixedWidth(75)
-        self.spin_port.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: #ffffff;")
+        self.spin_port.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY};")
         row_ip.addWidget(self.spin_port)
         target_layout.addLayout(row_ip)
 
@@ -110,7 +110,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
         self.spin_fps.setRange(20, 60)
         self.spin_fps.setValue(44)
         self.spin_fps.setFixedWidth(70)
-        self.spin_fps.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: #ffffff;")
+        self.spin_fps.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY};")
         row_uni.addWidget(self.spin_fps)
 
         row_uni.addStretch()
@@ -154,12 +154,12 @@ class SettingsDialog(QDialog if HAS_QT else object):
         btn_bar.addStretch()
 
         self.btn_rescan = QPushButton("Refresh")
-        self.btn_rescan.setStyleSheet("background-color: #2563eb; color: #ffffff; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
+        self.btn_rescan.setStyleSheet(f"background-color: {Theme.BUTTON_REFRESH_BLUE}; color: {Theme.TEXT_PRIMARY}; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
         self.btn_rescan.clicked.connect(self._scan_network_interfaces)
         btn_bar.addWidget(self.btn_rescan)
 
         self.btn_save = QPushButton("Save")
-        self.btn_save.setStyleSheet("background-color: #16a34a; color: #ffffff; font-weight: bold; min-width: 80px; padding: 6px 14px; border-radius: 4px; border: none;")
+        self.btn_save.setStyleSheet(f"background-color: {Theme.COLOR_SUCCESS}; color: {Theme.BG_ROOT}; font-weight: bold; min-width: 80px; padding: 6px 14px; border-radius: 4px; border: none;")
         self.btn_save.clicked.connect(self._on_save_clicked)
         btn_bar.addWidget(self.btn_save)
 

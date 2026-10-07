@@ -1,5 +1,5 @@
 """
-about_panel.py — Academic Thesis Information & Software Credentials Dialog
+about_panel.py | Academic Thesis Information & Software Credentials Dialog
 Presents official student credentials, advisor information, UNNES affiliation, and research title.
 """
 
@@ -44,7 +44,7 @@ class AboutDialog(QDialog if HAS_QT else object):
             pix = QPixmap(str(logo_path)).scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             logo_lbl.setPixmap(pix)
             logo_lbl.setFixedSize(48, 48)
-            logo_lbl.setStyleSheet("border-radius: 4px; background: #000000;")
+            logo_lbl.setStyleSheet("border-radius: 4px; background: transparent;")
             header_row.addWidget(logo_lbl)
 
         title_box = QVBoxLayout()

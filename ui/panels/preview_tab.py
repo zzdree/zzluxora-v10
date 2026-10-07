@@ -1,5 +1,5 @@
 """
-preview_tab.py — Standalone Floating Stage Visualizer Window (2D & 3D with Haze/Smoke)
+preview_tab.py | Standalone Floating Stage Visualizer Window (2D & 3D with Haze/Smoke)
 Provides high-fidelity stage lighting simulation with dynamic RGBW PAR LED beam glows,
 3D perspective volumetric beams, multi-cell LED lens emitters, adjustable beam spread,
 overhead truss rigging, atmospheric haze/smoke FX, full mouse camera controls (orbit, pan, zoom),
@@ -31,7 +31,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
-        self.setStyleSheet("background-color: #07080a; border: 1px solid #333844; border-radius: 6px;")
+        self.setStyleSheet(f"background-color: {Theme.SURFACE_VOID}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 6px;")
 
         # Starts empty by default (Clean initial state for untitled project)
         self.fixtures: list[dict] = []
@@ -198,19 +198,19 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         truss_y = center_y - 48
 
         # 1. Truss Rigging Bar at Top
-        pen_truss_main = QPen(QColor("#2d3340"), 6)
+        pen_truss_main = QPen(QColor(Theme.RIGGING_TRUSS_MAIN), 6)
         painter.setPen(pen_truss_main)
         painter.drawLine(20, int(truss_y), w - 20, int(truss_y))
 
         # Truss diagonal cross bracing
-        pen_truss_sub = QPen(QColor("#1e222a"), 2)
+        pen_truss_sub = QPen(QColor(Theme.RIGGING_TRUSS_SUB), 2)
         painter.setPen(pen_truss_sub)
         for tx in range(25, w - 25, 40):
             painter.drawLine(tx, int(truss_y - 8), tx + 20, int(truss_y + 8))
             painter.drawLine(tx + 20, int(truss_y + 8), tx + 40, int(truss_y - 8))
 
         # 2. Stage Floor Platform
-        painter.fillRect(0, floor_y, w, h - floor_y, QColor("#101319"))
+        painter.fillRect(0, floor_y, w, h - floor_y, QColor(Theme.SURFACE_OBSIDIAN))
         pen_floor = QPen(QColor(Theme.BORDER_STRONG), 2)
         painter.setPen(pen_floor)
         painter.drawLine(0, floor_y, w, floor_y)
@@ -237,7 +237,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             dim = fix["dim"] / 255.0
 
             # Power/DMX Drop Cable from Truss to Fixture
-            painter.setPen(QPen(QColor("#14161a"), 2))
+            painter.setPen(QPen(QColor(Theme.SURFACE_TROUGH), 2))
             painter.drawLine(fx, int(truss_y), fx, fy - 18)
 
             # A. Light Conical Beam Projection downwards
@@ -285,8 +285,8 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
                 painter.setBrush(Qt.NoBrush)
                 painter.drawEllipse(fx - 23, fy - 23, 46, 46)
 
-            painter.setPen(QPen(QColor("#4a5264"), 1.5))
-            painter.setBrush(QColor("#181c24"))
+            painter.setPen(QPen(QColor(Theme.BORDER_STRONG), 1.5))
+            painter.setBrush(QColor(Theme.FIXTURE_BODY))
             painter.drawEllipse(fx - 18, fy - 18, 36, 36)
 
             # D. PAR LED Multi-Cell Lens Array (Matrix of LED emitters)
@@ -330,7 +330,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
     def __init__(self, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
-        self.setStyleSheet("background-color: #050608; border: 1px solid #333844; border-radius: 6px;")
+        self.setStyleSheet(f"background-color: {Theme.SURFACE_VOID}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 6px;")
 
         # Default Camera: Eye-Level Straight Front Perspective View
         self.yaw = 0.0                      # Straight ahead (0.0 rad)
@@ -654,14 +654,14 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         floor_poly = QPolygonF([QPointF(*self.project(x, y, z, cx, cy)[:2]) for x, y, z in floor_3d])
 
         floor_grad = QLinearGradient(cx, cy, cx, h)
-        floor_grad.setColorAt(0.0, QColor("#12151d"))
-        floor_grad.setColorAt(1.0, QColor("#090b0e"))
+        floor_grad.setColorAt(0.0, QColor(Theme.SCENE_FLOOR_NEAR))
+        floor_grad.setColorAt(1.0, QColor(Theme.SURFACE_VOID))
         painter.setPen(QPen(QColor(Theme.BORDER_STRONG), 1.5))
         painter.setBrush(QBrush(floor_grad))
         painter.drawPolygon(floor_poly)
 
         # Floor Perspective Grid Lines
-        painter.setPen(QPen(QColor("#1e232d"), 1, Qt.DashLine))
+        painter.setPen(QPen(QColor(Theme.BORDER_SUBTLE), 1, Qt.DashLine))
         for gx in [-180, -90, 0, 90, 180]:
             p_start = QPointF(*self.project(gx, 0, -140, cx, cy)[:2])
             p_end = QPointF(*self.project(gx * 0.82, 0, 180, cx, cy)[:2])
@@ -681,13 +681,13 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         tb_s = QPointF(*self.project(*truss_points_back[0], cx, cy)[:2])
         tb_e = QPointF(*self.project(*truss_points_back[1], cx, cy)[:2])
 
-        pen_pipe = QPen(QColor("#5a6275"), 4)
+        pen_pipe = QPen(QColor(Theme.RIGGING_PIPE), 4)
         painter.setPen(pen_pipe)
         painter.drawLine(tf_s, tf_e)
         painter.drawLine(tb_s, tb_e)
 
         # Truss diagonal bracing bars
-        pen_brace = QPen(QColor("#383e4c"), 1.5)
+        pen_brace = QPen(QColor(Theme.TICK_MINOR), 1.5)
         painter.setPen(pen_brace)
         step = 40
         start_x = int(-span + self.pivot_x)
@@ -794,21 +794,21 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
 
             # Power/DMX Drop Cable from Truss Pipe to Fixture Clamp
             truss_pt = QPointF(*self.project(fx, truss_y, truss_z - 10, cx, cy)[:2])
-            painter.setPen(QPen(QColor("#14161a"), 2))
+            painter.setPen(QPen(QColor(Theme.SURFACE_TROUGH), 2))
             painter.drawLine(truss_pt, QPointF(head_sx, head_sy - 16 * scale))
 
             # Suspension Coupler / Clamp
-            painter.setPen(QPen(QColor("#717b8f"), 2))
+            painter.setPen(QPen(QColor(Theme.RIGGING_CLAMP), 2))
             painter.drawLine(QPointF(head_sx, head_sy - 16 * scale), QPointF(head_sx, head_sy - 4 * scale))
 
             # Yoke Bracket with Knurled Side Adjustment Knobs
             is_sel = fix["id"] in self.selected_ids
-            painter.setPen(QPen(QColor(Theme.ACCENT_CYAN if is_sel else "#404654"), 2.5))
+            painter.setPen(QPen(QColor(Theme.ACCENT_CYAN if is_sel else Theme.YOKE_IDLE), 2.5))
             yoke_rect = QRectF(head_sx - 16 * scale, head_sy - 6 * scale, 32 * scale, 24 * scale)
             painter.drawArc(yoke_rect, 0, 180 * 16)
 
             # Knurled Side Knobs on Yoke
-            knob_pen = QPen(QColor("#808a9d"), 2)
+            knob_pen = QPen(QColor(Theme.RIGGING_KNOB), 2)
             painter.setPen(knob_pen)
             painter.drawLine(QPointF(head_sx - 17 * scale, head_sy + 4 * scale), QPointF(head_sx - 15 * scale, head_sy + 4 * scale))
             painter.drawLine(QPointF(head_sx + 15 * scale, head_sy + 4 * scale), QPointF(head_sx + 17 * scale, head_sy + 4 * scale))
@@ -816,11 +816,11 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             # PAR LED Cylindrical Chassis with Rear Cooling Fins
             body_radius = 16 * scale
             painter.setPen(QPen(QColor(Theme.ACCENT_CYAN if is_sel else (Theme.ACCENT_AMBER if dim > 0.1 else Theme.BORDER_STRONG)), 1.5))
-            painter.setBrush(QColor("#14171f"))
+            painter.setBrush(QColor(Theme.FIXTURE_BODY))
             painter.drawEllipse(QPointF(head_sx, head_sy), body_radius, body_radius)
 
             # Rear Cooling Fin Lines
-            painter.setPen(QPen(QColor("#242a38"), 1))
+            painter.setPen(QPen(QColor(Theme.RIGGING_COOLING_FINS), 1))
             for f_offset in [-8, -4, 0, 4, 8]:
                 fin_sx = head_sx + f_offset * scale
                 painter.drawLine(QPointF(fin_sx, head_sy - 11 * scale), QPointF(fin_sx, head_sy - 6 * scale))
@@ -859,7 +859,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
 class StageVisualizerWindow(QWidget if HAS_QT else object):
     """
     Standalone Floating Window for Stage Lighting Visualization.
-    Features top bar with 2D/3D switch on the left and hamburger [☰] on the right,
+    Features a top bar with 2D/3D switch on the left and a controls drawer button on the right,
     selection-aware pivot positioning & 3D rotation, and collapsible control drawer.
     """
     def __init__(self, parent: QWidget | None = None):
@@ -890,49 +890,38 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         self.btn_tab_2d = QPushButton("2D Front View")
         self.btn_tab_2d.setCheckable(True)
         self.btn_tab_2d.setChecked(True)
-        self.btn_tab_2d.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Theme.BG_ELEVATED};
-                border: 1px solid {Theme.ACCENT_CYAN};
-                border-radius: 4px;
-                color: #ffffff;
-                font-weight: 700;
-                padding: 6px 16px;
-            }}
-        """)
+        self.btn_tab_2d.setStyleSheet(f"background-color: {Theme.BG_ELEVATED}; border: none; border-bottom: 2px solid {Theme.ACCENT_CYAN}; border-top-left-radius: 4px; border-bottom-left-radius: 4px; color: {Theme.TEXT_PRIMARY}; font-weight: 700; padding: 6px 18px;")
         self.btn_tab_2d.clicked.connect(lambda: self._switch_view(0))
         top_bar.addWidget(self.btn_tab_2d)
 
         self.btn_tab_3d = QPushButton("3D Perspective View")
         self.btn_tab_3d.setCheckable(True)
         self.btn_tab_3d.setChecked(False)
-        self.btn_tab_3d.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Theme.BG_SURFACE};
-                border: 1px solid {Theme.BORDER_SUBTLE};
-                border-radius: 4px;
-                color: {Theme.TEXT_SECONDARY};
-                font-weight: 700;
-                padding: 6px 16px;
-            }}
-        """)
+        self.btn_tab_3d.setStyleSheet(f"background-color: transparent; border: none; border-top-right-radius: 4px; border-bottom-right-radius: 4px; color: {Theme.TEXT_SECONDARY}; font-weight: 600; padding: 6px 18px;")
         self.btn_tab_3d.clicked.connect(lambda: self._switch_view(1))
         top_bar.addWidget(self.btn_tab_3d)
 
         top_bar.addStretch()
 
-        # Right Hamburger Toggle Button
-        self.btn_hamburger = QPushButton("☰")
+        # Right Controls Drawer Toggle, drawn as a compact vector icon.
+        from ui.icons import create_hamburger_icon
+        self.btn_hamburger = QPushButton()
+        hamburger_icon = create_hamburger_icon(Theme.TEXT_PRIMARY, 18)
+        if hamburger_icon is not None and not hamburger_icon.isNull():
+            self.btn_hamburger.setIcon(hamburger_icon)
+        else:
+            self.btn_hamburger.setText("[DRAWER]")
         self.btn_hamburger.setToolTip("Toggle Controls Drawer")
         self.btn_hamburger.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Theme.BG_SURFACE};
                 border: 1px solid {Theme.BORDER_STRONG};
                 border-radius: 4px;
-                color: #ffffff;
-                font-size: 15px;
+                color: {Theme.TEXT_PRIMARY};
                 font-weight: 800;
-                padding: 4px 12px;
+                padding: 4px 10px;
+                min-width: 28px;
+                min-height: 24px;
             }}
             QPushButton:hover {{
                 background-color: {Theme.BG_ELEVATED};
@@ -986,22 +975,22 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         self.btn_reset_cam = QPushButton("Reset Camera")
         self.btn_reset_cam.setStyleSheet(f"""
             QPushButton {{
-                background-color: #333844;
-                border: 1px solid #4a5264;
+                background-color: {Theme.BUTTON_NEUTRAL_BG};
+                border: 1px solid {Theme.BORDER_STRONG};
                 border-radius: 4px;
-                color: #ffffff;
+                color: {Theme.TEXT_PRIMARY};
                 font-weight: 700;
                 padding: 6px;
             }}
             QPushButton:hover {{
-                background-color: #3d4352;
+                background-color: {Theme.SURFACE_HOVER};
             }}
         """)
         self.btn_reset_cam.clicked.connect(self._on_reset_camera_clicked)
         box_3d_layout.addWidget(self.btn_reset_cam)
 
         self.btn_haze = QPushButton("Haze FX")
-        self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: bold; padding: 6px;")
+        self.btn_haze.setStyleSheet(f"background-color: {Theme.BUTTON_NEUTRAL_BG}; border: 1px solid {Theme.BORDER_STRONG}; border-radius: 4px; color: {Theme.TEXT_MUTED}; font-weight: bold; padding: 6px;")
         self.btn_haze.clicked.connect(self._on_toggle_haze)
         box_3d_layout.addWidget(self.btn_haze)
 
@@ -1100,12 +1089,12 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         row_align = QHBoxLayout()
         row_align.setSpacing(6)
         self.btn_align_h = QPushButton("Align Horizontal")
-        self.btn_align_h.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; padding: 5px;")
+        self.btn_align_h.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; padding: 5px;")
         self.btn_align_h.clicked.connect(self._on_align_h_clicked)
         row_align.addWidget(self.btn_align_h)
 
         self.btn_align_v = QPushButton("Align Vertical")
-        self.btn_align_v.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; padding: 5px;")
+        self.btn_align_v.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; padding: 5px;")
         self.btn_align_v.clicked.connect(self._on_align_v_clicked)
         row_align.addWidget(self.btn_align_v)
         drawer_layout.addLayout(row_align)
@@ -1130,14 +1119,14 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         slider.setRange(min_val, max_val)
         slider.setValue(init_val)
         slider.setStyleSheet(f"""
-            QSlider::groove:horizontal {{ height: 4px; background: {Theme.BG_INPUT}; border-radius: 2px; }}
+            QSlider::groove:horizontal {{ height: 4px; background: {Theme.SURFACE_INPUT}; border-radius: 2px; }}
             QSlider::handle:horizontal {{ width: 12px; margin: -5px 0; background: {Theme.ACCENT_CYAN}; border-radius: 6px; }}
         """)
         spin = QSpinBox()
         spin.setRange(min_val, max_val)
         spin.setValue(init_val)
         spin.setFixedWidth(60)
-        spin.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: #ffffff; border: 1px solid {Theme.BORDER_STRONG};")
+        spin.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_STRONG};")
 
         row.addWidget(slider, 1)
         row.addWidget(spin)
@@ -1147,24 +1136,20 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
     def _switch_view(self, index: int) -> None:
         self._current_view = index
         self.tabs.setCurrentIndex(index)
-        if index == 0:
-            self.btn_tab_2d.setChecked(True)
-            self.btn_tab_3d.setChecked(False)
-            self.btn_tab_2d.setStyleSheet(f"background-color: {Theme.BG_ELEVATED}; border: 1px solid {Theme.ACCENT_CYAN}; border-radius: 4px; color: #ffffff; font-weight: 700; padding: 6px 16px;")
-            self.btn_tab_3d.setStyleSheet(f"background-color: {Theme.BG_SURFACE}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 4px; color: {Theme.TEXT_SECONDARY}; font-weight: 700; padding: 6px 16px;")
-            self.box_3d_controls.setVisible(False)
-            self.divider_3d.setVisible(False)
-            self.col_pz_widget.setVisible(False)
-            self.box_rot_widget.setVisible(False)
-        else:
-            self.btn_tab_2d.setChecked(False)
-            self.btn_tab_3d.setChecked(True)
-            self.btn_tab_2d.setStyleSheet(f"background-color: {Theme.BG_SURFACE}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 4px; color: {Theme.TEXT_SECONDARY}; font-weight: 700; padding: 6px 16px;")
-            self.btn_tab_3d.setStyleSheet(f"background-color: {Theme.BG_ELEVATED}; border: 1px solid {Theme.ACCENT_CYAN}; border-radius: 4px; color: #ffffff; font-weight: 700; padding: 6px 16px;")
-            self.box_3d_controls.setVisible(True)
-            self.divider_3d.setVisible(True)
-            self.col_pz_widget.setVisible(True)
-            self.box_rot_widget.setVisible(True)
+        # Segmented switcher idiom: active segment gets elevated fill + cyan underline,
+        # inactive segments stay transparent. Matches the construction styles exactly.
+        active_2d = f"background-color: {Theme.BG_ELEVATED}; border: none; border-bottom: 2px solid {Theme.ACCENT_CYAN}; border-top-left-radius: 4px; border-bottom-left-radius: 4px; color: {Theme.TEXT_PRIMARY}; font-weight: 700; padding: 6px 18px;"
+        inactive_2d = f"background-color: transparent; border: none; border-top-left-radius: 4px; border-bottom-left-radius: 4px; color: {Theme.TEXT_SECONDARY}; font-weight: 600; padding: 6px 18px;"
+        active_3d = f"background-color: {Theme.BG_ELEVATED}; border: none; border-bottom: 2px solid {Theme.ACCENT_CYAN}; border-top-right-radius: 4px; border-bottom-right-radius: 4px; color: {Theme.TEXT_PRIMARY}; font-weight: 700; padding: 6px 18px;"
+        inactive_3d = f"background-color: transparent; border: none; border-top-right-radius: 4px; border-bottom-right-radius: 4px; color: {Theme.TEXT_SECONDARY}; font-weight: 600; padding: 6px 18px;"
+        self.btn_tab_2d.setChecked(index == 0)
+        self.btn_tab_3d.setChecked(index == 1)
+        self.btn_tab_2d.setStyleSheet(active_2d if index == 0 else inactive_2d)
+        self.btn_tab_3d.setStyleSheet(active_3d if index == 1 else inactive_3d)
+        self.box_3d_controls.setVisible(index == 1)
+        self.divider_3d.setVisible(index == 1)
+        self.col_pz_widget.setVisible(index == 1)
+        self.box_rot_widget.setVisible(index == 1)
 
     def _toggle_drawer(self) -> None:
         self.drawer_widget.setVisible(not self.drawer_widget.isVisible())
@@ -1257,21 +1242,21 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
 
     def _on_reset_camera_clicked(self) -> None:
         self.canvas_3d.reset_camera()
-        self.btn_reset_cam.setStyleSheet("background-color: #16a34a; border: none; border-radius: 4px; color: #ffffff; font-weight: bold; padding: 6px;")
+        self.btn_reset_cam.setStyleSheet(f"background-color: {Theme.COLOR_SUCCESS}; border: none; border-radius: 4px; color: {Theme.COLOR_BLACK}; font-weight: bold; padding: 6px;")
         QTimer.singleShot(350, self._restore_reset_cam_style)
 
     def _restore_reset_cam_style(self) -> None:
         self.btn_reset_cam.setStyleSheet(f"""
             QPushButton {{
-                background-color: #333844;
-                border: 1px solid #4a5264;
+                background-color: {Theme.BUTTON_NEUTRAL_BG};
+                border: 1px solid {Theme.BORDER_STRONG};
                 border-radius: 4px;
-                color: #ffffff;
+                color: {Theme.TEXT_PRIMARY};
                 font-weight: 700;
                 padding: 6px;
             }}
             QPushButton:hover {{
-                background-color: #3d4352;
+                background-color: {Theme.SURFACE_HOVER};
             }}
         """)
 
@@ -1279,9 +1264,9 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         new_state = not self.canvas_3d.haze_enabled
         self.canvas_3d.set_haze_enabled(new_state)
         if new_state:
-            self.btn_haze.setStyleSheet("background-color: #16a34a; border: none; border-radius: 4px; color: #ffffff; font-weight: bold; padding: 6px;")
+            self.btn_haze.setStyleSheet(f"background-color: {Theme.COLOR_SUCCESS}; border: none; border-radius: 4px; color: {Theme.COLOR_BLACK}; font-weight: bold; padding: 6px;")
         else:
-            self.btn_haze.setStyleSheet("background-color: #333844; border: 1px solid #4a5264; border-radius: 4px; color: #94a3b8; font-weight: bold; padding: 6px;")
+            self.btn_haze.setStyleSheet(f"background-color: {Theme.BUTTON_NEUTRAL_BG}; border: 1px solid {Theme.BORDER_STRONG}; border-radius: 4px; color: {Theme.TEXT_MUTED}; font-weight: bold; padding: 6px;")
 
     def sync_fixtures(self, fixtures: list[dict]) -> None:
         """Synchronizes active patched fixtures to both 2D and 3D visualizer canvases."""

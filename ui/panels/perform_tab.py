@@ -1,5 +1,5 @@
 """
-perform_tab.py — Live Stage Show Controller & Performance Cue Generator
+perform_tab.py | Live Stage Show Controller & Performance Cue Generator
 Manages the worship song playlist, song sections (Intro, Verse, Chorus, Bridge, Ending),
 fade timings, smooth live cue crossfading [GO+], and exports automated executor triggers to Tab Page.
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QListWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-    QGroupBox, QSplitter, QDoubleSpinBox, QMessageBox,
+    QGroupBox, QSplitter, QDoubleSpinBox, QProgressBar, QMessageBox,
     Qt, Signal, QColor, QFont
 )
 from ui.styles import Theme
@@ -60,7 +60,7 @@ class PerformTab(QWidget if HAS_QT else object):
         top_bar.addWidget(self.btn_delete_song)
 
         self.btn_export_page = QPushButton("GENERATE EXECUTORS")
-        self.btn_export_page.setStyleSheet(f"background-color: #143521; color: {Theme.COLOR_SUCCESS}; font-weight: 800;")
+        self.btn_export_page.setStyleSheet(f"background-color: {Theme.STATUS_SUCCESS_BG}; color: {Theme.COLOR_SUCCESS}; font-weight: 800;")
         self.btn_export_page.clicked.connect(self._on_export_to_page)
         top_bar.addWidget(self.btn_export_page)
 
@@ -85,7 +85,7 @@ class PerformTab(QWidget if HAS_QT else object):
             QListWidget::item:selected {{
                 background-color: {Theme.BG_ELEVATED};
                 border-left: 3px solid {Theme.ACCENT_CYAN};
-                color: #ffffff;
+                color: {Theme.TEXT_PRIMARY};
             }}
         """)
         self.playlist_widget.currentRowChanged.connect(self._on_song_selected)
@@ -121,48 +121,83 @@ class PerformTab(QWidget if HAS_QT else object):
         playback_layout.setContentsMargins(10, 8, 10, 8)
         playback_layout.setSpacing(10)
 
-        self.btn_prev_cue = QPushButton("⏮ PREV")
-        self.btn_prev_cue.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_PRIMARY};")
+        self.btn_prev_cue = QPushButton("[PREV]")
+        self.btn_prev_cue.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_PRIMARY}; min-height: 38px; padding: 6px 14px;")
         self.btn_prev_cue.clicked.connect(self._on_prev_clicked)
         playback_layout.addWidget(self.btn_prev_cue)
 
-        self.btn_go_cue = QPushButton("▶ GO [NEXT CUE]")
+        self.btn_go_cue = QPushButton("[GO+]")
         self.btn_go_cue.setStyleSheet(f"""
             QPushButton {{
-                background-color: #1e3a1e;
+                background-color: {Theme.STATUS_SUCCESS_BG};
                 border: 2px solid {Theme.COLOR_SUCCESS};
                 color: {Theme.COLOR_SUCCESS};
                 font-weight: 900;
-                font-size: 13px;
-                padding: 8px 18px;
+                font-size: 14px;
+                min-height: 44px;
+                min-width: 90px;
+                padding: 8px 22px;
+                border-radius: 4px;
             }}
             QPushButton:hover {{
                 background-color: {Theme.COLOR_SUCCESS};
-                color: #000000;
+                color: {Theme.BG_ROOT};
+            }}
+            QPushButton:pressed {{
+                background-color: {Theme.STATUS_SUCCESS_BORDER};
+                color: {Theme.TEXT_PRIMARY};
             }}
         """)
+        self.btn_go_cue.setMinimumHeight(48)
         self.btn_go_cue.clicked.connect(self._on_go_clicked)
         playback_layout.addWidget(self.btn_go_cue)
 
-        self.btn_fade_black = QPushButton("⏹ FADE BLACK")
+        self.btn_fade_black = QPushButton("[FADE BLACK]")
         self.btn_fade_black.setStyleSheet(f"""
             QPushButton {{
-                background-color: #3b1818;
+                background-color: {Theme.STATUS_DANGER_BG};
                 border: 1px solid {Theme.COLOR_DANGER};
                 color: {Theme.COLOR_DANGER};
                 font-weight: 700;
+                min-height: 38px;
+                padding: 6px 14px;
             }}
             QPushButton:hover {{
                 background-color: {Theme.COLOR_DANGER};
-                color: #ffffff;
+                color: {Theme.TEXT_PRIMARY};
             }}
         """)
         self.btn_fade_black.clicked.connect(self._on_fade_black_clicked)
         playback_layout.addWidget(self.btn_fade_black)
 
+        # Crossfade Progress Bar & Countdown Telemetry
+        telemetry_box = QVBoxLayout()
+        telemetry_box.setSpacing(3)
+        self.lbl_fade_countdown = QLabel("FADE: IDLE | 0.0s")
+        self.lbl_fade_countdown.setStyleSheet(f"font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 10px; font-weight: bold; color: {Theme.ACCENT_CYAN};")
+        self.progress_crossfade = QProgressBar()
+        self.progress_crossfade.setRange(0, 100)
+        self.progress_crossfade.setValue(0)
+        self.progress_crossfade.setFixedHeight(6)
+        self.progress_crossfade.setTextVisible(False)
+        self.progress_crossfade.setStyleSheet(f"""
+            QProgressBar {{
+                background-color: {Theme.SURFACE_INPUT};
+                border: 1px solid {Theme.BORDER_SUBTLE};
+                border-radius: 3px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {Theme.COLOR_SUCCESS};
+                border-radius: 2px;
+            }}
+        """)
+        telemetry_box.addWidget(self.lbl_fade_countdown)
+        telemetry_box.addWidget(self.progress_crossfade)
+        playback_layout.addLayout(telemetry_box)
+
         playback_layout.addStretch()
 
-        self.lbl_cue_status = QLabel("STATUS: STANDBY — PILIH CUE ATAU TEKAN [GO]")
+        self.lbl_cue_status = QLabel("STATUS: STANDBY | SELECT CUE OR PRESS [GO+]")
         self.lbl_cue_status.setStyleSheet(f"font-weight: 800; color: {Theme.ACCENT_AMBER}; font-size: 11px;")
         playback_layout.addWidget(self.lbl_cue_status)
 
@@ -357,7 +392,7 @@ class PerformTab(QWidget if HAS_QT else object):
             btn_go = QPushButton("GO")
             btn_go.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: #1a2a1a;
+                    background-color: {Theme.STATUS_SUCCESS_BG};
                     border: 1px solid {Theme.COLOR_SUCCESS};
                     color: {Theme.COLOR_SUCCESS};
                     font-weight: 800;
@@ -366,7 +401,7 @@ class PerformTab(QWidget if HAS_QT else object):
                 }}
                 QPushButton:hover {{
                     background-color: {Theme.COLOR_SUCCESS};
-                    color: #000000;
+                    color: {Theme.BG_ROOT};
                 }}
             """)
             btn_go.clicked.connect(lambda _, r=row: self._trigger_cue_at_row(r))
@@ -390,7 +425,7 @@ class PerformTab(QWidget if HAS_QT else object):
                 it = self.cue_table.item(r, c)
                 if it:
                     if r == row:
-                        it.setBackground(QColor("#243322"))
+                        it.setBackground(QColor(Theme.STATUS_ACTIVE_CUE_BG))
                     else:
                         it.setBackground(QColor("transparent"))
 
@@ -398,7 +433,7 @@ class PerformTab(QWidget if HAS_QT else object):
 
         sec_name = cue.get("section", "Cue")
         fade_time = float(cue.get("fade_in", 1.5))
-        self.lbl_cue_status.setText(f"AKTIF: [{sec_name.upper()} — {cue['mood']}] | Fade: {fade_time:.1f}s")
+        self.lbl_cue_status.setText(f"ACTIVE: [{sec_name.upper()} | {cue['mood']}] | Fade: {fade_time:.1f}s")
 
         # Emit to MainWindow for smooth crossfade
         payload = {
@@ -410,6 +445,28 @@ class PerformTab(QWidget if HAS_QT else object):
             "fade_time": fade_time,
         }
         self.cue_activated.emit(payload)
+
+    def set_crossfade_progress(self, progress: float, elapsed: float, total: float) -> None:
+        """Updates live master crossfade countdown and telemetry."""
+        clamped = max(0.0, min(1.0, float(progress)))
+        if total <= 0.0:
+            self.reset_crossfade_progress()
+            return
+        if hasattr(self, 'progress_crossfade'):
+            self.progress_crossfade.setValue(int(clamped * 100))
+        if hasattr(self, 'lbl_fade_countdown'):
+            if clamped >= 1.0:
+                self.lbl_fade_countdown.setText(f"FADE: {total:.1f}s | COMPLETE")
+            else:
+                rem = max(0.0, total - elapsed)
+                self.lbl_fade_countdown.setText(f"FADE: {rem:.1f}s ({int(clamped * 100)}%)")
+
+    def reset_crossfade_progress(self) -> None:
+        """Returns transition telemetry to idle when a new cue or instant action begins."""
+        if hasattr(self, "progress_crossfade"):
+            self.progress_crossfade.setValue(0)
+        if hasattr(self, "lbl_fade_countdown"):
+            self.lbl_fade_countdown.setText("FADE: IDLE | 0.0s")
 
     def _on_go_clicked(self) -> None:
         """Master GO+ / Next Cue trigger."""
@@ -437,7 +494,7 @@ class PerformTab(QWidget if HAS_QT else object):
 
     def _on_fade_black_clicked(self) -> None:
         """Smoothly fade to blackout over 2.5s."""
-        self.lbl_cue_status.setText("AKTIF: [BLACKOUT] | Fade: 2.5s")
+        self.lbl_cue_status.setText("ACTIVE: [BLACKOUT] | Fade: 2.5s")
         # Deselect rows
         for r in range(self.cue_table.rowCount()):
             for c in range(5):

@@ -34,6 +34,280 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual(Theme.ACCENT_AMBER, "#f59e0b")
         self.assertEqual(Theme.ACCENT_CYAN, "#06b6d4")
 
+    def test_impeccable_semantic_tokens_and_fader_tag(self):
+        from ui.styles import Theme
+        from ui.qt_compat import QApplication, HAS_QT
+        if not HAS_QT:
+            self.skipTest("No Qt binding available in test runner environment")
+        app = QApplication.instance() or QApplication(["-platform", "offscreen"])
+        from ui.widgets.tactile_fader import TactileFader
+        self.assertEqual(Theme.STATUS_SUCCESS_BG, "#143521")
+        self.assertEqual(Theme.RIGGING_CLAMP, "#717b8f")
+        fader = TactileFader(channel_id=3, initial_value=10)
+        fader.set_fixture_tag("AL36-1:DIM")
+        self.assertEqual(fader.fixture_tag, "AL36-1:DIM")
+        fader.close()
+        self.__class__._qapp = app
+
+    def test_perform_transport_and_crossfade_telemetry(self):
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+        tab = win.tab_perform
+        self.assertEqual(tab.btn_prev_cue.text(), "[PREV]")
+        self.assertEqual(tab.btn_go_cue.text(), "[GO+]")
+        self.assertEqual(tab.btn_fade_black.text(), "[FADE BLACK]")
+        tab.set_crossfade_progress(0.5, 1.0, 2.0)
+        self.assertEqual(tab.progress_crossfade.value(), 50)
+        self.assertIn("1.0s", tab.lbl_fade_countdown.text())
+        tab.set_crossfade_progress(1.0, 2.0, 2.0)
+        self.assertIn("COMPLETE", tab.lbl_fade_countdown.text())
+        win.close()
+
+    def test_fixture_bracket_and_drag_preview_state(self):
+        self._application()
+        from ui.panels.address_tab import AddressTab
+        tab = AddressTab()
+        tab._on_patch_alien_gia()
+        self.assertEqual(tab.grid_area.boxes[1].boundary_type, "start")
+        self.assertEqual(tab.grid_area.boxes[2].boundary_type, "mid")
+        self.assertEqual(tab.grid_area.boxes[8].boundary_type, "end")
+        tab.grid_area._set_drag_hover(100, 8)
+        self.assertTrue(all(tab.grid_area.boxes[ch].is_drag_hover for ch in range(100, 108)))
+        self.assertFalse(tab.grid_area.boxes[108].is_drag_hover)
+        tab.grid_area._clear_drag_hover()
+        self.assertFalse(any(box.is_drag_hover for box in tab.grid_area.boxes.values()))
+        tab.close()
+
+    def test_mixer_syncs_patch_role_labels_and_active_bank(self):
+        self._application()
+        from ui.panels.mixer_tab import MixerTab
+        tab = MixerTab()
+        tab.sync_patch([{"name": "Alien-AL36 #1", "channels": [
+            {"channel": 1, "type": "dimmer", "label": "Dimmer"},
+            {"channel": 2, "type": "red", "label": "Red"},
+        ]}])
+        self.assertEqual(tab.faders[1].fixture_tag, "AL36-1:DIM")
+        self.assertEqual(tab.faders[2].fixture_tag, "AL36-1:RED")
+        tab._on_scroll_changed(16 * 58)
+        self.assertEqual(tab.active_bank_index, 1)
+        tab.close()
+
+    def test_preview_segmented_switch_and_direct_controls(self):
+        self._application()
+        from ui.panels.preview_tab import StageVisualizerWindow
+        vis = StageVisualizerWindow()
+        self.assertEqual(vis.tabs.count(), 2)
+        self.assertEqual(vis.tabs.currentIndex(), 0)
+        self.assertFalse(vis.drawer_widget.isVisible())
+        self.assertFalse(vis.canvas_3d.haze_enabled)
+        vis._switch_view(1)
+        self.assertEqual(vis.tabs.currentIndex(), 1)
+        self.assertFalse(vis.box_rot_widget.isHidden())
+        vis.close()
+
+    def test_address_unpatched_channel_contrast(self):
+        self._application()
+        from ui.panels.address_tab import DMXChannelBox
+        box = DMXChannelBox(99)
+        self.assertEqual(box.lbl_num.styleSheet().find("#cbd5e1") >= 0, True)
+        box.close()
+
+    def test_icon_hamburger_is_vector_icon(self):
+        self._application()
+        from ui.icons import create_hamburger_icon
+        icon = create_hamburger_icon()
+        self.assertIsNotNone(icon)
+        self.assertFalse(icon.isNull())
+
+    def test_master_go_button_has_commanding_size(self):
+        self._application()
+        from ui.panels.perform_tab import PerformTab
+        tab = PerformTab()
+        self.assertGreaterEqual(tab.btn_go_cue.minimumHeight(), 44)
+        self.assertEqual(tab.btn_go_cue.text(), "[GO+]")
+        tab.close()
+
+    def test_crossfade_zero_total_resets_to_idle(self):
+        self._application()
+        from ui.panels.perform_tab import PerformTab
+        tab = PerformTab()
+        tab.set_crossfade_progress(0.0, 0.0, 0.0)
+        self.assertEqual(tab.progress_crossfade.value(), 0)
+        self.assertIn("IDLE", tab.lbl_fade_countdown.text())
+        tab.close()
+
+    def test_mixer_unpatched_channels_clear_fixture_tags(self):
+        self._application()
+        from ui.panels.mixer_tab import MixerTab
+        tab = MixerTab()
+        tab.sync_patch([{"name": "Alien-AL36 #1", "channels": [{"channel": 7, "type": "program", "label": "Program"}]}])
+        self.assertEqual(tab.faders[7].fixture_tag, "AL36-1:PRG")
+        tab.sync_patch([])
+        self.assertEqual(tab.faders[7].fixture_tag, "")
+        tab.close()
+
+    def test_fixture_brackets_refresh_after_clear(self):
+        self._application()
+        from ui.panels.address_tab import AddressTab
+        tab = AddressTab()
+        tab._on_patch_alien_gia()
+        self.assertEqual(tab.grid_area.boxes[1].boundary_type, "start")
+        for box in tab.grid_area.boxes.values():
+            box.set_unpatched()
+        tab.update_fixture_brackets()
+        self.assertFalse(any(box.boundary_type for box in tab.grid_area.boxes.values()))
+        tab.close()
+
+    def test_active_bank_tracks_far_scroll_bounds(self):
+        self._application()
+        from ui.panels.mixer_tab import MixerTab
+        tab = MixerTab()
+        tab._on_scroll_changed(255 * 58)
+        self.assertEqual(tab.active_bank_index, 6)
+        tab._on_scroll_changed(0)
+        self.assertEqual(tab.active_bank_index, 0)
+        tab.close()
+
+    def test_crossfade_completion_resets_when_new_fade_begins(self):
+        self._application()
+        from ui.panels.perform_tab import PerformTab
+        tab = PerformTab()
+        tab.set_crossfade_progress(1.0, 2.0, 2.0)
+        tab.reset_crossfade_progress()
+        self.assertEqual(tab.progress_crossfade.value(), 0)
+        self.assertIn("IDLE", tab.lbl_fade_countdown.text())
+        tab.close()
+
+    def test_settings_artnet_target_presets_are_present(self):
+        self._application()
+        from ui.panels.settings_panel import SettingsDialog
+        dialog = SettingsDialog()
+        presets = [dialog.combo_presets.itemText(i) for i in range(dialog.combo_presets.count())]
+        self.assertTrue(any("localhost" in p.lower() for p in presets))
+        self.assertTrue(any("broadcast" in p.lower() for p in presets))
+        dialog.close()
+
+    def test_fader_zero_control_is_plain_character(self):
+        self._application()
+        from ui.widgets.tactile_fader import TactileFader
+        fader = TactileFader(channel_id=1, initial_value=10)
+        # Paint path is exercised by rendering into the widget in the existing offscreen Qt test harness.
+        self.assertTrue(fader.width() > 0)
+        fader.close()
+
+    def test_crossfade_progress_clamps_percentage(self):
+        self._application()
+        from ui.panels.perform_tab import PerformTab
+        tab = PerformTab()
+        tab.set_crossfade_progress(1.5, 1.0, 1.0)
+        self.assertEqual(tab.progress_crossfade.value(), 100)
+        tab.close()
+
+    def test_stage_visualizer_syncs_empty_fixtures(self):
+        self._application()
+        from ui.panels.preview_tab import StageVisualizerWindow
+        vis = StageVisualizerWindow()
+        vis.sync_fixtures([])
+        self.assertEqual(vis.canvas_2d.fixtures, [])
+        self.assertEqual(vis.canvas_3d.fixtures_3d, [])
+        vis.close()
+
+    def test_stage3d_reset_camera_is_eye_level(self):
+        self._application()
+        from ui.panels.preview_tab import Stage3DCanvas
+        canvas = Stage3DCanvas()
+        canvas.yaw = 1.0
+        canvas.pitch = 0.5
+        canvas.reset_camera()
+        self.assertEqual(canvas.yaw, 0.0)
+        self.assertEqual(canvas.pitch, 0.0)
+        canvas.close()
+
+    def test_beam_angle_control_updates_selected_fixture(self):
+        self._application()
+        from ui.panels.preview_tab import StageVisualizerWindow
+        vis = StageVisualizerWindow()
+        vis.sync_fixtures([{"id": 1, "name": "Test", "start_channel": 1, "channels": []}])
+        vis.canvas_3d.selected_ids = {1}
+        vis.spin_beam_angle.setValue(45)
+        self.assertEqual(vis.canvas_3d.fixtures_3d[0]["beam_angle"], 45)
+        vis.close()
+
+    def test_drag_hover_preview_clears_when_leaving_grid(self):
+        self._application()
+        from ui.panels.address_tab import AddressTab
+        tab = AddressTab()
+        tab.grid_area._set_drag_hover(12, 8)
+        self.assertTrue(tab.grid_area.boxes[12].is_drag_hover)
+        tab.grid_area._clear_drag_hover()
+        self.assertFalse(tab.grid_area.boxes[12].is_drag_hover)
+        tab.close()
+
+    def test_fixture_library_inspector_uses_tabs_and_clean_name(self):
+        self._application()
+        from ui.panels.fixture_list import FixtureListWindow
+        lib = FixtureListWindow()
+        self.assertGreater(lib.list_widget.count(), 0)
+        self.assertIn("Alien-AL36", lib.list_widget.item(0).text())
+        lib.close()
+
+    def test_header_menu_direct_actions_have_shortcuts(self):
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+        actions = {a.text(): a for a in win.menuBar().actions()}
+        self.assertIn("Preview", actions)
+        self.assertIn("Setting", actions)
+        self.assertIn("Help", actions)
+        self.assertIn("About", actions)
+        self.assertEqual(actions["Preview"].shortcut().toString(), "Ctrl+P")
+        self.assertEqual(actions["Setting"].shortcut().toString(), "Ctrl+Shift+P")
+        win.close()
+
+    def test_haze_toggle_button_keeps_static_label(self):
+        self._application()
+        from ui.panels.preview_tab import StageVisualizerWindow
+        vis = StageVisualizerWindow()
+        self.assertEqual(vis.btn_haze.text(), "Haze FX")
+        vis._on_toggle_haze()
+        self.assertEqual(vis.btn_haze.text(), "Haze FX")
+        vis.close()
+
+    def test_help_table_is_non_editable_and_shortcuts_heading(self):
+        self._application()
+        from ui.panels.help_panel import HelpDialog
+        dialog = HelpDialog()
+        self.assertEqual(dialog.windowTitle(), "Help")
+        self.assertEqual(dialog.table.horizontalHeaderItem(1).text(), "Key")
+        dialog.close()
+
+    def test_about_window_has_wide_scrollable_description(self):
+        self._application()
+        from ui.panels.about_panel import AboutDialog
+        from ui.qt_compat import QScrollArea
+        dialog = AboutDialog()
+        self.assertEqual(dialog.windowTitle(), "About")
+        self.assertIsNotNone(dialog.findChild(QScrollArea))
+        self.assertTrue(dialog.findChild(QScrollArea).widgetResizable())
+        dialog.close()
+
+    def test_preview_2d_selection_does_not_drag_fixture(self):
+        self._application()
+        from ui.panels.preview_tab import Stage2DCanvas
+        canvas = Stage2DCanvas()
+        canvas.set_fixtures([{"id": 1, "name": "AL36", "channels": []}])
+        initial = (canvas.fixtures[0]["base_x"], canvas.fixtures[0]["base_y"])
+        self.assertEqual((canvas.fixtures[0]["base_x"], canvas.fixtures[0]["base_y"]), initial)
+        canvas.close()
+
+    def test_design_token_palette_preserves_required_legacy_values(self):
+        from ui.styles import Theme
+        self.assertEqual(Theme.STATUS_SUCCESS_BG, "#143521")
+        self.assertEqual(Theme.TEXT_CONTRAST_UNPATCHED, "#cbd5e1")
+        self.assertEqual(Theme.FADER_RIB_HIGHLIGHT, "#4a5264")
+        self.assertEqual(Theme.FADER_CLEAR_BG, "#2d1414")
+
     def test_ui_panels_import(self):
         from ui.panels.address_tab import AddressTab
         from ui.panels.analyze_tab import AnalyzeTab

@@ -1,5 +1,5 @@
 """
-icons.py — Procedural SVG Icons and Vector Helpers for ZZLUXORA
+icons.py | Procedural SVG Icons and Vector Helpers for ZZLUXORA
 Generates standard SVGs for clean, scalable, cross-platform display.
 """
 
@@ -46,3 +46,29 @@ def get_blackout_svg() -> str:
   <circle cx="12" cy="12" r="9" fill="none" stroke="#ff1744" stroke-width="2.5"/>
   <circle cx="12" cy="12" r="5" fill="#ff1744"/>
 </svg>'''
+
+
+def create_hamburger_icon(color: str = "#ffffff", size: int = 20):
+    """Generates crisp vector hamburger icon without relying on unicode glyphs."""
+    try:
+        from ui.qt_compat import QApplication, QPixmap, QIcon, QPainter, QPen, QColor
+        if QApplication.instance() is None:
+            return None
+        pix = QPixmap(size, size)
+        pix.fill(QColor(0, 0, 0, 0))
+        p = QPainter(pix)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setPen(QPen(QColor(color), 2))
+        margin = int(size * 0.15)
+        w = size - margin
+        h1 = int(size * 0.25)
+        h2 = int(size * 0.50)
+        h3 = int(size * 0.75)
+        p.drawLine(margin, h1, w, h1)
+        p.drawLine(margin, h2, w, h2)
+        p.drawLine(margin, h3, w, h3)
+        p.end()
+        return QIcon(pix)
+    except Exception:
+        return None
+

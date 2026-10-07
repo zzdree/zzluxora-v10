@@ -1,5 +1,5 @@
 """
-address_tab.py — DMX Address Grid and Patch Sheet
+address_tab.py | DMX Address Grid and Patch Sheet
 Implements a 24-column horizontal grid for 256 DMX channels with drag-and-drop patching,
 channel type color-coding, confirmation modal on clear, and Undo/Redo support.
 """
@@ -11,13 +11,13 @@ from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QScrollArea, QFrame, QMessageBox, QDialog,
     QSpinBox, QComboBox, Qt, Signal, QMimeData, QColor,
-    QDragEnterEvent, QDropEvent, QAction, QKeySequence
+    QDragEnterEvent, QDragMoveEvent, QDropEvent, QAction, QKeySequence
 )
 from ui.styles import Theme
 
 
 class DMXChannelBox(QFrame if HAS_QT else object):
-    """Visual widget representing one DMX channel (1–256) in the 24-column grid."""
+    """Visual widget representing one DMX channel (1-256) in the 24-column grid."""
     def __init__(self, channel_num: int, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
@@ -26,6 +26,8 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         self.channel_type = "empty"
         self.channel_label = ""
         self.fixture_name = ""
+        self.is_drag_hover = False
+        self.boundary_type = ""  # "start", "mid", "end", "single", ""
 
         self.setFixedSize(46, 46)
         self.setObjectName("DMXBox")
@@ -37,7 +39,7 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         # Channel number at top-right
         self.lbl_num = QLabel(str(channel_num), self)
         self.lbl_num.setAlignment(Qt.AlignRight | Qt.AlignTop)
-        self.lbl_num.setStyleSheet(f"font-size: 9px; color: {Theme.TEXT_MUTED}; font-weight: 700; font-family: monospace;")
+        self.lbl_num.setStyleSheet(f"font-size: 9px; color: {Theme.TEXT_CONTRAST_UNPATCHED}; font-weight: 700; font-family: monospace;")
         layout.addWidget(self.lbl_num)
 
         # Type/Function indicator at center
@@ -118,17 +120,32 @@ class DMXChannelBox(QFrame if HAS_QT else object):
             "empty": Theme.CH_EMPTY,
         }
         bg = color_map.get(self.channel_type, Theme.CH_EMPTY)
-        border = Theme.BORDER_HIGHLIGHT if self.is_patched else Theme.BORDER_SUBTLE
-        light_types = ["dimmer", "white", "green", "amber", "yellow", "cyan", "strobe", "shutter"]
-        text_color = "#000000" if self.channel_type in light_types else "#ffffff"
+        light_types = [
+            "dimmer", "white", "green", "amber", "yellow", "cyan", "strobe", "shutter",
+            "pan", "tilt", "macro", "effect", "gobo", "prism", "color macro", "magenta"
+        ]
+        text_color = Theme.SURFACE_VOID if self.channel_type in light_types else Theme.TEXT_PRIMARY
+
+        if self.is_drag_hover:
+            box_style = f"background-color: {Theme.BG_ELEVATED}; border: 2px solid {Theme.ACCENT_CYAN}; border-radius: 4px;"
+        elif self.is_patched:
+            border_base = f"border: 1px solid {Theme.BORDER_HIGHLIGHT};"
+            if self.boundary_type == "start":
+                border_base += f" border-left: 3px solid {Theme.ACCENT_CYAN};"
+            elif self.boundary_type == "end":
+                border_base += f" border-right: 3px solid {Theme.ACCENT_CYAN};"
+            box_style = f"background-color: {bg}; {border_base} border-radius: 4px;"
+        else:
+            box_style = f"background-color: {bg}; border: 1px solid {Theme.BORDER_SUBTLE}; border-radius: 4px;"
 
         self.setStyleSheet(f"""
             QFrame#DMXBox {{
-                background-color: {bg};
-                border: 1px solid {border};
-                border-radius: 4px;
+                {box_style}
             }}
         """)
+        if hasattr(self, 'lbl_num'):
+            num_color = text_color if self.is_patched else Theme.TEXT_CONTRAST_UNPATCHED
+            self.lbl_num.setStyleSheet(f"font-size: 9px; color: {num_color}; font-weight: 700; font-family: monospace;")
         if hasattr(self, 'lbl_type'):
             if self.is_patched:
                 self.lbl_type.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {text_color};")
@@ -145,6 +162,7 @@ class AddressGridArea(QWidget if HAS_QT else object):
         super().__init__(parent)
         self.setAcceptDrops(True)
         self.boxes: dict[int, DMXChannelBox] = {}
+        self._drag_footprint = 8
 
         self.grid_layout = QGridLayout(self)
         self.grid_layout.setContentsMargins(12, 12, 12, 12)
@@ -159,11 +177,59 @@ class AddressGridArea(QWidget if HAS_QT else object):
             col = (ch - 1) % COLS
             self.grid_layout.addWidget(box, row, col)
 
+    def _extract_drag_footprint(self, mime_data) -> int:
+        try:
+            if mime_data.hasFormat("application/x-zzluxora-fixture"):
+                raw = bytes(mime_data.data("application/x-zzluxora-fixture")).decode("utf-8")
+                fixture_data = json.loads(raw)
+            elif mime_data.hasText():
+                fixture_data = json.loads(mime_data.text())
+            else:
+                return 8
+            channels = fixture_data.get("channels", [])
+            return len(channels) if channels else int(fixture_data.get("channel_count", 8))
+        except Exception:
+            return 8
+
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasFormat("application/x-zzluxora-fixture") or event.mimeData().hasText():
+            self._drag_footprint = self._extract_drag_footprint(event.mimeData())
             event.acceptProposedAction()
 
+    def dragMoveEvent(self, event: QDragMoveEvent) -> None:
+        pos = event.position().toPoint()
+        child = self.childAt(pos)
+        while child and not isinstance(child, DMXChannelBox) and child != self:
+            child = child.parentWidget()
+        if isinstance(child, DMXChannelBox):
+            footprint = getattr(self, "_drag_footprint", 8)
+            self._set_drag_hover(child.channel_num, footprint)
+            event.acceptProposedAction()
+        else:
+            self._clear_drag_hover()
+            event.ignore()
+
+    def dragLeaveEvent(self, event) -> None:
+        self._clear_drag_hover()
+        self._drag_footprint = 8
+
+    def _set_drag_hover(self, start_channel: int, footprint: int = 8) -> None:
+        self._drag_footprint = footprint
+        for ch, box in self.boxes.items():
+            in_range = (start_channel <= ch < start_channel + footprint)
+            if box.is_drag_hover != in_range:
+                box.is_drag_hover = in_range
+                box.update_style()
+
+    def _clear_drag_hover(self) -> None:
+        for box in self.boxes.values():
+            if box.is_drag_hover:
+                box.is_drag_hover = False
+                box.update_style()
+
     def dropEvent(self, event: QDropEvent) -> None:
+        self._clear_drag_hover()
+        self._drag_footprint = 8
         pos = event.position().toPoint()
         child = self.childAt(pos)
         while child and not isinstance(child, DMXChannelBox) and child != self:
@@ -231,13 +297,13 @@ class AddressTab(QWidget if HAS_QT else object):
 
         self.btn_patch_alien = QPushButton("PATCH 4x ALIEN (GIA)")
         self.btn_patch_alien.setToolTip("Auto-patch 4x Alien AL36 at DMX001, DMX017, DMX033, DMX049 (GIA Deliksari Stage)")
-        self.btn_patch_alien.setStyleSheet(f"border-color: {Theme.ACCENT_CYAN}; color: #ffffff; font-weight: bold;")
+        self.btn_patch_alien.setStyleSheet(f"border-color: {Theme.ACCENT_CYAN}; color: {Theme.TEXT_PRIMARY}; font-weight: bold;")
         self.btn_patch_alien.clicked.connect(self._on_patch_alien_gia)
         ctrl_bar.addWidget(self.btn_patch_alien)
 
         self.btn_patch_kuma = QPushButton("PATCH 1x KUMA (BENCH)")
         self.btn_patch_kuma.setToolTip("Auto-patch 1x Kumastb STL47 at DMX001 (RGBW Bench Testing Unit)")
-        self.btn_patch_kuma.setStyleSheet(f"border-color: {Theme.ACCENT_AMBER}; color: #ffffff; font-weight: bold;")
+        self.btn_patch_kuma.setStyleSheet(f"border-color: {Theme.ACCENT_AMBER}; color: {Theme.TEXT_PRIMARY}; font-weight: bold;")
         self.btn_patch_kuma.clicked.connect(self._on_patch_kuma_bench)
         ctrl_bar.addWidget(self.btn_patch_kuma)
 
@@ -282,6 +348,7 @@ class AddressTab(QWidget if HAS_QT else object):
                 box.set_patched(ch_type, label, fixture_name)
             else:
                 box.set_unpatched()
+        self.update_fixture_brackets()
         self.patch_changed.emit()
 
     def record_undo(self) -> None:
@@ -306,6 +373,34 @@ class AddressTab(QWidget if HAS_QT else object):
         self.btn_undo.setEnabled(True)
         self.btn_redo.setEnabled(len(self.redo_stack) > 0)
 
+    def update_fixture_brackets(self) -> None:
+        """Computes and assigns fixture enclosure boundary markers across DMX boxes."""
+        fixtures = self.get_patched_fixtures()
+        for box in self.grid_area.boxes.values():
+            box.boundary_type = ""
+
+        for fix in fixtures:
+            channels = fix.get("channels", [])
+            if not channels: continue
+            if len(channels) == 1:
+                ch = channels[0]["channel"]
+                if ch in self.grid_area.boxes:
+                    self.grid_area.boxes[ch].boundary_type = "single"
+            else:
+                first_ch = channels[0]["channel"]
+                last_ch = channels[-1]["channel"]
+                if first_ch in self.grid_area.boxes:
+                    self.grid_area.boxes[first_ch].boundary_type = "start"
+                if last_ch in self.grid_area.boxes:
+                    self.grid_area.boxes[last_ch].boundary_type = "end"
+                for ch_info in channels[1:-1]:
+                    mid_ch = ch_info["channel"]
+                    if mid_ch in self.grid_area.boxes:
+                        self.grid_area.boxes[mid_ch].boundary_type = "mid"
+
+        for box in self.grid_area.boxes.values():
+            box.update_style()
+
     def _on_fixture_dropped(self, start_channel: int, fixture_data: dict) -> None:
         channels = fixture_data.get("channels", [])
         if not channels: return
@@ -322,6 +417,7 @@ class AddressTab(QWidget if HAS_QT else object):
                 label = ch_info.get("label", ch_type)
                 box.set_patched(ch_type, label, fixture_name)
 
+        self.update_fixture_brackets()
         self.patch_changed.emit()
 
     def get_patched_fixtures(self) -> list[dict]:
@@ -370,6 +466,7 @@ class AddressTab(QWidget if HAS_QT else object):
             self.record_undo()
             for box in self.grid_area.boxes.values():
                 box.set_unpatched()
+            self.update_fixture_brackets()
             self.patch_changed.emit()
 
     def _on_patch_alien_gia(self) -> None:

@@ -1,5 +1,5 @@
 """
-analyze_tab.py — Core Skripsi Audio Analysis & Affective Mood Recognition Panel
+analyze_tab.py | Core Skripsi Audio Analysis & Affective Mood Recognition Panel
 Integrates STFT Engine, Spectral Feature Extraction, YouTube Audio Importer,
 and Russell 2D Affective Plane Mapping via non-blocking asynchronous QThread.
 """
@@ -133,7 +133,7 @@ class RussellPlaneWidget(QFrame if HAS_QT else object):
         self.setFixedSize(240, 240)
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: {Theme.BG_INPUT};
+                background-color: {Theme.SURFACE_INPUT};
                 border: 1px solid {Theme.BORDER_STRONG};
                 border-radius: 6px;
             }}
@@ -228,7 +228,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         top_bar.addWidget(self.btn_load_file)
 
         self.btn_import_yt = QPushButton("IMPORT YOUTUBE...")
-        self.btn_import_yt.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN};")
+        self.btn_import_yt.setStyleSheet(f"background-color: {Theme.STATUS_INFO_BG}; border-color: {Theme.ACCENT_CYAN};")
         self.btn_import_yt.clicked.connect(self._on_open_youtube_dialog)
         top_bar.addWidget(self.btn_import_yt)
 
@@ -238,7 +238,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         top_bar.addWidget(self.btn_remove)
 
         self.btn_analyze = QPushButton("ANALYZE")
-        self.btn_analyze.setStyleSheet(f"background-color: #143521; color: {Theme.COLOR_SUCCESS}; font-weight: bold;")
+        self.btn_analyze.setStyleSheet(f"background-color: {Theme.STATUS_SUCCESS_BG}; color: {Theme.COLOR_SUCCESS}; font-weight: bold;")
         self.btn_analyze.setEnabled(False)
         self.btn_analyze.clicked.connect(self._on_start_analysis)
         top_bar.addWidget(self.btn_analyze)
@@ -247,7 +247,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
 
         # Splitter: Left Songlist, Right Visualizer & Progress
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setStyleSheet("QSplitter::handle { background-color: #333844; }")
+        splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {Theme.BORDER_SUBTLE}; }}")
 
         # Left Container: Song List
         left_box = QGroupBox("Session Audio Playlist")
@@ -264,7 +264,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
             QListWidget::item:selected {{
                 background-color: {Theme.BG_ELEVATED};
                 border-left: 3px solid {Theme.ACCENT_AMBER};
-                color: #ffffff;
+                color: {Theme.TEXT_PRIMARY};
             }}
         """)
         self.song_list_widget.currentRowChanged.connect(self._on_song_selected)
@@ -297,11 +297,11 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         self.progress_bar.setValue(0)
         self.progress_bar.setStyleSheet(f"""
             QProgressBar {{
-                background-color: {Theme.BG_INPUT};
+                background-color: {Theme.SURFACE_INPUT};
                 border: 1px solid {Theme.BORDER_STRONG};
                 border-radius: 4px;
                 text-align: center;
-                color: #ffffff;
+                color: {Theme.TEXT_PRIMARY};
                 height: 22px;
             }}
             QProgressBar::chunk {{

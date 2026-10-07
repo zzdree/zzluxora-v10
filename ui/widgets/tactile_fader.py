@@ -1,5 +1,5 @@
 """
-tactile_fader.py — grandMA3 Tactile Stage Lighting Console Fader Widget
+tactile_fader.py | grandMA3 Tactile Stage Lighting Console Fader Widget
 Custom QWidget implementation with illuminated groove rails, analog calibration tick marks,
 tactile ribbed cap, and precision DMX readout (0-255).
 """
@@ -33,6 +33,7 @@ class TactileFader(QWidget if HAS_QT else object):
         super().__init__(parent)
         self.channel_id = channel_id
         self.label_text = label if label else ("MASTER" if is_master else f"Ch {channel_id}")
+        self.fixture_tag = ""
         self._value = max(0, min(255, initial_value))
         self.is_master = is_master
         self.is_dragging = False
@@ -71,6 +72,12 @@ class TactileFader(QWidget if HAS_QT else object):
         clamped = max(0, min(255, int(val)))
         if clamped != self._value:
             self._value = clamped
+            self.update()
+
+    def set_fixture_tag(self, tag: str) -> None:
+        """Sets descriptive patch tag (e.g. 'AL36-1:DIM') above fader."""
+        if self.fixture_tag != tag:
+            self.fixture_tag = tag
             self.update()
 
     def mousePressEvent(self, event) -> None:
@@ -154,46 +161,70 @@ class TactileFader(QWidget if HAS_QT else object):
         painter.fillRect(0, 0, w, h, QColor(Theme.BG_ROOT))
 
         # 2. Header Label (Top)
-        painter.setFont(QFont("Inter", 8, QFont.Bold))
-        painter.setPen(QColor(Theme.ACCENT_AMBER if self.is_master else Theme.TEXT_SECONDARY))
+        painter.setPen(QColor(Theme.ACCENT_AMBER if self.is_master else (Theme.ACCENT_CYAN if self.fixture_tag else Theme.TEXT_SECONDARY)))
+        if self.is_master:
+            painter.setFont(QFont("Inter", 8, QFont.Bold))
+            header_str = "MASTER"
+        elif self.fixture_tag:
+            painter.setFont(QFont("JetBrains Mono", 7, QFont.Bold))
+            header_str = self.fixture_tag
+        else:
+            painter.setFont(QFont("Inter", 8, QFont.Bold))
+            header_str = f"{self.channel_id}"
+
         painter.drawText(
-            QRectF(0, 4, w, 16),
+            QRectF(1, 3, w - 2, 16),
             Qt.AlignCenter,
-            "MASTER" if self.is_master else f"{self.channel_id}",
+            header_str,
         )
 
-        # 3. Analog Calibration Scale Lines (Tick Marks)
-        pen_tick = QPen(QColor(Theme.BORDER_STRONG))
-        pen_tick.setWidth(1)
-        painter.setPen(pen_tick)
-
+        # Analog Calibration Scale Lines (Tick Marks) with Engraved Labels
         track_len = y_bottom - y_top
+        scale_labels = {1.0: "FL", 0.5: "50", 0.0: "0"}
+        painter.setFont(QFont("JetBrains Mono", 7, QFont.Bold))
+
         for step in [0.0, 0.25, 0.5, 0.75, 1.0]:
             ty = y_bottom - (step * track_len)
             is_major = step in (0.0, 0.5, 1.0)
             tick_w = 6 if is_major else 3
             if is_major:
-                painter.setPen(QPen(QColor("#64748b"), 1.5))
+                painter.setPen(QPen(QColor(Theme.TICK_MAJOR), 1.5))
             else:
-                painter.setPen(QPen(QColor("#383e4c"), 1.0))
+                painter.setPen(QPen(QColor(Theme.TICK_MINOR), 1.0))
 
             # Left and Right ticks
             painter.drawLine(QPointF(cx - 14 - tick_w, ty), QPointF(cx - 14, ty))
             painter.drawLine(QPointF(cx + 14, ty), QPointF(cx + 14 + tick_w, ty))
 
+            # Engraved analog scale label next to major ticks
+            if is_major and step in scale_labels:
+                lbl_str = scale_labels[step]
+                painter.setPen(QColor(Theme.TEXT_MUTED))
+                label_rect = QRectF(0, ty - 6, max(12.0, cx - 14), 12)
+                painter.drawText(label_rect, Qt.AlignRight | Qt.AlignVCenter, lbl_str)
+
         # 4. Fader Groove / Recessed Track
         track_rect = QRectF(cx - self.track_width / 2.0, y_top - 2, self.track_width, track_len + 4)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(Theme.BG_FADER_GROOVE))
+        painter.setBrush(QColor(Theme.SURFACE_TROUGH))
         painter.drawRoundedRect(track_rect, 2, 2)
 
-        # 5. Illuminated LED Groove (Level Fill from bottom up to cap)
+        # 5. Illuminated LED Groove (Dual-Pass Backlit Light-Pipe Diffusion)
         cap_y = self._cap_center_y()
         led_height = y_bottom - cap_y
         if led_height > 0:
-            led_color = QColor(Theme.ACCENT_AMBER if self.is_master else Theme.ACCENT_CYAN)
+            accent_base = QColor(Theme.ACCENT_AMBER if self.is_master else Theme.ACCENT_CYAN)
+
+            # Pass 1: Soft Outer Light-Pipe Glow Diffusion
+            diffuse_color = QColor(accent_base)
+            diffuse_color.setAlpha(65)
+            diffuse_rect = QRectF(cx - (self.track_width / 2.0) - 1.5, cap_y, self.track_width + 3.0, led_height)
+            painter.setBrush(QBrush(diffuse_color))
+            painter.drawRoundedRect(diffuse_rect, 2.5, 2.5)
+
+            # Pass 2: High-Luminance Core
             led_rect = QRectF(cx - (self.track_width / 2.0), cap_y, self.track_width, led_height)
-            painter.setBrush(QBrush(led_color))
+            painter.setBrush(QBrush(accent_base))
             painter.drawRoundedRect(led_rect, 1.5, 1.5)
 
         # 6. Tactile Ribbed Fader Cap
@@ -203,27 +234,24 @@ class TactileFader(QWidget if HAS_QT else object):
 
         # Gradient body
         grad = QLinearGradient(cap_left, cap_top, cap_left, cap_top + self.cap_height)
-        grad.setColorAt(0.0, QColor("#434a58"))
-        grad.setColorAt(0.5, QColor(Theme.BG_FADER_CAP))
-        grad.setColorAt(1.0, QColor("#22262e"))
+        grad.setColorAt(0.0, QColor(Theme.FADER_CAP_TOP))
+        grad.setColorAt(0.5, QColor(Theme.SURFACE_CAP))
+        grad.setColorAt(1.0, QColor(Theme.FADER_CAP_BOT))
 
         painter.setBrush(QBrush(grad))
         painter.setPen(QPen(QColor(Theme.BORDER_STRONG), 1))
         painter.drawRoundedRect(cap_rect, 3, 3)
 
-        # Ribbed Texture Grooves (horizontal tactile lines on sides)
-        painter.setPen(QPen(QColor("#22262e"), 1))
+        # Embossed Dual-Line Ridges (raised tactile physical grip texture)
         for offset_y in [-5, -2, 2, 5]:
-            # Left ribs
-            painter.drawLine(
-                QPointF(cap_left + 3, cap_y + offset_y),
-                QPointF(cap_left + 8, cap_y + offset_y),
-            )
-            # Right ribs
-            painter.drawLine(
-                QPointF(cap_left + self.cap_width - 8, cap_y + offset_y),
-                QPointF(cap_left + self.cap_width - 3, cap_y + offset_y),
-            )
+            # Highlight upper ridge
+            painter.setPen(QPen(QColor(Theme.FADER_RIB_HIGHLIGHT), 1))
+            painter.drawLine(QPointF(cap_left + 3, cap_y + offset_y - 0.5), QPointF(cap_left + 8, cap_y + offset_y - 0.5))
+            painter.drawLine(QPointF(cap_left + self.cap_width - 8, cap_y + offset_y - 0.5), QPointF(cap_left + self.cap_width - 3, cap_y + offset_y - 0.5))
+            # Shadow lower ridge
+            painter.setPen(QPen(QColor(Theme.FADER_RIB_SHADOW), 1))
+            painter.drawLine(QPointF(cap_left + 3, cap_y + offset_y + 0.5), QPointF(cap_left + 8, cap_y + offset_y + 0.5))
+            painter.drawLine(QPointF(cap_left + self.cap_width - 8, cap_y + offset_y + 0.5), QPointF(cap_left + self.cap_width - 3, cap_y + offset_y + 0.5))
 
         # Center White Indicator Notch Line
         painter.setPen(QPen(QColor(Theme.TEXT_PRIMARY), 2))
@@ -235,29 +263,29 @@ class TactileFader(QWidget if HAS_QT else object):
         # 7. Bottom Value Box (0-255 Readout)
         self._val_box_rect = QRectF(4, h - self.bottom_margin + 4, w - 8, 20)
         painter.setPen(QPen(QColor(Theme.BORDER_SUBTLE), 1))
-        painter.setBrush(QColor(Theme.BG_INPUT))
+        painter.setBrush(QColor(Theme.SURFACE_INPUT))
         painter.drawRoundedRect(self._val_box_rect, 3, 3)
 
         painter.setFont(QFont("JetBrains Mono", 9 if not self.is_master else 11, QFont.Bold))
         painter.setPen(QColor(Theme.ACCENT_AMBER if self.is_master else Theme.TEXT_PRIMARY))
         painter.drawText(self._val_box_rect, Qt.AlignCenter, f"{self._value}")
 
-        # 8. [X] Quick-Zero Clear Button at bottom
+        # 8. [CLR] Quick-Zero Clear Button at bottom
         btn_w = 26 if self.is_master else 22
         self._btn_zero_rect = QRectF(cx - btn_w / 2.0, h - 20, btn_w, 15)
         if self._value > 0:
-            painter.setBrush(QColor("#2d1414"))
+            painter.setBrush(QColor(Theme.FADER_CLEAR_BG))
             painter.setPen(QPen(QColor(Theme.COLOR_DANGER), 1))
             painter.drawRoundedRect(self._btn_zero_rect, 3, 3)
             painter.setFont(QFont("Inter", 8, QFont.Bold))
             painter.setPen(QColor(Theme.COLOR_DANGER))
-            painter.drawText(self._btn_zero_rect, Qt.AlignCenter, "✕")
+            painter.drawText(self._btn_zero_rect, Qt.AlignCenter, "X")
         else:
-            painter.setBrush(QColor(Theme.BG_INPUT))
+            painter.setBrush(QColor(Theme.SURFACE_INPUT))
             painter.setPen(QPen(QColor(Theme.BORDER_SUBTLE), 1))
             painter.drawRoundedRect(self._btn_zero_rect, 3, 3)
             painter.setFont(QFont("Inter", 8, QFont.Bold))
             painter.setPen(QColor(Theme.TEXT_MUTED))
-            painter.drawText(self._btn_zero_rect, Qt.AlignCenter, "✕")
+            painter.drawText(self._btn_zero_rect, Qt.AlignCenter, "X")
 
         painter.end()

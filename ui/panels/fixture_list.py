@@ -1,5 +1,5 @@
 """
-fixture_list.py — Standalone Floating Fixture Library Window
+fixture_list.py | Standalone Floating Fixture Library Window
 Provides a resizable tool window with drag-and-drop support into the DMX Address grid.
 """
 
@@ -80,7 +80,7 @@ class FixtureListWindow(QWidget if HAS_QT else object):
             QListWidget::item:selected {{
                 background-color: {Theme.BG_ELEVATED};
                 border-left: 3px solid {Theme.ACCENT_CYAN};
-                color: #ffffff;
+                color: {Theme.TEXT_PRIMARY};
             }}
         """)
         self.list_widget.currentItemChanged.connect(self._on_item_selected)
@@ -92,7 +92,7 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         self.inspector_text.setPlaceholderText("Select a fixture profile to view DMX channel footprint...")
         self.inspector_text.setStyleSheet(f"""
             QTextEdit {{
-                background-color: {Theme.BG_INPUT};
+                background-color: {Theme.SURFACE_INPUT};
                 border: 1px solid {Theme.BORDER_STRONG};
                 border-radius: 4px;
                 color: {Theme.TEXT_SECONDARY};
@@ -112,7 +112,7 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         btn_bar.addStretch()
 
         self.btn_refresh = QPushButton("RELOAD")
-        self.btn_refresh.setStyleSheet("background-color: #16a34a; color: #ffffff; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
+        self.btn_refresh.setStyleSheet(f"background-color: {Theme.COLOR_SUCCESS}; color: {Theme.BG_ROOT}; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
         self.btn_refresh.clicked.connect(self.reload_fixtures)
         btn_bar.addWidget(self.btn_refresh)
 

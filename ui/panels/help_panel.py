@@ -1,5 +1,5 @@
 """
-help_panel.py — Application Help & Keyboard Shortcuts Reference Dialog
+help_panel.py | Application Help & Keyboard Shortcuts Reference Dialog
 Displays the comprehensive console shortcuts table.
 """
 

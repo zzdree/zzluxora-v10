@@ -1,5 +1,5 @@
 """
-result_tab.py — Analysis Results & Affective Dashboard
+result_tab.py | Analysis Results & Affective Dashboard
 Displays MIR acoustic metrics, Russell 2D Plane, mood quadrant, and provides
 the 'Export to Perform' workflow trigger.
 """
@@ -50,7 +50,7 @@ class ResultTab(QWidget if HAS_QT else object):
         top_bar.addWidget(self.btn_reanalyze)
 
         self.btn_export = QPushButton("EXPORT TO PERFORM")
-        self.btn_export.setStyleSheet(f"background-color: #1e3a5f; border-color: {Theme.ACCENT_CYAN}; font-weight: bold;")
+        self.btn_export.setStyleSheet(f"background-color: {Theme.STATUS_INFO_BG}; border-color: {Theme.ACCENT_CYAN}; font-weight: bold;")
         self.btn_export.setEnabled(False)
         self.btn_export.clicked.connect(self._on_export_clicked)
         top_bar.addWidget(self.btn_export)

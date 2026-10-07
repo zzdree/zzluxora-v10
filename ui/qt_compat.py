@@ -1,5 +1,5 @@
 """
-qt_compat.py — Universal Qt6 Binding Compatibility Layer (PySide6 / PyQt6)
+qt_compat.py | Universal Qt6 Binding Compatibility Layer (PySide6 / PyQt6)
 Enables ZZLUXORA v10 to run seamlessly across environments with either PySide6 or PyQt6.
 Includes enum promotion to guarantee 100% API parity between Qt6 bindings.
 """
@@ -17,7 +17,7 @@ try:
     from PySide6.QtGui import (
         QColor, QPen, QBrush, QPainter, QLinearGradient, QRadialGradient,
         QFont, QIcon, QPixmap, QAction, QKeySequence, QDrag,
-        QDragEnterEvent, QDropEvent, QPolygonF
+        QDragEnterEvent, QDragMoveEvent, QDropEvent, QPolygonF
     )
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QDialog, QVBoxLayout,
@@ -40,7 +40,7 @@ except ImportError:
         from PyQt6.QtGui import (
             QColor, QPen, QBrush, QPainter, QLinearGradient, QRadialGradient,
             QFont, QIcon, QPixmap, QAction, QKeySequence, QDrag,
-            QDragEnterEvent, QDropEvent, QPolygonF
+            QDragEnterEvent, QDragMoveEvent, QDropEvent, QPolygonF
         )
         from PyQt6.QtWidgets import (
             QApplication, QMainWindow, QWidget, QDialog, QVBoxLayout,

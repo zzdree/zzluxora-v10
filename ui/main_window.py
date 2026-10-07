@@ -1,5 +1,5 @@
 """
-main_window.py — Master Lighting Console Window for ZZLUXORA v10
+main_window.py | Master Lighting Console Window for ZZLUXORA v10
 Features a 3-level header hierarchy (TitleBar, MenuBar, ProgramBar), 6 central workspaces,
 and floating tool windows (Fixture List, Fixture Editor, Stage Visualizer, Settings, Help, About).
 """
@@ -431,8 +431,10 @@ class MainWindow(QMainWindow if HAS_QT else object):
         return (channel_number - 1) % footprint
 
     def _on_patch_changed(self) -> None:
+        fixtures = self.tab_address.get_patched_fixtures() if hasattr(self, 'tab_address') else []
+        if hasattr(self, 'tab_mixer'):
+            self.tab_mixer.sync_patch(fixtures)
         if self.win_visualizer is not None:
-            fixtures = self.tab_address.get_patched_fixtures()
             self.win_visualizer.sync_fixtures(fixtures)
             self.win_visualizer.update_dmx(self.dmx_buffer)
 
@@ -517,12 +519,14 @@ class MainWindow(QMainWindow if HAS_QT else object):
         if fade_time <= 0.05 or is_flash or not HAS_QT:
             if self._crossfade_timer.isActive():
                 self._crossfade_timer.stop()
+            self.tab_perform.reset_crossfade_progress()
             self._apply_dmx_buffer(target)
         else:
             self._fade_start = bytearray(self.dmx_buffer)
             self._fade_target = bytearray(target)
             self._fade_duration = max(0.1, fade_time)
             self._fade_elapsed = 0.0
+            self.tab_perform.reset_crossfade_progress()
             self._crossfade_timer.start()
 
     def _on_crossfade_tick(self) -> None:
@@ -539,8 +543,13 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
         self._apply_dmx_buffer(buf)
 
+        if hasattr(self, 'tab_perform'):
+            self.tab_perform.set_crossfade_progress(progress, self._fade_elapsed, self._fade_duration)
+
         if progress >= 1.0:
             self._crossfade_timer.stop()
+            if hasattr(self, 'tab_perform'):
+                self.tab_perform.set_crossfade_progress(1.0, self._fade_duration, self._fade_duration)
 
     # -----------------------------------------------------------------
     # FILE MANAGEMENT (.zlx)

@@ -1,5 +1,5 @@
 """
-mixer_tab.py — grandMA3 257-Channel Industrial Console Mixer Desk
+mixer_tab.py | grandMA3 257-Channel Industrial Console Mixer Desk
 Features 1 Master Dimmer + 256 DMX channels utilizing tactile fader widgets
 with illuminated groove rails, analog calibration scale marks, and smooth horizontal scrolling.
 """
@@ -103,17 +103,21 @@ class MixerTab(QWidget if HAS_QT else object):
         lbl_bank.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {Theme.TEXT_MUTED};")
         bank_bar.addWidget(lbl_bank)
 
+        self.bank_buttons: list[tuple[QPushButton, int, int]] = []
+        self.active_bank_index = 0
         banks = [
-            ("BANK 1 (1–16: ALIEN #1 / KUMA)", 1),
-            ("BANK 2 (17–32: ALIEN #2)", 17),
-            ("BANK 3 (33–48: ALIEN #3)", 33),
-            ("BANK 4 (49–64: ALIEN #4)", 49),
-            ("BANK 5 (65–128)", 65),
-            ("BANK 6 (129–192)", 129),
-            ("BANK 7 (193–256)", 193),
+            ("BANK 1 (1-16)", 1, 16),
+            ("BANK 2 (17-32)", 17, 32),
+            ("BANK 3 (33-48)", 33, 48),
+            ("BANK 4 (49-64)", 49, 64),
+            ("BANK 5 (65-128)", 65, 128),
+            ("BANK 6 (129-192)", 129, 192),
+            ("BANK 7 (193-256)", 193, 256),
         ]
-        for b_name, start_ch in banks:
+        for b_name, start_ch, end_ch in banks:
             btn_b = QPushButton(b_name)
+            btn_b.setToolTip(f"Jump to DMX channels {start_ch} to {end_ch}")
+            btn_b.setMinimumWidth(74)
             btn_b.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {Theme.BG_SURFACE};
@@ -126,12 +130,13 @@ class MixerTab(QWidget if HAS_QT else object):
                 }}
                 QPushButton:hover {{
                     border-color: {Theme.ACCENT_CYAN};
-                    color: #ffffff;
+                    color: {Theme.TEXT_PRIMARY};
                     background-color: {Theme.BG_ELEVATED};
                 }}
             """)
             btn_b.clicked.connect(lambda _, ch=start_ch: self.scroll_to_channel(ch))
             bank_bar.addWidget(btn_b)
+            self.bank_buttons.append((btn_b, start_ch, end_ch))
 
         bank_bar.addStretch()
         channels_pane.addLayout(bank_bar)
@@ -147,6 +152,7 @@ class MixerTab(QWidget if HAS_QT else object):
                 border-radius: 6px;
             }}
         """)
+        self.scroll_area.horizontalScrollBar().valueChanged.connect(self._on_scroll_changed)
 
         channels_container = QWidget()
         channels_layout = QHBoxLayout(channels_container)
@@ -167,6 +173,90 @@ class MixerTab(QWidget if HAS_QT else object):
         desk_container.addLayout(channels_pane, 1)
 
         main_layout.addLayout(desk_container, 1)
+
+    def _on_scroll_changed(self, scroll_x: int) -> None:
+        """Highlights the bank containing the first substantially visible channel."""
+        fader_step = 58
+        viewport_width = max(1, self.scroll_area.viewport().width())
+        first_visible = max(1, 1 + (scroll_x // fader_step))
+        last_visible = min(256, first_visible + max(0, viewport_width // fader_step))
+        best_index = 0
+        best_overlap = -1
+        for bank_index, (_, start_ch, end_ch) in enumerate(self.bank_buttons):
+            overlap = max(0, min(last_visible, end_ch) - max(first_visible, start_ch) + 1)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_index = bank_index
+        self.active_bank_index = best_index
+        for bank_index, (btn, start_ch, end_ch) in enumerate(self.bank_buttons):
+            if bank_index == self.active_bank_index:
+                btn.setProperty("active_bank", True)
+                btn.style().unpolish(btn)
+                btn.style().polish(btn)
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {Theme.BG_ELEVATED};
+                        border: 1px solid {Theme.ACCENT_CYAN};
+                        border-bottom: 2px solid {Theme.ACCENT_CYAN};
+                        border-radius: 4px;
+                        color: {Theme.TEXT_PRIMARY};
+                        font-size: 10px;
+                        font-weight: 800;
+                        padding: 4px 8px;
+                    }}
+                """)
+            else:
+                btn.setProperty("active_bank", False)
+                btn.style().unpolish(btn)
+                btn.style().polish(btn)
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {Theme.BG_SURFACE};
+                        border: 1px solid {Theme.BORDER_SUBTLE};
+                        border-radius: 4px;
+                        color: {Theme.TEXT_SECONDARY};
+                        font-size: 10px;
+                        font-weight: 700;
+                        padding: 4px 8px;
+                    }}
+                    QPushButton:hover {{
+                        border-color: {Theme.ACCENT_CYAN};
+                        color: {Theme.TEXT_PRIMARY};
+                        background-color: {Theme.BG_ELEVATED};
+                    }}
+                """)
+
+    def sync_patch(self, patched_fixtures: list[dict]) -> None:
+        """Updates fader header tags to show patched fixture and channel roles."""
+        # 1. Reset all channels to blank tag
+        for ch in range(1, 257):
+            if ch in self.faders:
+                self.faders[ch].set_fixture_tag("")
+
+        # 2. Assign tags for each patched fixture
+        for fix in patched_fixtures:
+            channels = fix.get("channels", [])
+            fixture_name = str(fix.get("name", fix.get("model", "Fixture")))
+            fixture_name = fixture_name.replace(" (8CH RGBW)", "").replace(" (8CH RGB)", "")
+            fixture_prefix = fixture_name.split("#", 1)[0].strip()
+            fixture_index = fixture_name.split("#", 1)[1].split()[0] if "#" in fixture_name else ""
+            short_fixture = (fixture_prefix.replace("Alien-", "").replace("Alien ", "")
+                             .replace("Kumastb-", "").replace("Kumastb ", ""))
+            if fixture_index:
+                short_fixture = f"{short_fixture}-{fixture_index}"
+            for ch_info in channels:
+                ch_num = ch_info.get("channel", 1)
+                ctype = str(ch_info.get("type", "dim")).lower()
+                short_type = {
+                    "dimmer": "DIM", "red": "RED", "green": "GRN", "blue": "BLU",
+                    "white": "WHT", "strobe": "STR", "shutter": "SHT", "program": "PRG",
+                    "speed": "SPD", "pan": "PAN", "tilt": "TLT", "empty": "EMP",
+                    "amber": "AMB", "uv": "UV", "cyan": "CYN", "magenta": "MAG",
+                    "yellow": "YEL", "gobo": "GOB", "prism": "PRS", "effect": "FX",
+                    "maintenance": "MNT", "color macro": "MAC", "macro": "MAC",
+                }.get(ctype, ctype[:3].upper())
+                if ch_num in self.faders:
+                    self.faders[ch_num].set_fixture_tag(f"{short_fixture}:{short_type}" if short_fixture else short_type)
 
     def scroll_to_channel(self, channel_num: int) -> None:
         """Instantly scrolls horizontal fader deck to the requested channel."""

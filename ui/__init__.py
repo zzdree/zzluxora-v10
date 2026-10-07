@@ -1,5 +1,5 @@
 """
-ui — User Interface Package for ZZLUXORA Lighting Console
+ui | User Interface Package for ZZLUXORA Lighting Console
 """
 
 from ui.styles import Theme, CONSOLE_QSS

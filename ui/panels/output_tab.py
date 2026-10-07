@@ -1,5 +1,5 @@
 """
-output_tab.py — Art-Net 4 Network Destination and Node Output Manager
+output_tab.py | Art-Net 4 Network Destination and Node Output Manager
 Configures target IP (Localhost, ESP32 AP Mode 192.168.4.1, Custom IP) on UDP Port 6454.
 """
 
@@ -13,6 +13,8 @@ try:
 except ImportError:
     HAS_QT = False
     class QWidget: pass
+
+from ui.styles import Theme
 
 class OutputTab(QWidget):
     """Art-Net Network Output Settings Tab."""
@@ -32,23 +34,23 @@ class OutputTab(QWidget):
         # Title
         title_box = QVBoxLayout()
         title = QLabel("ART-NET 4 OUTPUT NETWORK MANAGER")
-        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #00e5ff;")
-        desc = QLabel("Pengaturan alamat IP tujuan paket UDP datagram DMX512 (Port 6454, Universe 0).")
-        desc.setStyleSheet("color: #abb2bf; font-size: 12px;")
+        title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Theme.ACCENT_CYAN};")
+        desc = QLabel("UDP Datagram destination settings (Port 6454, Universe 0).")
+        desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
         title_box.addWidget(title)
         title_box.addWidget(desc)
         main_layout.addLayout(title_box)
 
         # Options Box
-        group = QGroupBox("Pilihan Alamat IP Tujuan Art-Net")
+        group = QGroupBox("Art-Net Target Destination")
         grp_layout = QVBoxLayout(group)
         grp_layout.setSpacing(12)
 
         self.btn_group = QButtonGroup(self)
 
-        self.rb_localhost = QRadioButton("Localhost (127.0.0.1) — Simulasi Software QLC+ / Capture")
-        self.rb_esp32_ap = QRadioButton("ESP32 ARTNET-DMX Node (192.168.4.1) — Mode Access Point Fisik")
-        self.rb_custom = QRadioButton("Custom Network IP (Jaringan WiFi Lokal Ruang Ibadah):")
+        self.rb_localhost = QRadioButton("Localhost (127.0.0.1) | QLC+ SITL Simulation")
+        self.rb_esp32_ap = QRadioButton("ESP32 Node (192.168.4.1) | Direct SoftAP Mode")
+        self.rb_custom = QRadioButton("Custom Network IP (Venue Wi-Fi Router):")
 
         self.rb_esp32_ap.setChecked(True)
 
@@ -64,7 +66,7 @@ class OutputTab(QWidget):
         custom_layout = QHBoxLayout()
         custom_layout.setContentsMargins(24, 0, 0, 0)
         self.txt_custom_ip = QLineEdit("192.168.1.100")
-        self.txt_custom_ip.setPlaceholderText("Masukkan alamat IP target (misal: 192.168.1.150)")
+        self.txt_custom_ip.setPlaceholderText("Enter target IP address")
         self.txt_custom_ip.setEnabled(False)
         custom_layout.addWidget(self.txt_custom_ip)
         grp_layout.addLayout(custom_layout)
@@ -74,19 +76,19 @@ class OutputTab(QWidget):
         main_layout.addWidget(group)
 
         # Protocol Details Box
-        proto_group = QGroupBox("Detail Protokol Fisik")
+        proto_group = QGroupBox("Physical Protocol Specification")
         proto_layout = QVBoxLayout(proto_group)
-        proto_layout.addWidget(QLabel("• Protokol Transmisi: Art-Net 4 (ArtDmx OpOutput 0x5000)"))
-        proto_layout.addWidget(QLabel("• Port Jaringan: UDP 6454"))
-        proto_layout.addWidget(QLabel("• Universe DMX: Universe 0 (Sub-Net 0, Net 0)"))
-        proto_layout.addWidget(QLabel("• Laju Frame: 43.07 FPS (Sinkron STFT H=512 & Standar DMX512-A)"))
+        proto_layout.addWidget(QLabel("• Transmission Protocol: Art-Net 4 (ArtDmx OpOutput 0x5000)"))
+        proto_layout.addWidget(QLabel("• Network Port: UDP 6454"))
+        proto_layout.addWidget(QLabel("• DMX Universe: Universe 0 (Sub-Net 0, Net 0)"))
+        proto_layout.addWidget(QLabel("• Frame Rate: 43.07 FPS (Sync STFT H=512 & DMX512-A Standard)"))
         main_layout.addWidget(proto_group)
 
         # Save Button
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        self.btn_save = QPushButton("Simpan Konfigurasi Output")
-        self.btn_save.setStyleSheet("background-color: #0b3d36; border-color: #00e5ff; color: #00e5ff; font-weight: bold; padding: 8px 24px;")
+        self.btn_save = QPushButton("Save Output Configuration")
+        self.btn_save.setStyleSheet(f"background-color: {Theme.STATUS_SUCCESS_BG}; border-color: {Theme.ACCENT_CYAN}; color: {Theme.TEXT_PRIMARY}; font-weight: bold; padding: 8px 24px;")
         self.btn_save.clicked.connect(self._on_save)
         btn_layout.addWidget(self.btn_save)
         main_layout.addLayout(btn_layout)

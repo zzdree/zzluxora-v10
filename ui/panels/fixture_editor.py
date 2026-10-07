@@ -1,5 +1,5 @@
 """
-fixture_editor.py — QLC+ Inspired Standalone Fixture Definition Editor Window
+fixture_editor.py | QLC+ Inspired Standalone Fixture Definition Editor Window
 Provides an independent windowed tool with its own menubar (Open, Save, Save As)
 for authoring and managing .zfx / .json fixture definitions.
 """
@@ -110,14 +110,14 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         lbl_model = QLabel("Model:")
         lbl_model.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
         self.txt_model = QLineEdit("")
-        self.txt_model.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
+        self.txt_model.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
         form_layout.addWidget(lbl_model)
         form_layout.addWidget(self.txt_model, 2)
 
         lbl_maker = QLabel("Manufacture:")
         lbl_maker.setStyleSheet(f"font-weight: 700; color: {Theme.TEXT_SECONDARY};")
         self.txt_maker = QLineEdit("")
-        self.txt_maker.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
+        self.txt_maker.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
         form_layout.addWidget(lbl_maker)
         form_layout.addWidget(self.txt_maker, 2)
 
@@ -126,7 +126,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         self.spin_channels = QSpinBox()
         self.spin_channels.setRange(1, 512)
         self.spin_channels.setValue(4)
-        self.spin_channels.setStyleSheet(f"background-color: {Theme.BG_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
+        self.spin_channels.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY}; border-radius: 3px; padding: 4px;")
         self.spin_channels.valueChanged.connect(self._on_channel_count_changed)
         form_layout.addWidget(lbl_ch)
         form_layout.addWidget(self.spin_channels, 1)
@@ -163,7 +163,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         btn_bar.addStretch()
 
         self.btn_save = QPushButton("Save")
-        self.btn_save.setStyleSheet("background-color: #16a34a; color: #ffffff; font-weight: bold; min-width: 90px; padding: 6px 14px; border-radius: 4px; border: none;")
+        self.btn_save.setStyleSheet(f"background-color: {Theme.COLOR_SUCCESS}; color: {Theme.BG_ROOT}; font-weight: bold; min-width: 90px; padding: 6px 14px; border-radius: 4px; border: none;")
         self.btn_save.clicked.connect(self._on_save_file)
         btn_bar.addWidget(self.btn_save)
 
@@ -189,12 +189,12 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
 
             init_label = default_names[i] if i < len(default_names) else f"Channel {i+1}"
             edit_label = QLineEdit(init_label)
-            edit_label.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
+            edit_label.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
             self.table.setCellWidget(i, 1, edit_label)
 
             combo = QComboBox()
             combo.addItems(CHANNEL_TYPES)
-            combo.setStyleSheet(f"background-color: {Theme.BG_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
+            combo.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
             matched = "Empty"
             for t in CHANNEL_TYPES:
                 if t.lower() in init_label.lower():

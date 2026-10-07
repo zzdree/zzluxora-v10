@@ -1,5 +1,5 @@
 """
-page_tab.py — Virtual Executor Page Tab (grandMA3 & QLC+ Style)
+page_tab.py | Virtual Executor Page Tab (grandMA3 & QLC+ Style)
 Provides tactile executor buttons for live stage lighting playback, flash buttons,
 and auto-generated cue buttons received from PerformTab.
 """
@@ -54,12 +54,12 @@ class ExecutorButton(QPushButton if HAS_QT else object):
     def update_appearance(self) -> None:
         if self.is_flash:
             border = Theme.COLOR_WARNING
-            bg = Theme.COLOR_WARNING if self.is_active else "#2b2510"
-            text_color = "#000000" if self.is_active else Theme.COLOR_WARNING
+            bg = Theme.COLOR_WARNING if self.is_active else Theme.STATUS_WARNING_BG
+            text_color = Theme.BG_ROOT if self.is_active else Theme.COLOR_WARNING
         else:
             border = Theme.ACCENT_AMBER if self.is_active else Theme.BORDER_STRONG
-            bg = "#1f2937" if self.is_active else Theme.BG_SURFACE
-            text_color = "#ffffff"
+            bg = Theme.STATUS_EXECUTOR_ACTIVE if self.is_active else Theme.BG_SURFACE
+            text_color = Theme.TEXT_PRIMARY
 
         self.setStyleSheet(f"""
             QPushButton {{
@@ -96,7 +96,7 @@ class PageTab(QWidget if HAS_QT else object):
         title_box = QVBoxLayout()
         title = QLabel("VIRTUAL PLAYBACK EXECUTORS (LIVE PAGE)")
         title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        desc = QLabel("Tombol Eksekutor Langsung Panggung (grandMA3 & QLC+ Style) | Memicu Scene, Chase, & Strobe Instan.")
+        desc = QLabel("Live Stage Playback Executor Buttons (grandMA3 & QLC+ Style) | Instant Scene, Chase, & Strobe Triggers.")
         desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px;")
         title_box.addWidget(title)
         title_box.addWidget(desc)
