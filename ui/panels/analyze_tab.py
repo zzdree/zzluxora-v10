@@ -21,6 +21,7 @@ from ui.widgets.youtube_dialog import YouTubeDialog
 from core.audio_loader import AudioLoader
 from core.feature_extractor import FeatureExtractor
 from core.emotion_model import EmotionModel
+from core.models import EmotionCoordinate
 
 
 class AudioAnalysisWorker(QThread if HAS_QT else object):
@@ -36,25 +37,25 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
 
     def run(self) -> None:
         try:
-            self.progress_updated.emit(10, "Membaca berkas audio (Decodifikasi sinyal ke PCM 22.050 Hz)...")
+            self.progress_updated.emit(10, "Loading audio file (decoding signal to PCM 22,050 Hz)...")
             loader = AudioLoader()
             signal = loader.load_audio_file(self.file_path)
 
-            self.progress_updated.emit(25, "Menerapkan Hann Windowing (N=2048, H=512) meredam spectral leakage...")
-            time.sleep(0.3)
+            self.progress_updated.emit(25, "Applying Hann windowing (N=2048, H=512) to attenuate spectral leakage...")
+            time.sleep(0.2)
 
-            self.progress_updated.emit(45, "Menghitung FFT Cooley-Tukey Radix-2 & Ekstraksi Spectral Centroid...")
+            self.progress_updated.emit(45, "Computing FFT & extracting Spectral Centroid...")
             extractor = FeatureExtractor()
             frames = extractor.analyze_audio_stream(signal)
-            time.sleep(0.3)
-
-            self.progress_updated.emit(65, "Mengekstrak 12-Semitone Chroma STFT untuk analisis tonalitas...")
             time.sleep(0.2)
 
-            self.progress_updated.emit(85, "Menghitung 13 Koefisien MFCC & Deteksi Onset Spectral Flux...")
+            self.progress_updated.emit(65, "Extracting 12-semitone Chroma STFT for tonality analysis...")
             time.sleep(0.2)
 
-            self.progress_updated.emit(95, "Memetakan koordinat afektif ke Russell 2D Plane (Valence-Arousal)...")
+            self.progress_updated.emit(85, "Computing 13 MFCC coefficients & Spectral Flux onset detection...")
+            time.sleep(0.2)
+
+            self.progress_updated.emit(95, "Mapping affective coordinates to Russell 2D Plane (Valence-Arousal)...")
 
             # Compute aggregate metrics
             avg_v = sum(f.emotion.valence for f in frames) / len(frames) if frames else 0.0
@@ -72,20 +73,24 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
             maj_energy = chroma_sums[(dominant_idx + 4) % 12]
             min_energy = chroma_sums[(dominant_idx + 3) % 12]
             if maj_energy >= min_energy:
-                tonality_str = f"{dominant_pitch} Mayor (Karakter Praise / Sukacita)"
+                tonality_str = f"{dominant_pitch} Major (Praise character)"
             else:
-                tonality_str = f"{dominant_pitch} Minor (Karakter Worship / Khidmat)"
+                tonality_str = f"{dominant_pitch} Minor (Worship character)"
 
-            # 2. MFCC Acoustic Density
-            mfcc_density = float(np.mean([f.spectral_centroid for f in frames])) / 2500.0 if frames else 0.5
-            mfcc_density = max(0.1, min(1.0, mfcc_density))
+            # 2. Real MFCC Acoustic Density / Texture Index
+            if frames and any(f.mfcc_coeffs for f in frames):
+                all_contrasts = [float(np.mean(np.abs(f.mfcc_coeffs[1:]))) for f in frames]
+                mfcc_density = float(np.mean(all_contrasts))
+            else:
+                mfcc_density = 0.5
 
-            # 3. Spectral Flux / Onset Dynamic Index
-            spectral_flux = float(np.std([f.rms_energy for f in frames])) * 2.0 if frames else 0.15
-            spectral_flux = max(0.05, min(1.0, spectral_flux))
+            # 3. Real Spectral Flux
+            stft_mat = extractor.stft_engine.compute_stft(signal)
+            mag_spec = extractor.stft_engine.compute_magnitude_spectrogram(stft_mat)
+            flux_vals = extractor.extract_spectral_flux(mag_spec)
+            spectral_flux = float(np.mean(flux_vals)) if len(flux_vals) > 0 else 0.0
 
-            emotion_model = EmotionModel()
-            quad = emotion_model.get_quadrant_label(avg_v, avg_a)
+            quad = EmotionCoordinate(valence=avg_v, arousal=avg_a).quadrant
 
             # Palette representative
             last_frame = frames[len(frames) // 2] if frames else None
@@ -97,7 +102,7 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
             }
 
             duration_sec = len(signal) / 22050.0
-            bpm_est = 120.0 if avg_a > 0.0 else 72.0
+            bpm_est = extractor.estimate_tempo_bpm(signal)
 
             result = {
                 "file_path": self.file_path,
@@ -118,7 +123,7 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
                 "palette": palette,
             }
 
-            self.progress_updated.emit(100, "Analisis Akustik Audio & Pemodelan Mood Selesai.")
+            self.progress_updated.emit(100, "Audio acoustic analysis & mood modeling complete.")
             self.analysis_finished.emit(result)
 
         except Exception as e:
@@ -215,7 +220,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         title_box = QVBoxLayout()
         lbl_title = QLabel("AUDIO STFT & AFFECTIVE MOOD ANALYZER")
         lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Short-Time Fourier Transform (N=2048, H=512, 43 FPS) | Ekstraksi Akustik MIR & Model Afektif Russell 2D")
+        lbl_desc = QLabel("Short-Time Fourier Transform (N=2048, H=512, 43 FPS) | MIR Acoustic Feature Extraction & Russell 2D Affective Model")
         lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_desc)
@@ -281,14 +286,14 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         vis_row.addWidget(self.russell_plane)
 
         # Stats Card
-        self.stats_label = QLabel("Silakan muat lagu rohani (.mp3/.wav atau link YouTube) lalu klik Analyze.")
+        self.stats_label = QLabel("Load audio track (.mp3/.wav or YouTube link) and click Analyze.")
         self.stats_label.setStyleSheet(f"font-size: 12px; color: {Theme.TEXT_SECONDARY}; line-height: 1.5;")
         self.stats_label.setWordWrap(True)
         vis_row.addWidget(self.stats_label, 1)
         right_layout.addLayout(vis_row)
 
         # Scientific Ticker & Progress
-        self.lbl_dsp_status = QLabel("Engine siap.")
+        self.lbl_dsp_status = QLabel("Engine ready.")
         self.lbl_dsp_status.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Theme.ACCENT_CYAN};")
         right_layout.addWidget(self.lbl_dsp_status)
 

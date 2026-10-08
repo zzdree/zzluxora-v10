@@ -1,5 +1,5 @@
 """
-ZZLUXORA v10.0.0 — Flagship Stage Lighting Control & Autonomous Audio-Reactive Engine
+ZZLUXORA v10.0.0 - Flagship Stage Lighting Control & Autonomous Audio-Reactive Engine
 Developed for S1 Teknik Komputer FT Universitas Negeri Semarang (UNNES).
 Peneliti: Andreas Restuawanta Christwara (NIM: 5312422036)
 Dosen Pembimbing: Mario Norman Syah, S.Pd., M.Eng. (NIP: 199304212024061001)
@@ -31,7 +31,7 @@ from core import (
 def run_cli_demo(target_ip: str = "127.0.0.1", duration: float = 3.0) -> None:
     """Runs a standalone demonstration of the core FFT & Art-Net lighting engine."""
     print("=" * 70)
-    print("⚡ ZZLUXORA v10.0.0 — CORE ENGINE STANDALONE RUNTIME")
+    print("ZZLUXORA v10.0.0 - CORE ENGINE STANDALONE RUNTIME")
     print("   Autonomous Audio-Reactive Stage Lighting Architecture")
     print("=" * 70)
     print(f"Target Art-Net Node IP : {target_ip}:6454 (Universe 0)")
@@ -59,8 +59,8 @@ def run_cli_demo(target_ip: str = "127.0.0.1", duration: float = 3.0) -> None:
             artnet.set_channels(1, [f.color.red, f.color.green, f.color.blue, f.color.white])
             artnet.send_frame()
 
-            bar = "█" * int(f.rms_energy * 20)
-            bar = bar.ljust(20, "░")
+            bar = "#" * int(f.rms_energy * 20)
+            bar = bar.ljust(20, "-")
             print(f"\rFrame {idx+1:03d}/{len(frames):03d} [{f.time_sec:.2f}s] "
                   f"RMS: [{bar}] | "
                   f"Centroid: {f.spectral_centroid:4.0f}Hz | "
@@ -75,7 +75,7 @@ def run_cli_demo(target_ip: str = "127.0.0.1", duration: float = 3.0) -> None:
         print("\n\nExecuting Blackout command...")
         artnet.blackout()
         artnet.close()
-        print("✓ All DMX channels reset to 0. Session complete.")
+        print("All DMX channels reset to 0. Session complete.")
 
 
 def build_argument_parser() -> argparse.ArgumentParser:

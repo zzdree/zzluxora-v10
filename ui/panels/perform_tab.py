@@ -232,7 +232,7 @@ class PerformTab(QWidget if HAS_QT else object):
 
     def _populate_song_cues(self, song: dict) -> None:
         """Generates dynamic worship section cues based on affective quadrant and tempo."""
-        title = song.get("title", "Lagu")
+        title = song.get("title", "Song")
         quadrant = str(song.get("quadrant", "")).lower()
         base_palette = song.get("palette", {"R": 255, "G": 200, "B": 100, "W": 40})
         r_base = int(base_palette.get("R", 255))
@@ -539,7 +539,7 @@ class PerformTab(QWidget if HAS_QT else object):
     def _on_export_to_page(self) -> None:
         """Generates executor cues across all songs and pushes to PageTab."""
         if not self.playlist:
-            QMessageBox.warning(self, "Playlist Kosong", "Tambahkan lagu ke playlist terlebih dahulu sebelum mengekspor ke Page.")
+            QMessageBox.warning(self, "Empty Playlist", "Add songs to the playlist before exporting to Page.")
             return
 
         generated_cues = []

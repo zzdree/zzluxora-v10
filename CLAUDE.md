@@ -79,7 +79,7 @@ zzluxora_v10/
 │   ├── qlcplus_template.qxw   # Template SITL loopback QLC+ (8CH)
 │   └── zzluxora_test.qxw      # Workspace pengujian visualizer loopback
 │
-├── tests/                     # Unit testing & verification (23 tests pass 100%)
+├── tests/                     # Unit testing & verification (65 tests pass 100%)
 │   ├── test_core_engine.py
 │   └── test_ui_components.py
 ├── requirements.txt           # Dependensi pustaka Python
@@ -147,7 +147,7 @@ zzluxora_v10/
 1. **Semua warna UI wajib dari token `Theme` di `ui/styles.py`** — hex inline dilarang (hanya `ui/styles.py` dan `ui/icons.py` yang boleh memuat literal hex).
 2. **Anti-slop keras:** tanpa emoji di chrome UI, tanpa em-dash/en-dash (`|` atau `-`), tanpa glow/cyberpunk palsu, tanpa biru web generik untuk aksi utama (hijau `#16a34a` / amber / cyan sesuai `DESIGN.md`).
 3. **Kontras WCAG:** teks pada fill channel terang (amber, cyan, yellow, dll) wajib pakai `Theme.SURFACE_VOID`; gelap → `Theme.TEXT_PRIMARY`. Peta lengkap di `ui/panels/address_tab.py::update_style`.
-4. **Test wajib sebelum commit:** `python3 -m unittest discover -s tests -p "test_*.py"` → saat ini **51/51 lulus**. Audit anti-slop: 0 em-dash, 0 emoji, 0 inline hex di luar token/ikon.
+4. **Test wajib sebelum commit:** `python3 -m unittest discover -s tests -p "test_*.py"` → saat ini **65/65 lulus**. Audit anti-slop: 0 em-dash, 0 emoji, 0 inline hex di luar token/ikon.
 5. **Ditunda:** *Live Cue Ribbon* (swatch RGBW + pan/tilt per cue) — menunggu arahan owner.
 
-**Status uji terakhir:** 51/51 unit test OK · CLI Art-Net exit 0 · audit anti-slop bersih · branch `main` sinkron dengan `origin/main` (`f938987`).
+**Status uji terakhir:** 65/65 unit test OK · CLI Art-Net exit 0 · audit anti-slop bersih · branch `main` sinkron dengan `origin/main` (`f938987`).

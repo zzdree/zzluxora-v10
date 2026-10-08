@@ -103,7 +103,7 @@
 - [x] Pengujian streaming paket DMX 43 FPS dari ZZLUXORA v10 ke QLC+ via Art-Net `127.0.0.1:6454` Universe 0.
 - [x] Verifikasi Play-gated packet transmission: transmisi hanya terjadi saat tombol PLAY menyala.
 - [x] Pengujian Blackout seketika memadamkan seluruh output DMX ke 0.
-- [x] 51 dari 51 unit test di `tests/` lulus 100%.
+- [x] 65 dari 65 unit test di `tests/` lulus 100% (per 8 Okt 2026).
 
 ---
 
@@ -128,7 +128,7 @@
 - [x] Perform: `[GO+]` 48px commanding + hitung mundur crossfade live (`set_crossfade_progress` / `reset_crossfade_progress`).
 
 **Fase 5 — Verifikasi:**
-- [x] 27 unit test baru (total **51/51 lulus**), audit anti-slop 0 em-dash/en-dash/emoji/inline-hex, CLI Art-Net exit 0.
+- [x] 41 unit test baru (total **65/65 lulus**), audit anti-slop 0 em-dash/en-dash/emoji/inline-hex, CLI Art-Net exit 0.
 
 **Ditunda atas pilihan owner:** *Live Cue Ribbon* (swatch RGBW + pan/tilt per cue) — belum dibuat.
 

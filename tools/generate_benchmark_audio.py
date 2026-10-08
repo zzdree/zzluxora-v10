@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-generate_benchmark_audio.py — Generates 10 Authentic Praise & Worship Benchmark Tracks
+generate_benchmark_audio.py - Generates 10 Authentic Praise & Worship Benchmark Tracks
 Produces 16-bit 22,050 Hz PCM .wav files with realistic harmonic chords, acoustic timbre,
 percussion transients, and dynamic envelope swelling for ZZLUXORA testing and Sempro defense.
 """
@@ -98,7 +98,7 @@ def synthesize_track(
 
 def generate_all_10_tracks():
     print("=" * 70)
-    print("🎵 GENERATING 10 PRAISE & WORSHIP BENCHMARK AUDIO TRACKS")
+    print("GENERATING 10 PRAISE & WORSHIP BENCHMARK AUDIO TRACKS")
     print("=" * 70)
     print(f"Target Directory: {AUDIO_DIR}")
     print(f"Format          : 16-bit PCM WAV Mono @ {SAMPLE_RATE} Hz")
@@ -129,11 +129,11 @@ def generate_all_10_tracks():
     for idx, (title, root, is_maj, bpm) in enumerate(tracks, 1):
         genre = "Praise (Q1)" if (is_maj and bpm > 100) else "Worship (Q3)"
         fpath = synthesize_track(title, root, is_maj, bpm)
-        print(f"[{idx:02d}/10] ✅ {title}.wav")
+        print(f"[{idx:02d}/10] OK {title}.wav")
         print(f"        Key: {root} {'Major' if is_maj else 'Minor'} | {bpm:.0f} BPM | {genre}")
 
     print("=" * 70)
-    print(f"🎉 SUKSES: 10 Lagu Rohani Tersimpan di {AUDIO_DIR}")
+    print(f"SUCCESS: 10 worship tracks saved to {AUDIO_DIR}")
 
 
 if __name__ == "__main__":

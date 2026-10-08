@@ -112,6 +112,6 @@ class OutputTab(QWidget):
             self.output_configured.emit(target_ip)
 
         QMessageBox.information(
-            self, "Konfigurasi Disimpan",
-            f"Alamat IP Art-Net berhasil diperbarui ke: {target_ip}:6454"
+            self, "Configuration Saved",
+            f"Art-Net IP address successfully updated to: {target_ip}:6454"
         )

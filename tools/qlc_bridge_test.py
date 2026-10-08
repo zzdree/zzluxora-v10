@@ -1,5 +1,5 @@
 """
-qlc_bridge_test.py — Art-Net Loopback Bridge Test for QLC+ Simulation
+qlc_bridge_test.py - Art-Net Loopback Bridge Test for QLC+ Simulation
 Sends continuous DMX512 frames to 127.0.0.1:6454 (Universe 0) to verify
 that QLC+ Simple Desk / Virtual Console faders move in real time without physical hardware.
 Integrated with ColorEngine (Russell 2D V-A plane & physical RGBW decomposition)
@@ -28,22 +28,22 @@ def run_fader_test(target_ip: str = "127.0.0.1", duration: float = 30.0, fixture
     fix_desc = "1 Unit Bench Test (DMX001)" if is_rgbw else "4 Units GIA Stage (DMX001, DMX017, DMX033, DMX049)"
 
     print("=" * 76)
-    print("🎛️  ZZLUXORA ➔ QLC+ ART-NET LOOPBACK BRIDGE TEST (SITL)")
+    print("ZZLUXORA -> QLC+ ART-NET LOOPBACK BRIDGE TEST (SITL)")
     print("=" * 76)
     print(f"Target Host      : {target_ip}:6454 (UDP Art-Net)")
     print(f"Target Universe  : 0 (maps to Universe 1 in QLC+)")
     print(f"Active Fixture   : {model_name}")
     print(f"Addressing Map   : {fix_desc}")
-    print(f"Color Pipeline   : Russell 2D Plane (V, A) ➔ HSV ➔ Physical {'RGBW' if is_rgbw else 'RGB'}")
+    print(f"Color Pipeline   : Russell 2D Plane (V, A) -> HSV -> Physical {'RGBW' if is_rgbw else 'RGB'}")
     print(f"Transmission FPS : 43.07 FPS (Standard DMX refresh)")
     print("-" * 76)
-    print("Petunjuk Pengaturan di QLC+:")
-    print("1. Buka QLC+ ➔ Buka workspace /home/zzdree/ANDREAS/zzluxora_test.qxw")
-    print("   atau buka tab 'Inputs/Outputs', Universe 1 centang 'Input' ArtNet 127.0.0.1.")
-    print("2. Buka Tab 'Simple Desk' atau 'Virtual Console' di QLC+.")
-    print("3. Fader channel bergerak real-time mengikuti emosi audio!")
+    print("QLC+ Setup Instructions:")
+    print("1. Open QLC+ -> open workspace /home/zzdree/ANDREAS/zzluxora_test.qxw")
+    print("   or open the 'Inputs/Outputs' tab and check 'Input' for Universe 1, ArtNet 127.0.0.1.")
+    print("2. Open the 'Simple Desk' or 'Virtual Console' tab in QLC+.")
+    print("3. Channel faders move in real time with the audio mood!")
     print("=" * 76)
-    print("Memulai transmisi paket Art-Net (Tekan Ctrl+C untuk berhenti)...\n")
+    print("Starting Art-Net packet transmission (Press Ctrl+C to stop)...\n")
 
     sender = ArtNetSender(target_ip=target_ip, universe=0)
     start_time = time.time()
@@ -103,12 +103,12 @@ def run_fader_test(target_ip: str = "127.0.0.1", duration: float = 30.0, fixture
             time.sleep(1.0 / 43.07)
 
     except KeyboardInterrupt:
-        print("\n\nPengujian dihentikan oleh user.")
+        print("\n\nTest stopped by user.")
     finally:
-        print("\nMemadamkan fader (Blackout)...")
+        print("\nTurning off faders (Blackout)...")
         sender.blackout()
         sender.close()
-        print("✓ Seluruh kanal DMX di-reset ke 0. Sesi selesai.")
+        print("All DMX channels reset to 0. Session complete.")
 
 
 if __name__ == "__main__":

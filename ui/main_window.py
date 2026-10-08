@@ -57,7 +57,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
         # DMX Buffer & State
         self.dmx_buffer = bytearray(512)
-        self.project_state = ProjectState(project_name="Untitled.zlx")
+        self.project_state = ProjectState(project_name="Untitled.zlx", universe=0, master_dimmer=255)
         self.current_project_path = "Untitled.zlx"
         self.target_ip = "127.0.0.1"
         self.target_universe = 0
@@ -250,10 +250,10 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
     def _init_shortcuts(self) -> None:
         """Global Keyboard Shortcuts."""
-        # F1 to F6: Direct workspace tab switching
+        # Ctrl+F1 to Ctrl+F6: Direct workspace tab switching
         for i in range(6):
             act = QAction(self)
-            act.setShortcut(QKeySequence(f"F{i+1}"))
+            act.setShortcut(QKeySequence(f"Ctrl+F{i+1}"))
             act.triggered.connect(lambda _, idx=i: self._switch_workspace(idx))
             self.addAction(act)
 
@@ -562,8 +562,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.current_project_path = path
             self._update_title_bar()
 
-            # Target IP & universe
+            # Target IP, UDP port, and universe
             self.target_ip = data.get("target_ip", "127.0.0.1")
+            self.target_port = data.get("port", 6454)
             self.target_universe = data.get("universe", 0)
             self.artnet_sender.close()
             self.artnet_sender = ArtNetSender(target_ip=self.target_ip, universe=self.target_universe, port=self.target_port)
@@ -679,10 +680,12 @@ class MainWindow(QMainWindow if HAS_QT else object):
                 "version": "10.0.0",
                 "project_name": Path(path).stem,
                 "target_ip": self.target_ip,
+                "port": self.target_port,
                 "universe": self.target_universe,
                 "master_dimmer": self.tab_mixer.master_fader.value,
                 "patches": patches,
                 "songs": self.tab_perform.playlist,
+                "cues": [button.cue_data for button in self.tab_page.executor_buttons],
                 "faders": faders,
             }
             with open(path, "w", encoding="utf-8") as f:

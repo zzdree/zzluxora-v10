@@ -30,8 +30,10 @@ class ProjectIO:
             "project_name": name,
             "audio_file": "",
             "target_ip": "127.0.0.1",
+            "port": 6454,
             "universe": 0,
-            "master_dimmer": 1.0,
+            "master_dimmer": 255,
+            "cues": [],
             "patches": [
                 {
                     "id": "fix_1",

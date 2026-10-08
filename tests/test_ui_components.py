@@ -1,5 +1,5 @@
 """
-test_ui_components.py — Unit tests for ZZLUXORA v10 UI and project fixtures.
+test_ui_components.py - Unit tests for ZZLUXORA v10 UI and project fixtures.
 """
 
 import json

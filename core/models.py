@@ -1,6 +1,6 @@
 """
 Data models for ZZLUXORA v10.
-Zero-GUI dependency — uses pure Python dataclasses and type hints.
+Zero-GUI dependency: uses pure Python dataclasses and type hints.
 """
 
 from __future__ import annotations

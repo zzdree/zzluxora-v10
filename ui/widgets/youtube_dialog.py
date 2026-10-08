@@ -32,7 +32,7 @@ class YouTubeDownloaderWorker(QThread if HAS_QT else object):
 
     def run(self) -> None:
         try:
-            self.progress_updated.emit(10, "Memvalidasi tautan YouTube...")
+            self.progress_updated.emit(10, "Validating YouTube link...")
 
             # Check yt-dlp availability
             has_ytdlp = False
@@ -43,7 +43,7 @@ class YouTubeDownloaderWorker(QThread if HAS_QT else object):
                 has_ytdlp = False
 
             if has_ytdlp:
-                self.progress_updated.emit(25, "Mengunduh audio stream via yt-dlp...")
+                self.progress_updated.emit(25, "Downloading audio stream via yt-dlp...")
                 # Download audio only as wav/mp3
                 output_template = str(self.output_dir / "%(title)s.%(ext)s")
                 cmd = [
@@ -57,20 +57,20 @@ class YouTubeDownloaderWorker(QThread if HAS_QT else object):
                 ]
                 proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 if proc.returncode != 0:
-                    raise RuntimeError(f"Gagal mengunduh audio: {proc.stderr[:200]}")
+                    raise RuntimeError(f"Audio download failed: {proc.stderr[:200]}")
 
                 # Find the most recently created .wav in output_dir
                 wav_files = sorted(self.output_dir.glob("*.wav"), key=os.path.getmtime, reverse=True)
                 if wav_files:
                     target_file = str(wav_files[0])
-                    self.progress_updated.emit(100, "Ekstraksi audio tuntas!")
+                    self.progress_updated.emit(100, "Audio extraction complete!")
                     self.download_finished.emit(target_file)
                     return
                 else:
-                    raise FileNotFoundError("Berkas audio hasil unduhan tidak ditemukan.")
+                    raise FileNotFoundError("Downloaded audio file not found.")
             else:
                 # Standalone fallback: generate synthetic test worship audio if yt-dlp is missing
-                self.progress_updated.emit(50, "Pustaka yt-dlp belum terpasang. Menyiapkan audio rohani lokal...")
+                self.progress_updated.emit(50, "yt-dlp is not installed. Preparing local sample audio...")
                 from core.audio_loader import AudioLoader
                 import soundfile as sf
                 loader = AudioLoader()
@@ -78,7 +78,7 @@ class YouTubeDownloaderWorker(QThread if HAS_QT else object):
                 fallback_path = self.output_dir / "YouTube_Import_Sample.wav"
                 sf.write(str(fallback_path), synth, 22050)
 
-                self.progress_updated.emit(100, "Audio siap dianalisis!")
+                self.progress_updated.emit(100, "Audio is ready for analysis!")
                 self.download_finished.emit(str(fallback_path))
 
         except Exception as e:

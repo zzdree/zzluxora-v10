@@ -39,7 +39,7 @@ class HelpDialog(QDialog if HAS_QT else object):
         grp.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
         grp_layout = QVBoxLayout(grp)
 
-        self.table = QTableWidget(11, 2)
+        self.table = QTableWidget(19, 2)
         self.table.setHorizontalHeaderLabels(["Action / Function", "Key"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
@@ -64,17 +64,25 @@ class HelpDialog(QDialog if HAS_QT else object):
         """)
 
         shortcuts = [
-            ("Open Project (.zlx)", "Ctrl + O"),
-            ("Save Project", "Ctrl + S"),
-            ("Save As Project", "Ctrl + Shift + S"),
+            ("Open Project (.zlx)", "Ctrl+O"),
+            ("Save Project", "Ctrl+S"),
+            ("Save As Project", "Ctrl+Shift+S"),
+            ("Exit", "Alt+F4"),
+            ("Open Fixture Library", "Ctrl+F"),
+            ("Open Fixture Editor", "Ctrl+E"),
+            ("Open Stage Visualizer", "Ctrl+P"),
+            ("Open Network & Art-Net Settings", "Ctrl+Shift+P"),
+            ("Open Help", "F1"),
+            ("Switch to Address workspace", "Ctrl+F1"),
+            ("Switch to Analyze workspace", "Ctrl+F2"),
+            ("Switch to Result workspace", "Ctrl+F3"),
+            ("Switch to Perform workspace", "Ctrl+F4"),
+            ("Switch to Page workspace", "Ctrl+F5"),
+            ("Switch to Mixer workspace", "Ctrl+F6"),
             ("Toggle Play / Stop Art-Net Stream", "Space"),
-            ("Instant Grand Master Blackout", "Escape / B"),
-            ("Global Undo", "Ctrl + Z"),
-            ("Global Redo", "Ctrl + Shift + Z / Ctrl + Y"),
-            ("Open Fixture Library", "Ctrl + F"),
-            ("Open Fixture Definition Editor", "Ctrl + E"),
-            ("Open Stage Lighting Visualizer", "Ctrl + P"),
-            ("Open Network & Art-Net Settings", "Ctrl + Shift + P"),
+            ("Instant Grand Master Blackout", "Esc"),
+            ("Global Undo", "Ctrl+Z"),
+            ("Global Redo", "Ctrl+Shift+Z"),
         ]
 
         for row, (action_text, key_text) in enumerate(shortcuts):

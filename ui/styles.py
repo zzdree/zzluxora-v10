@@ -39,7 +39,7 @@ class Theme:
     # -------------------------------------------------------------------------
     ACCENT_AMBER = "#f59e0b"            # grandMA Amber Gold (Master Dimmer & active tab indicator)
     ACCENT_CYAN = "#06b6d4"             # Neon Cyan Glow (Channel rails, focus rings & telemetry)
-    COLOR_SUCCESS = "#22c55e"           # Art-Net connected / live transmitting (Green)
+    COLOR_SUCCESS = "#16a34a"           # Art-Net connected / live transmitting (Green)
     COLOR_DANGER = "#ef4444"            # Blackout / disconnect / error (Red)
     COLOR_WARNING = "#eab308"           # Onset / Strobe / Shutter flash (Yellow)
     COLOR_WHITE = "#ffffff"             # Contrast surface ink for controls
