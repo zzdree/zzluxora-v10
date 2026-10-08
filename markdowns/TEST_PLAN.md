@@ -17,21 +17,20 @@ Sesuai dengan pedoman **Test-Driven Development (TDD)** dan skill **Verification
 
 ---
 
-## 🔬 2. Matriks Pengujian Unit (Unit Test Suite)
+## 🔬 2. Matriks Pengujian Unit (Unit Test Suite — 65 Tests Passed)
 
-| ID Test | Modul Target | Cakupan Pengujian | Kriteria Lulus |
-| :--- | :--- | :--- | :--- |
-| **UT-01** | `fft_engine.py` | STFT Hann Windowing ($N=2048, H=512$) | Output shape sesuai matriks frekuensi-waktu, laju $43.07\text{ FPS}$ |
-| **UT-02** | `feature_extractor.py` | RMS Energy & Parseval's Theorem | Nilai RMS $\ge 0.0$, akurat merefleksikan dinamika volume audio |
-| **UT-03** | `feature_extractor.py` | Spectral Centroid & Brightness | Nilai centroid frekuensi berada dalam rentang $0 \le f_c \le f_{\text{Nyquist}}$ |
-| **UT-04** | `feature_extractor.py` | 12-Semitone Chroma STFT | Matriks Chroma berdimensi $12 \times T$ ternormalisasi $\in [0, 1]$ |
-| **UT-05** | `feature_extractor.py` | MFCC 13-Koefisien & Mel Filterbank | 13 koefisien per frame audio diekstraksi tanpa NaN/Inf |
-| **UT-06** | `emotion_model.py` | Russell 2D Affective Plane | Koordinat $V, A \in [-1.0, 1.0]$, klasifikasi Q1 vs Q3 akurat |
-| **UT-07** | `color_engine.py` | HSV ke sRGB & Physical 4-Kanal RGBW | Dekomposisi $W = \min(R,G,B)$ murni anti-washout, $R',G',B',W \in [0, 255]$ |
-| **UT-08** | `artnet_sender.py` | Konstruksi Paket ArtDmx 530 Byte | Header 18B tepat (OpCode `0x5000` LE, ProtVer 14 BE), payload 512B |
-| **UT-09** | `project_io.py` | Serialisasi & Deserialisasi `.zlx` | Simpan dan muat berkas `.zlx` menghasilkan state identik 100% |
-| **UT-10** | `project_io.py` | Parsing Profil Fixture `.zfx` | Profil lampu JSON tervalidasi dengan jumlah kanal dan tipe mapping |
-| **UT-11** | `command_undo.py` | Global Undo/Redo Stack | Aksi patch, fader, dan playlist kembali ke kondisi semula saat undo |
+Per 8 Oktober 2026, seluruh **65 dari 65 unit test lulus 100%** (`python3 -m unittest discover -s tests -p "test_*.py"`).
+
+| ID Suite | Berkas Uji | Cakupan Pengujian | Jumlah Test | Kriteria Lulus |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-01** | `test_fft_engine.py` | STFT Hann Windowing ($N=2048, H=512, f_s=22050$) | 4 tests | Output shape matriks frekuensi-waktu tepat, laju $43.07\text{ FPS}$ |
+| **UT-02** | `test_feature_extractor.py` | RMS Parseval, Centroid 1 kHz, 13 MFCC Mel+DCT-II, Spectral Flux, Onset Strength, Tempo Autokorelasi 120 BPM | 9 tests | Seluruh fitur numerik finite, flux positif pada transien, tempo $\pm 5$ BPM |
+| **UT-03** | `test_audio_loader.py` | Pemuatan berkas WAV, normalisasi mono float32, penanganan format rusak / non-existent | 3 tests | Signal ternormalisasi $\in [-1.0, 1.0]$, error handling tepat |
+| **UT-04** | `test_emotion_model.py` | Russell 2D Affective Plane ($V, A$), Krumhansl Mode Ratio, input bobot $0.50/0.30/0.20$ | 4 tests | Koordinat $V, A \in [-1.0, 1.0]$, klasifikasi Q1 vs Q3 akurat |
+| **UT-05** | `test_color_engine.py` | Polar atan2 HSV, lantai saturasi $S \ge 0.2$, dekomposisi 4-Kanal Physical RGBW | 4 tests | $W = \min(R,G,B)$ anti-washout, $R',G',B',W \in [0, 255]$ |
+| **UT-06** | `test_artnet_sender.py` | Konstruksi Paket ArtDmx 530 Byte (Universe 0, OpCode `0x5000`) | 4 tests | Header 18B tepat little-endian, payload 512B terisi |
+| **UT-07** | `test_project_io.py` | Serialisasi `.zlx` simetris (cues Page, port UDP, universe 0, master 255), profil `.zfx` | 5 tests | Simpan & muat berkas `.zlx` identik 100% (round-trip cues/port) |
+| **UT-08** | `test_ui_components.py` | Universal Qt6 headless, Impeccable Theme tokens, Mixer, Perform, Preview 2D/3D | 32 tests | Semua modul antarmuka FOH teruji headless tanpa Qt crash |
 
 ---
 
