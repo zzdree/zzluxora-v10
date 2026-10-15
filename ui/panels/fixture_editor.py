@@ -61,6 +61,10 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             self.setWindowIcon(QIcon(str(logo_path)))
 
         self.current_file_path: Path | None = None
+        # The document as loaded from disk. _get_fixture_dict starts from this so
+        # saving keeps every field the editor does not manage (id, model, type,
+        # and any future key) instead of dropping them.
+        self._loaded_document: dict | None = None
         self._init_menu_bar()
         self._init_ui()
 
@@ -177,9 +181,35 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
 
         self._populate_table_rows(4)
 
-    def _populate_table_rows(self, count: int) -> None:
+    def _populate_table_rows(self, count: int, preserve: bool = False) -> None:
+        """Fill the channel table with `count` rows.
+
+        preserve=True carries over the label and type the operator has already
+        entered for the first min(old, new) rows, and only generates defaults
+        for genuinely new rows. Without this, changing the channel count wiped
+        every typed label and reverted each type to a name-derived guess.
+
+        Cell widgets of discarded rows are removed explicitly. setRowCount()
+        alone orphans them, and the editor leaked without bound (24 cell widgets
+        grew to 264 over a dozen count changes).
+        """
+        previous = self._read_rows() if preserve else []
+
+        # Release the cell widgets explicitly. setRowCount()/clearContents()
+        # only drop the model data; the QLineEdit and QComboBox stay parented to
+        # the viewport and accumulate, so the editor leaked without bound
+        # (24 cell widgets grew to 264 over a dozen channel-count changes).
+        for row in range(self.table.rowCount()):
+            for column in (1, 2):
+                widget = self.table.cellWidget(row, column)
+                if widget is not None:
+                    self.table.removeCellWidget(row, column)
+                    widget.setParent(None)
+                    widget.deleteLater()
+        self.table.clearContents()
         self.table.setRowCount(count)
         default_names = ["Red", "Green", "Blue", "White", "Dimmer", "Strobe", "Amber", "Macro"]
+
         for i in range(count):
             item_no = QTableWidgetItem(f"{i+1:02d}")
             item_no.setTextAlignment(Qt.AlignCenter)
@@ -188,7 +218,17 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             item_no.setFont(QFont("monospace", 10, QFont.Bold))
             self.table.setItem(i, 0, item_no)
 
-            init_label = default_names[i] if i < len(default_names) else f"Channel {i+1}"
+            if i < len(previous):
+                init_label = previous[i]["label"]
+                init_type = previous[i]["type"]
+            else:
+                init_label = default_names[i] if i < len(default_names) else f"Channel {i+1}"
+                init_type = "Empty"
+                for t in CHANNEL_TYPES:
+                    if t.lower() in init_label.lower():
+                        init_type = t
+                        break
+
             edit_label = QLineEdit(init_label)
             edit_label.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
             self.table.setCellWidget(i, 1, edit_label)
@@ -196,18 +236,28 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             combo = QComboBox()
             combo.addItems(CHANNEL_TYPES)
             combo.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; color: {Theme.TEXT_PRIMARY}; border: 1px solid {Theme.BORDER_SUBTLE}; padding: 3px;")
-            matched = "Empty"
-            for t in CHANNEL_TYPES:
-                if t.lower() in init_label.lower():
-                    matched = t
-                    break
-            combo.setCurrentText(matched)
+            combo.setCurrentText(init_type if init_type in CHANNEL_TYPES else "Empty")
             self.table.setCellWidget(i, 2, combo)
 
+    def _read_rows(self) -> list[dict]:
+        """Current label/type of every populated row, in order."""
+        rows: list[dict] = []
+        for i in range(self.table.rowCount()):
+            edit = self.table.cellWidget(i, 1)
+            combo = self.table.cellWidget(i, 2)
+            if edit is None and combo is None:
+                continue
+            rows.append({
+                "label": edit.text() if isinstance(edit, QLineEdit) else "",
+                "type": combo.currentText() if isinstance(combo, QComboBox) else "",
+            })
+        return rows
+
     def _on_channel_count_changed(self, new_count: int) -> None:
-        old_count = self.table.rowCount()
-        if new_count == old_count: return
-        self._populate_table_rows(new_count)
+        if new_count == self.table.rowCount():
+            return
+        # Preserve what the operator already typed; only new rows get defaults.
+        self._populate_table_rows(new_count, preserve=True)
 
     def _get_fixture_dict(self) -> dict:
         ch_list = []
@@ -223,15 +273,27 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
                 "default_value": 255 if ctype == "dimmer" else 0,
             })
 
-        return {
-            "name": self.txt_model.text().strip(),
+        # Start from the document that was opened and overwrite only the fields
+        # this editor owns. Rebuilding the dict from scratch dropped id, model
+        # and type, so opening a shipped .zfx and saving it rewrote the file in
+        # a schema the fixture tests and the fixture list no longer recognised.
+        document = dict(self._loaded_document) if self._loaded_document else {}
+        name = self.txt_model.text().strip()
+        document.update({
+            "name": name,
             "manufacturer": self.txt_maker.text().strip(),
             "channel_count": len(ch_list),
             "channels": ch_list,
-        }
+        })
+        # Back-fill identity fields that the file format expects.
+        document.setdefault("id", name or "custom_fixture")
+        document.setdefault("model", name)
+        document.setdefault("type", "Color Changer")
+        return document
 
     def _on_new_fixture(self) -> None:
         self.current_file_path = None
+        self._loaded_document = None
         self.txt_model.setText("")
         self.txt_maker.setText("")
         self.spin_channels.setValue(4)
@@ -249,6 +311,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         try:
             with open(path, "r", encoding="utf-8") as fp:
                 data = json.load(fp)
+                self._loaded_document = data
                 self.txt_model.setText(data.get("name", Path(path).stem))
                 self.txt_maker.setText(data.get("manufacturer", "Generic"))
                 channels = data.get("channels", [])
