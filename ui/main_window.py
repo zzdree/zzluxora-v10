@@ -436,7 +436,15 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
     @staticmethod
     def _fixture_channel_offset(channel_number: int, footprint: int = 8) -> int:
-        """Return zero-based offset within the fixed 8-channel PAR fixture footprint."""
+        """Return zero-based offset within a fixed 8-channel PAR fixture footprint.
+
+        Deprecated for address recovery. It assumes every fixture occupies
+        exactly 8 channels, so deriving a start address from it corrupts any
+        fixture with a different channel count or a non-8-aligned address.
+        Addresses now come from AddressTab.get_patched_fixtures(), which follows
+        the real contiguous run. Kept only for the fixed-footprint preview and
+        visualizer geometry.
+        """
         return (channel_number - 1) % footprint
 
     def _on_patch_changed(self) -> None:
@@ -663,20 +671,24 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
     def _save_to_path(self, path: str) -> None:
         try:
-            patches_by_fixture = {}
-            for channel in range(1, 257):
-                box = self.tab_address.grid_area.boxes.get(channel)
-                if not box or not box.is_patched:
-                    continue
-                key = (box.fixture_name, channel - self._fixture_channel_offset(channel))
-                entry = patches_by_fixture.setdefault(key, {
-                    "start_channel": channel - self._fixture_channel_offset(channel),
-                    "model": box.fixture_name,
-                    "channels": [],
-                })
-                entry["channels"].append({"index": len(entry["channels"]) + 1,
-                                          "type": box.channel_type, "label": box.channel_label})
-            patches = list(patches_by_fixture.values())
+            # Group by the fixture's real contiguous run, taken from the address
+            # grid. Deriving the start address from a modulo-8 formula wrote the
+            # wrong address for any fixture not dropped on an 8-channel boundary
+            # (a fixture at DMX 18 was saved as 17), and that wrong address then
+            # drove the wrong physical fixtures after reload.
+            patches = []
+            for fixture in self.tab_address.get_patched_fixtures():
+                entry = {
+                    "start_channel": int(fixture["start_channel"]),
+                    "model": fixture.get("name", ""),
+                    "channels": [
+                        {"index": index + 1,
+                         "type": channel.get("type", ""),
+                         "label": channel.get("label", "")}
+                        for index, channel in enumerate(fixture.get("channels", []))
+                    ],
+                }
+                patches.append(entry)
 
             faders = {}
             for ch in range(257):

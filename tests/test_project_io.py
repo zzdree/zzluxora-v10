@@ -56,7 +56,21 @@ class TestProjectIO(unittest.TestCase):
             save_faders[0].value = 192
             save_faders[1].value = 200
             save_window = SimpleNamespace(
-                tab_address=SimpleNamespace(grid_area=SimpleNamespace(boxes={})),
+                tab_address=SimpleNamespace(
+                    grid_area=SimpleNamespace(boxes={}),
+                    # Save now takes patches from the address grid's real
+                    # contiguous runs rather than a modulo-8 derivation.
+                    get_patched_fixtures=lambda: [
+                        {
+                            "name": "Alien AL36 #1 (8CH)",
+                            "start_channel": 1,
+                            "channels": [
+                                {"channel": 1 + i, "type": "red", "label": "RED"}
+                                for i in range(8)
+                            ],
+                        }
+                    ],
+                ),
                 tab_mixer=SimpleNamespace(
                     faders=save_faders,
                     master_fader=save_faders[0],
@@ -68,7 +82,6 @@ class TestProjectIO(unittest.TestCase):
                 target_ip="192.168.4.1",
                 target_port=7777,
                 target_universe=2,
-                _fixture_channel_offset=MainWindow._fixture_channel_offset,
                 _update_title_bar=Mock(),
             )
 

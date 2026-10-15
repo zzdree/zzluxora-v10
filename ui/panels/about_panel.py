@@ -50,7 +50,7 @@ class AboutDialog(QDialog if HAS_QT else object):
         title_box = QVBoxLayout()
         title = QLabel("ZZLUXORA v10")
         title.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        subtitle = QLabel("Intelligent Audio-Reactive Stage Lighting Controller • Computer Engineering FT UNNES")
+        subtitle = QLabel("Intelligent Audio-Reactive Stage Lighting Controller | Computer Engineering FT UNNES")
         subtitle.setStyleSheet(f"font-size: 11px; color: {Theme.ACCENT_CYAN};")
         title_box.addWidget(title)
         title_box.addWidget(subtitle)

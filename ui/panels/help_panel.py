@@ -81,8 +81,10 @@ class HelpDialog(QDialog if HAS_QT else object):
             ("Switch to Mixer workspace", "Ctrl+F6"),
             ("Toggle Play / Stop Art-Net Stream", "Space"),
             ("Instant Grand Master Blackout", "Esc"),
+            ("Instant Grand Master Blackout (alternate)", "B"),
             ("Global Undo", "Ctrl+Z"),
             ("Global Redo", "Ctrl+Shift+Z"),
+            ("Global Redo (alternate)", "Ctrl+Y"),
         ]
 
         for row, (action_text, key_text) in enumerate(shortcuts):

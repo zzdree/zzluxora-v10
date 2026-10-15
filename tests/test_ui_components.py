@@ -579,6 +579,78 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_patch_start_address_survives_save_reload_at_unaligned_dmx(self):
+        """A fixture not dropped on an 8-channel boundary must keep its address.
+
+        Saving used to derive the start address from a modulo-8 formula, so a
+        fixture at DMX 18 was written to the .zlx as 17. After any reload the
+        rig was patched to the wrong channels and the fixture at 17 was stomped.
+        """
+        self._application()
+        import json
+        import tempfile
+
+        from ui.main_window import MainWindow
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for start in (1, 2, 5, 8, 9, 10, 17, 18, 24, 25, 49, 50):
+                with self.subTest(start=start):
+                    win = MainWindow()
+                    win.tab_address._on_fixture_dropped(
+                        start,
+                        {"name": "F", "channels": [{"type": "red", "label": "R"}] * 6},
+                    )
+                    expected = win.tab_address.get_patched_fixtures()[0]["start_channel"]
+
+                    path = Path(tmpdir) / f"addr_{start}.zlx"
+                    win._save_to_path(str(path))
+                    saved = json.loads(path.read_text())["patches"][0]["start_channel"]
+
+                    self.assertEqual(saved, expected,
+                                     f"DMX {start} saved as {saved}")
+
+                    reloaded = MainWindow()
+                    reloaded.load_project_file(str(path), notify=False)
+                    actual = reloaded.tab_address.get_patched_fixtures()[0]["start_channel"]
+                    self.assertEqual(actual, expected,
+                                     f"DMX {start} reloaded as {actual}")
+                    win.close()
+                    reloaded.close()
+
+    def test_help_panel_shortcut_table_matches_bindings(self):
+        """Every shortcut the Help panel lists must actually be bound, and the
+        two alternates added for blackout and redo must be documented."""
+        self._application()
+        import re
+
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+
+        bound = {a.shortcut().toString() for a in win.actions() if a.shortcut().toString()}
+        for top in win.menuBar().actions():
+            if top.shortcut().toString():
+                bound.add(top.shortcut().toString())
+            menu = top.menu()
+            if menu:
+                for act in menu.actions():
+                    if act.shortcut().toString():
+                        bound.add(act.shortcut().toString())
+
+        source = (Path(__file__).resolve().parent.parent / "ui" / "panels" / "help_panel.py").read_text()
+        pairs = re.findall(r'\("([^"]+)",\s*"([^"]+)"\)', source)
+        documented = [key for _, key in pairs]
+        self.assertTrue(documented, "Help panel should list shortcuts")
+
+        for key in documented:
+            self.assertIn(key, bound, f"Help documents {key} but it is not bound")
+
+        for key in ("B", "Ctrl+Y"):
+            self.assertIn(key, documented, f"{key} is bound but missing from Help")
+            self.assertIn(key, bound, f"{key} should be bound")
+
+        win.close()
+
     def test_alien_and_kuma_autopatch_addressing(self):
         """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
         self._application()
