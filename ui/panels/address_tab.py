@@ -401,7 +401,13 @@ class AddressTab(QWidget if HAS_QT else object):
         for box in self.grid_area.boxes.values():
             box.update_style()
 
-    def _on_fixture_dropped(self, start_channel: int, fixture_data: dict) -> None:
+    def _on_fixture_dropped(self, start_channel: int, fixture_data: dict, record_undo: bool = True) -> None:
+        """Patch one fixture at a start channel.
+
+        record_undo is False when a caller has already snapshotted the grid for
+        a larger single user action (the quick-patch buttons), so one press is
+        one undo step rather than one per fixture.
+        """
         channels = fixture_data.get("channels", [])
         if not channels: return
 
@@ -427,7 +433,8 @@ class AddressTab(QWidget if HAS_QT else object):
             )
             return
 
-        self.record_undo()
+        if record_undo:
+            self.record_undo()
         fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
 
         for idx, ch_info in enumerate(channels):
@@ -512,7 +519,7 @@ class AddressTab(QWidget if HAS_QT else object):
                 "name": f"Alien AL36 #{fixture_idx + 1} (8CH)",
                 "channels": alien_channels,
             }
-            self._on_fixture_dropped(start_ch, fixture_data)
+            self._on_fixture_dropped(start_ch, fixture_data, record_undo=False)
 
     def _on_patch_kuma_bench(self) -> None:
         """Auto-patch one Kumastb STL47 (8CH RGBW) fixture at DMX001."""
@@ -534,7 +541,7 @@ class AddressTab(QWidget if HAS_QT else object):
             "name": "Kumastb STL47 (8CH RGBW)",
             "channels": kuma_channels,
         }
-        self._on_fixture_dropped(1, fixture_data)
+        self._on_fixture_dropped(1, fixture_data, record_undo=False)
 
     def _on_auto_patch_default(self) -> None:
         """Legacy compatibility method pointing to Alien AL36 4x GIA setup."""

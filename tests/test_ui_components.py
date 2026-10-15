@@ -756,6 +756,91 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_quick_patch_is_one_undo_step(self):
+        """One quick-patch press must be one undo action.
+
+        The buttons snapshot the grid once, then _on_fixture_dropped snapshotted
+        again per fixture, so one ALIEN press needed five undos to reverse and
+        the intermediate states were half-patched rigs the operator never made.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        tab = win.tab_address
+        patched = lambda: sum(1 for b in tab.grid_area.boxes.values() if b.is_patched)
+
+        for label, action, expected_cells in (
+            ("ALIEN", tab._on_patch_alien_gia, 32),
+            ("KUMA", tab._on_patch_kuma_bench, 8),
+        ):
+            with self.subTest(press=label):
+                tab.undo_stack.clear()
+                tab.redo_stack.clear()
+                for box in tab.grid_area.boxes.values():
+                    box.set_unpatched()
+
+                action()
+                self.assertEqual(len(tab.undo_stack), 1,
+                                 f"{label}: one press must record one undo entry")
+                self.assertEqual(patched(), expected_cells)
+
+                tab.undo_patch()
+                self.assertEqual(patched(), 0,
+                                 f"{label}: a single undo must clear the whole press")
+        win.close()
+
+    def test_patch_beyond_dmx_256_is_refused_not_truncated(self):
+        """A fixture that would run past DMX 256 must be refused, not truncated.
+
+        The overflow was silently dropped and the truncated channel count was
+        written to the .zlx file, so a 12-channel head at DMX 250 reloaded as a
+        7-channel fixture driving the wrong offsets.
+        """
+        self._application()
+        from unittest.mock import patch as mock_patch
+
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        tab = win.tab_address
+        fixture = {"name": "Head12", "channels": [{"type": "red", "label": "R"}] * 12}
+
+        with mock_patch("ui.panels.address_tab.QMessageBox.warning") as warned:
+            tab._on_fixture_dropped(250, fixture)
+            self.assertTrue(warned.called, "overflow must warn the operator")
+            self.assertEqual(tab.get_patched_fixtures(), [],
+                             "an out-of-range fixture must not be partially patched")
+
+            # A fixture that fits is still patched in full.
+            tab._on_fixture_dropped(100, fixture)
+            fixtures = tab.get_patched_fixtures()
+            self.assertEqual(len(fixtures), 1)
+            self.assertEqual(fixtures[0]["start_channel"], 100)
+            self.assertEqual(len(fixtures[0]["channels"]), 12)
+        win.close()
+
+    def test_page_export_replaces_instead_of_stacking(self):
+        """GENERATE EXECUTORS must replace the page, not append to it."""
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        cues = [
+            {"label": f"C{i}", "type": "scene",
+             "color": {"R": 255, "G": 0, "B": 0, "W": 0}, "dimmer": 200, "fade_time": 0.0}
+            for i in range(3)
+        ]
+        page = win.tab_page
+        page.load_cues(cues)
+        self.assertEqual(len(page.executor_buttons), 3)
+        page.load_cues(cues)
+        self.assertEqual(len(page.executor_buttons), 3,
+                         "a second export must not stack duplicate executors")
+        page.load_cues(cues)
+        self.assertEqual(len(page.executor_buttons), 3)
+        win.close()
+
     def test_alien_and_kuma_autopatch_addressing(self):
         """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
         self._application()
