@@ -213,15 +213,32 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual(vis.canvas_3d.fixtures_3d, [])
         vis.close()
 
-    def test_stage3d_reset_camera_is_eye_level(self):
+    def test_stage3d_reset_camera_is_eye_level_and_non_degenerate(self):
+        """Reset returns to a front-facing view that still shows the floor.
+
+        The camera must NOT reset to exactly pitch 0: at that angle sin(pitch)
+        is 0, so every vertex at y == 0 projects onto one scanline and the floor
+        quad, beam cone and floor pool collapse to zero-area polygons.
+        """
         self._application()
+        import math
+
         from ui.panels.preview_tab import Stage3DCanvas
+
         canvas = Stage3DCanvas()
         canvas.yaw = 1.0
         canvas.pitch = 0.5
         canvas.reset_camera()
+
         self.assertEqual(canvas.yaw, 0.0)
-        self.assertEqual(canvas.pitch, 0.0)
+        self.assertNotEqual(canvas.pitch, 0.0, "reset must not flatten the projection")
+        self.assertLess(canvas.pitch, math.radians(45))
+
+        # The floor must occupy more than one scanline.
+        floor_pts = [(0, 0, 0), (320, 0, -140), (-320, 0, -140), (260, 0, 180)]
+        rows = {round(canvas.project(*p, 400.0, 320.0)[1], 6) for p in floor_pts}
+        self.assertGreater(len(rows), 1, "floor vertices must not share one scanline")
+
         canvas.close()
 
     def test_beam_angle_control_updates_selected_fixture(self):

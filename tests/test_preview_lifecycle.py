@@ -82,3 +82,58 @@ def test_haze_timer_stays_off_when_haze_is_disabled(app):
     assert not canvas.haze_enabled
 
     win.close()
+
+
+def test_floor_projection_is_not_degenerate_at_default_camera(app):
+    """VIZ3D-01: pitch must not be exactly 0 or the floor becomes invisible.
+
+    At pitch 0, sin(pitch) is 0, so every vertex with y == 0 lands on the same
+    scanline and the floor quad, beam cone and floor pool all collapse to
+    zero-area polygons that draw nothing.
+    """
+    import math
+
+    from ui.panels.preview_tab import Stage3DCanvas
+
+    canvas = Stage3DCanvas()
+    floor = [(0, 0, 0), (320, 0, -140), (-320, 0, -140), (260, 0, 180), (-260, 0, 180)]
+
+    def scanline_count() -> int:
+        rows = {round(canvas.project(*p, 400.0, 320.0)[1], 6) for p in floor}
+        return len(rows)
+
+    assert canvas.pitch != 0.0, "default pitch must not be exactly zero"
+    assert scanline_count() > 1, "the floor must span more than one scanline"
+
+    canvas.reset_camera()
+    assert canvas.pitch != 0.0, "reset_camera must not flatten the projection"
+    assert scanline_count() > 1
+
+    canvas.pitch = math.radians(35)
+    canvas.reset_camera()
+    assert scanline_count() > 1, "reset after an orbit must stay non-degenerate"
+
+
+def test_selection_is_shared_between_2d_and_3d_canvases(app):
+    """VIZ3D-03: the drawer sliders broadcast to both canvases.
+
+    With private selection sets, a click in one view left a stale set in the
+    other, so a slider drag repositioned fixtures the operator never selected.
+    """
+    win, panel = _visualizer_with_fixture()
+    canvas_2d, canvas_3d = panel.canvas_2d, panel.canvas_3d
+
+    canvas_2d.selected_ids = {1}
+    canvas_2d.selection_changed.emit([1])
+    assert canvas_2d.selected_ids == canvas_3d.selected_ids
+
+    canvas_3d.selected_ids = {2}
+    canvas_3d.selection_changed.emit([2])
+    assert canvas_2d.selected_ids == canvas_3d.selected_ids == {2}, \
+        "a 3D click must update the 2D selection"
+
+    canvas_2d.selected_ids = {1, 2}
+    canvas_2d.selection_changed.emit([1, 2])
+    assert canvas_3d.selected_ids == {1, 2}, "multi-select must mirror too"
+
+    win.close()

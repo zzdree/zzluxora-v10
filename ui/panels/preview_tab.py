@@ -340,7 +340,12 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
 
         # Default Camera: Eye-Level Straight Front Perspective View
         self.yaw = 0.0                      # Straight ahead (0.0 rad)
-        self.pitch = 0.0                    # Eye level (0.0 rad)
+        # A slight downward tilt rather than exactly 0. At pitch == 0 sin(pitch)
+        # is 0, so every vertex with y == 0 projects onto the same scanline and
+        # the floor quad, the volumetric beam cone and the floor light pool all
+        # collapse to zero-area polygons that draw nothing. 15 degrees reads as
+        # eye level while keeping the projection non-degenerate.
+        self.pitch = math.radians(15.0)      # Eye level with a slight downward tilt
         self.cam_distance = 600.0           # Zoom distance (bounded 200..1200)
         self.pan_x = 0.0                    # Camera horizontal pan
         self.pan_y = 0.0                    # Camera vertical pan
@@ -486,9 +491,14 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         self.update()
 
     def reset_camera(self) -> None:
-        """Resets camera to eye-level front-facing view."""
+        """Resets camera to an eye-level front-facing view with a slight tilt.
+
+        The tilt matches the default and is required for the same reason: at
+        exactly 0 the whole stage floor projects onto a single scanline and the
+        floor, beam and pool polygons become invisible.
+        """
         self.yaw = 0.0
-        self.pitch = 0.0
+        self.pitch = math.radians(15.0)
         self.cam_distance = 600.0
         self.pan_x = 0.0
         self.pan_y = 0.0
@@ -954,6 +964,13 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         self.canvas_2d.fixture_selected.connect(self._on_fixture_selected)
         self.canvas_3d.fixture_selected.connect(self._on_fixture_selected)
 
+        # Keep one selection across both canvases. Each canvas owns a private
+        # selected_ids set, and the drawer sliders broadcast to BOTH canvases, so
+        # a stale set in the hidden canvas used to move fixtures the operator
+        # never picked. Mirroring on every change makes the pair behave as one.
+        self.canvas_2d.selection_changed.connect(self._mirror_selection_from_2d)
+        self.canvas_3d.selection_changed.connect(self._mirror_selection_from_3d)
+
         content_layout.addWidget(self.tabs, 1)
 
         # Side Control Drawer (Default: Hidden / Closed)
@@ -1159,6 +1176,20 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
 
     def _toggle_drawer(self) -> None:
         self.drawer_widget.setVisible(not self.drawer_widget.isVisible())
+
+    def _mirror_selection_from_2d(self, ids: list) -> None:
+        """Propagate the 2D canvas selection to the 3D canvas."""
+        wanted = set(ids)
+        if self.canvas_3d.selected_ids != wanted:
+            self.canvas_3d.selected_ids = wanted
+            self.canvas_3d.update()
+
+    def _mirror_selection_from_3d(self, ids: list) -> None:
+        """Propagate the 3D canvas selection to the 2D canvas."""
+        wanted = set(ids)
+        if self.canvas_2d.selected_ids != wanted:
+            self.canvas_2d.selected_ids = wanted
+            self.canvas_2d.update()
 
     def _on_fixture_selected(self, fixture_id: int) -> None:
         """When a single fixture is selected in 2D or 3D, load its pivot values into the sliders.

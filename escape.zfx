@@ -1,0 +1,34 @@
+{
+  "name": "../escape",
+  "manufacturer": "M",
+  "channel_count": 4,
+  "channels": [
+    {
+      "index": 1,
+      "label": "Red",
+      "type": "red",
+      "default_value": 0
+    },
+    {
+      "index": 2,
+      "label": "Green",
+      "type": "green",
+      "default_value": 0
+    },
+    {
+      "index": 3,
+      "label": "Blue",
+      "type": "blue",
+      "default_value": 0
+    },
+    {
+      "index": 4,
+      "label": "White",
+      "type": "white",
+      "default_value": 0
+    }
+  ],
+  "id": "../escape",
+  "model": "../escape",
+  "type": "Color Changer"
+}
