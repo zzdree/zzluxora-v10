@@ -215,17 +215,29 @@ class AddressGridArea(QWidget if HAS_QT else object):
 
     def _set_drag_hover(self, start_channel: int, footprint: int = 8) -> None:
         self._drag_footprint = footprint
+        # Track the previous footprint so a new hover that overlaps the old one
+        # repaints every affected cell. Comparing only the boolean left the
+        # cells shared by both footprints painted with the previous extent.
+        previous = getattr(self, "_drag_hover_range", None)
+        current = (start_channel, start_channel + footprint)
+        self._drag_hover_range = current
         for ch, box in self.boxes.items():
             in_range = (start_channel <= ch < start_channel + footprint)
-            if box.is_drag_hover != in_range:
+            was_in_range = bool(previous) and (previous[0] <= ch < previous[1])
+            if box.is_drag_hover != in_range or was_in_range:
                 box.is_drag_hover = in_range
                 box.update_style()
 
     def _clear_drag_hover(self) -> None:
+        self._drag_hover_range = None
         for box in self.boxes.values():
             if box.is_drag_hover:
                 box.is_drag_hover = False
                 box.update_style()
+
+    def clear_drag_hover(self) -> None:
+        """Public wrapper so callers outside the grid can drop a stale preview."""
+        self._clear_drag_hover()
 
     def dropEvent(self, event: QDropEvent) -> None:
         self._clear_drag_hover()
@@ -401,12 +413,16 @@ class AddressTab(QWidget if HAS_QT else object):
         for box in self.grid_area.boxes.values():
             box.update_style()
 
-    def _on_fixture_dropped(self, start_channel: int, fixture_data: dict, record_undo: bool = True) -> None:
+    def _on_fixture_dropped(self, start_channel: int, fixture_data: dict,
+                            record_undo: bool = True, notify: bool = True) -> None:
         """Patch one fixture at a start channel.
 
         record_undo is False when a caller has already snapshotted the grid for
         a larger single user action (the quick-patch buttons), so one press is
-        one undo step rather than one per fixture.
+        one undo step rather than one per fixture. notify is False for the same
+        reason: emitting patch_changed per fixture made one quick-patch press
+        re-run the full 256-fader mixer resync four times, so the caller emits
+        it once when the whole operation is done.
         """
         channels = fixture_data.get("channels", [])
         if not channels: return
@@ -433,6 +449,7 @@ class AddressTab(QWidget if HAS_QT else object):
             )
             return
 
+        self.grid_area.clear_drag_hover()
         if record_undo:
             self.record_undo()
         fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
@@ -446,7 +463,8 @@ class AddressTab(QWidget if HAS_QT else object):
                 box.set_patched(ch_type, label, fixture_name)
 
         self.update_fixture_brackets()
-        self.patch_changed.emit()
+        if notify:
+            self.patch_changed.emit()
 
     def get_patched_fixtures(self) -> list[dict]:
         """Returns list of active patched fixture blocks from the address grid."""
@@ -491,6 +509,7 @@ class AddressTab(QWidget if HAS_QT else object):
             QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
+            self.grid_area.clear_drag_hover()
             self.record_undo()
             for box in self.grid_area.boxes.values():
                 box.set_unpatched()
@@ -519,7 +538,10 @@ class AddressTab(QWidget if HAS_QT else object):
                 "name": f"Alien AL36 #{fixture_idx + 1} (8CH)",
                 "channels": alien_channels,
             }
-            self._on_fixture_dropped(start_ch, fixture_data, record_undo=False)
+            self._on_fixture_dropped(start_ch, fixture_data, record_undo=False, notify=False)
+
+        self.update_fixture_brackets()
+        self.patch_changed.emit()
 
     def _on_patch_kuma_bench(self) -> None:
         """Auto-patch one Kumastb STL47 (8CH RGBW) fixture at DMX001."""
@@ -541,7 +563,10 @@ class AddressTab(QWidget if HAS_QT else object):
             "name": "Kumastb STL47 (8CH RGBW)",
             "channels": kuma_channels,
         }
-        self._on_fixture_dropped(1, fixture_data, record_undo=False)
+        self._on_fixture_dropped(1, fixture_data, record_undo=False, notify=False)
+
+        self.update_fixture_brackets()
+        self.patch_changed.emit()
 
     def _on_auto_patch_default(self) -> None:
         """Legacy compatibility method pointing to Alien AL36 4x GIA setup."""

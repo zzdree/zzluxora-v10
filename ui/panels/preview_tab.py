@@ -165,12 +165,18 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
             clicked_id = None
+            # Keep the NEAREST hit, not the first one found. Taking the first
+            # match in list order made the fixture actually drawn under the
+            # cursor unselectable whenever two fixtures overlapped, leaving the
+            # operator unable to pick the one they could see.
+            best_distance_sq = 30 ** 2
             for fix in self.fixtures:
                 fx = fix["base_x"] + fix["offset_x"]
                 fy = fix["base_y"] + fix["offset_y"]
-                if (pos.x() - fx)**2 + (pos.y() - fy)**2 <= 30**2:
+                distance_sq = (pos.x() - fx) ** 2 + (pos.y() - fy) ** 2
+                if distance_sq <= best_distance_sq:
+                    best_distance_sq = distance_sq
                     clicked_id = fix["id"]
-                    break
 
             if clicked_id is not None:
                 if event.modifiers() & Qt.ShiftModifier:

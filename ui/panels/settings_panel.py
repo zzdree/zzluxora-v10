@@ -18,7 +18,7 @@ from ui.styles import Theme, CONSOLE_QSS
 
 class SettingsDialog(QDialog if HAS_QT else object):
     """Network & Art-Net configuration dialog for ZZLUXORA."""
-    settings_saved = Signal(str, int, int)  # (ip, port, universe)
+    settings_saved = Signal(str, int, int, int)  # (ip, port, universe, fps)
 
     def __init__(self, current_ip: str = "127.0.0.1", current_universe: int = 0, parent: QWidget | None = None):
         if not HAS_QT: return
@@ -106,9 +106,11 @@ class SettingsDialog(QDialog if HAS_QT else object):
         lbl_fps.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px;")
         row_uni.addWidget(lbl_fps)
 
+        # Stream rate. Carried through settings_saved and applied to the
+        # output timer, so the control actually changes the transmission rate.
         self.spin_fps = QSpinBox()
-        self.spin_fps.setRange(20, 60)
-        self.spin_fps.setValue(44)
+        self.spin_fps.setRange(10, 60)
+        self.spin_fps.setValue(43)
         self.spin_fps.setFixedWidth(70)
         self.spin_fps.setStyleSheet(f"background-color: {Theme.SURFACE_INPUT}; border: 1px solid {Theme.BORDER_STRONG}; color: {Theme.TEXT_PRIMARY};")
         row_uni.addWidget(self.spin_fps)
@@ -259,5 +261,5 @@ class SettingsDialog(QDialog if HAS_QT else object):
         if universe is None:
             universe = int(self.combo_universe.currentText())
 
-        self.settings_saved.emit(target_ip, port, universe)
+        self.settings_saved.emit(target_ip, port, universe, self.spin_fps.value())
         self.accept()

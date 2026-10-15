@@ -18,6 +18,7 @@ from ui.qt_compat import (
     QAction, QKeySequence, QIcon, QPixmap
 )
 
+from core.paths import ensure as ensure_dir, showfiles_dir as project_showfiles_dir
 from ui.styles import Theme, CONSOLE_QSS
 from ui.panels.address_tab import AddressTab
 from ui.panels.analyze_tab import AnalyzeTab
@@ -337,12 +338,20 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.win_settings.raise_()
         self.win_settings.activateWindow()
 
-    def _on_settings_saved(self, ip: str, port: int, universe: int) -> None:
+    def _on_settings_saved(self, ip: str, port: int, universe: int, fps: int = 43) -> None:
         self.target_ip = ip
         self.target_port = port
         self.target_universe = universe
         self.artnet_sender.close()
         self.artnet_sender = ArtNetSender(target_ip=ip, universe=universe, port=port)
+        self._apply_stream_rate(fps)
+
+    def _apply_stream_rate(self, fps: int) -> None:
+        """Set the output timer interval from a target frames-per-second value."""
+        clamped = max(1, min(120, int(fps)))
+        interval_ms = max(1, int(round(1000.0 / clamped)))
+        self.stream_timer.setInterval(interval_ms)
+        self._crossfade_timer.setInterval(interval_ms)
 
     def _on_open_help(self) -> None:
         if self.win_help is None:
@@ -663,8 +672,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             QMessageBox.critical(self, "Open Error", f"Failed to load project file:\n{e}")
 
     def _on_open_project(self) -> None:
-        showfiles_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "showfiles"
-        showfiles_dir.mkdir(parents=True, exist_ok=True)
+        showfiles_dir = ensure_dir(project_showfiles_dir())
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Open ZZLUXORA Project",
@@ -681,8 +689,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self._save_to_path(self.current_project_path)
 
     def _on_save_as_project(self) -> None:
-        showfiles_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "showfiles"
-        showfiles_dir.mkdir(parents=True, exist_ok=True)
+        showfiles_dir = ensure_dir(project_showfiles_dir())
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Save ZZLUXORA Project",

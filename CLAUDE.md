@@ -79,7 +79,7 @@ zzluxora_v10/
 │   ├── qlcplus_template.qxw   # Template SITL loopback QLC+ (8CH)
 │   └── zzluxora_test.qxw      # Workspace pengujian visualizer loopback
 │
-├── tests/                     # Unit testing & verification (74 tests pass 100%)
+├── tests/                     # Unit testing & verification (105 tests pass 100%)
 │   ├── test_fft_engine.py, test_audio_loader.py, test_feature_extractor.py
 │   ├── test_emotion_model.py, test_color_engine.py, test_artnet_sender.py
 │   ├── test_project_io.py, test_ui_components.py, test_audit_regressions.py
@@ -148,7 +148,7 @@ zzluxora_v10/
 1. **Semua warna UI wajib dari token `Theme` di `ui/styles.py`** — hex inline dilarang (hanya `ui/styles.py` dan `ui/icons.py` yang boleh memuat literal hex).
 2. **Anti-slop keras:** tanpa emoji di chrome UI, tanpa em-dash/en-dash (`|` atau `-`), tanpa glow/cyberpunk palsu, tanpa biru web generik untuk aksi utama (hijau `#16a34a` / amber / cyan sesuai `DESIGN.md`).
 3. **Kontras WCAG:** teks pada fill channel terang (amber, cyan, yellow, dll) wajib pakai `Theme.SURFACE_VOID`; gelap → `Theme.TEXT_PRIMARY`. Peta lengkap di `ui/panels/address_tab.py::update_style`.
-4. **Test wajib sebelum commit:** `python3 -m unittest discover -s tests -p "test_*.py"` → saat ini **74/74 lulus**. Audit anti-slop: 0 em-dash, 0 emoji, 0 inline hex di luar token/ikon.
+4. **Test wajib sebelum commit:** `PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py` → saat ini **105/105 lulus**. Wrapper ini menetralkan QMessageBox/QFileDialog/QInputDialog lebih dulu sehingga tidak ada popup yang muncul di layar operator saat pengujian. Perintah lama `python3 -m unittest discover -s tests -p "test_*.py"` masih sah, tetapi **dapat memunculkan popup "Project Saved"** karena beberapa jalur menyimpan berkas. Audit anti-slop: 0 em-dash, 0 emoji, 0 inline hex di luar token/ikon.
 5. **Ditunda:** *Live Cue Ribbon* (swatch RGBW + pan/tilt per cue) — menunggu arahan owner.
 
-**Status uji terakhir:** 74/74 unit test OK (commit `48ca2bd`) · CLI Art-Net exit 0 · audit anti-slop bersih · branch `main` sinkron dengan `origin/main` (`48ca2bd`).
+**Status uji terakhir:** 105/105 unit test OK · CLI Art-Net exit 0 · audit anti-slop bersih · jalankan via `tools/run_tests_guarded.py` agar tidak ada popup yang muncul saat pengujian.

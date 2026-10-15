@@ -12,6 +12,7 @@ from ui.qt_compat import (
     QListWidget, QListWidgetItem, QSplitter, QTextEdit, QIcon,
     Qt, QMimeData, QPoint, QDrag, QFont
 )
+from core.paths import fixtures_dir as project_fixtures_dir
 from ui.styles import Theme, CONSOLE_QSS
 
 
@@ -53,7 +54,7 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         if logo_path.exists():
             self.setWindowIcon(QIcon(str(logo_path)))
 
-        self.fixtures_dir = fixtures_dir or (Path.home() / "ANDREAS" / "zzluxora_v10" / "fixtures")
+        self.fixtures_dir = fixtures_dir or (project_fixtures_dir())
         self._init_ui()
         self.reload_fixtures()
 

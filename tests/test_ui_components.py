@@ -875,6 +875,68 @@ class TestUIModules(unittest.TestCase):
                 )
                 win.close()
 
+    def test_quick_patch_emits_patch_changed_once(self):
+        """One quick-patch press must resync the mixer once, not once per fixture."""
+        self._application()
+        from ui.main_window import MainWindow
+
+        for label, action in (("ALIEN", lambda t: t._on_patch_alien_gia()),
+                              ("KUMA", lambda t: t._on_patch_kuma_bench())):
+            with self.subTest(press=label):
+                win = MainWindow()
+                counter = {"n": 0}
+                win.tab_address.patch_changed.connect(lambda: counter.__setitem__("n", counter["n"] + 1))
+                action(win.tab_address)
+                self.assertEqual(counter["n"], 1,
+                                 f"{label}: expected one patch_changed emission")
+                self.assertEqual(len(win.tab_address.undo_stack), 1)
+                win.close()
+
+    def test_stream_rate_control_actually_changes_the_timer(self):
+        """The Settings FPS field must steer the output timer.
+
+        It was a dead control: FPS was absent from the settings_saved signal and
+        nothing read the spin box, so the value could never have an effect.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+
+        for fps, expected in ((20, 50), (43, 23), (60, 17)):
+            win._on_settings_saved("127.0.0.1", 6454, 0, fps)
+            self.assertEqual(win.stream_timer.interval(), expected,
+                             f"fps {fps} should set a {expected} ms interval")
+            self.assertEqual(win.artnet_sender.target_ip, "127.0.0.1")
+        win.close()
+
+    def test_export_to_page_matches_cue_table_palette(self):
+        """GENERATE EXECUTORS must use the same colours the cue table shows."""
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        panel = win.tab_perform
+        song = {"title": "Alpha Song", "bpm": 72.0,
+                "palette": {"R": 11, "G": 22, "B": 33, "W": 44},
+                "quadrant": "Q3_DEEP_WORSHIP"}
+        sections = panel._derive_section_cues(song)
+
+        captured = {}
+        panel.export_to_page.connect(lambda cues: captured.setdefault("cues", cues))
+        panel.playlist.append(song)
+        panel._on_export_to_page()
+
+        exported = [c for c in captured.get("cues", []) if c["type"] == "scene"]
+        self.assertTrue(exported)
+        verse = next(c for c in exported if "Verse" in c["label"])
+        chorus = next(c for c in exported if "Chorus" in c["label"])
+        self.assertEqual(verse["color"], sections[1]["color"],
+                         "exported verse must match the cue table")
+        self.assertEqual(chorus["color"], sections[2]["color"],
+                         "exported chorus must match the cue table")
+        win.close()
+
     def test_alien_and_kuma_autopatch_addressing(self):
         """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
         self._application()

@@ -230,8 +230,14 @@ class PerformTab(QWidget if HAS_QT else object):
         song = self.playlist[row]
         self._populate_song_cues(song)
 
-    def _populate_song_cues(self, song: dict) -> None:
-        """Generates dynamic worship section cues based on affective quadrant and tempo."""
+    def _derive_section_cues(self, song: dict) -> list[dict]:
+        """Build the worship section cues for a song.
+
+        Shared by the cue table and the Page export so both surfaces emit the
+        same colours. Previously the export used the raw song palette while the
+        table applied clamps and scaling, so the same song produced two
+        different looks depending on which button was pressed.
+        """
         title = song.get("title", "Song")
         quadrant = str(song.get("quadrant", "")).lower()
         base_palette = song.get("palette", {"R": 255, "G": 200, "B": 100, "W": 40})
@@ -359,6 +365,11 @@ class PerformTab(QWidget if HAS_QT else object):
                 },
             ]
 
+        return cues
+
+    def _populate_song_cues(self, song: dict) -> None:
+        """Render the derived section cues into the cue table."""
+        cues = self._derive_section_cues(song)
         self.current_song_cues = cues
         self.active_cue_index = -1
         self.cue_table.setRowCount(len(cues))
@@ -407,7 +418,7 @@ class PerformTab(QWidget if HAS_QT else object):
             btn_go.clicked.connect(lambda _, r=row: self._trigger_cue_at_row(r))
             self.cue_table.setCellWidget(row, 5, btn_go)
 
-        self.lbl_cue_status.setText(f"READY: {title} ({len(cues)} Section Cues)")
+        self.lbl_cue_status.setText(f"READY: {song.get('title', 'Song')} ({len(cues)} Section Cues)")
 
     # -----------------------------------------------------------------
     # CUE PLAYBACK & MASTER GO+ ENGINE
@@ -552,9 +563,14 @@ class PerformTab(QWidget if HAS_QT else object):
         for song in self.playlist:
             title = song.get("title", "Song")
             short_title = title.split("(")[0].strip()[:14]
-            palette = song.get("palette", {"R": 255, "G": 255, "B": 255, "W": 0})
             quadrant = str(song.get("quadrant", "")).lower()
             is_worship = ("worship" in quadrant or "q3" in quadrant or "q4" in quadrant)
+            # Derive the colours exactly as the cue table does, so the exported
+            # executors match what the operator previewed.
+            sections = self._derive_section_cues(song)
+            verse_palette = dict(sections[1]["color"]) if len(sections) > 1 else {"R": 255, "G": 255, "B": 255, "W": 0}
+            chorus_palette = dict(sections[2]["color"]) if len(sections) > 2 else verse_palette
+            palette = verse_palette
 
             # 1. Verse Cue
             generated_cues.append({
@@ -568,7 +584,7 @@ class PerformTab(QWidget if HAS_QT else object):
             generated_cues.append({
                 "label": f"{short_title}\n(Chorus)",
                 "type": "scene",
-                "color": palette,
+                "color": chorus_palette,
                 "dimmer": 255,
                 "fade_time": 1.2 if is_worship else 0.8,
             })
