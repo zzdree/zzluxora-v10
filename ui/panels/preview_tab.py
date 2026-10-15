@@ -1298,3 +1298,36 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
             self.canvas_2d.update_dmx_frame(channels)
         if hasattr(self, 'canvas_3d'):
             self.canvas_3d.update_dmx_frame(channels)
+
+    # -----------------------------------------------------------------
+    # WINDOW LIFECYCLE
+    # -----------------------------------------------------------------
+    def hideEvent(self, event) -> None:
+        """Stop the haze animation while the window is not visible.
+
+        The 3D canvas runs a 30 FPS repaint timer whenever Haze FX is on. Closing
+        or hiding the visualizer used to leave that timer running, so it kept
+        repainting an invisible stage for the rest of the session and quietly
+        consumed CPU that the DMX stream needs on the stage laptop.
+        """
+        if hasattr(self, "canvas_3d"):
+            self._haze_was_active = self.canvas_3d.anim_timer.isActive()
+            self.canvas_3d.anim_timer.stop()
+        super().hideEvent(event)
+
+    def showEvent(self, event) -> None:
+        """Resume the haze animation when the window becomes visible again.
+
+        Haze is a live effect, so a frozen stage would look broken. The timer is
+        restarted only when Haze FX is still on, which reuses the canvas's own
+        set_haze_enabled() so the two cannot disagree.
+        """
+        super().showEvent(event)
+        if hasattr(self, "canvas_3d") and self.canvas_3d.haze_enabled:
+            self.canvas_3d.set_haze_enabled(True)
+
+    def closeEvent(self, event) -> None:
+        """Release the animation timer when the visualizer is closed for good."""
+        if hasattr(self, "canvas_3d"):
+            self.canvas_3d.anim_timer.stop()
+        super().closeEvent(event)
