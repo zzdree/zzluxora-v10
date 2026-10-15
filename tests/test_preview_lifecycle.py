@@ -137,3 +137,44 @@ def test_selection_is_shared_between_2d_and_3d_canvases(app):
     assert canvas_3d.selected_ids == {1, 2}, "multi-select must mirror too"
 
     win.close()
+
+
+def test_multi_select_move_preserves_spacing(app):
+    """PREVIEW-2: moving a group must not stack every member on one point.
+
+    The position control assigned one absolute value to every selected fixture,
+    so three fixtures spaced at x = 60, 120, 180 all jumped to the slider value
+    after a single nudge.
+    """
+    win, panel = _visualizer_with_fixture()
+    canvas = panel.canvas_2d
+
+    for index, fixture in enumerate(canvas.fixtures):
+        fixture["offset_x"] = (index + 1) * 60
+        fixture["offset_y"] = 0
+
+    ids = {f["id"] for f in canvas.fixtures}
+    canvas.selected_ids = ids
+    spacing_before = [f["offset_x"] for f in canvas.fixtures]
+
+    canvas._last_offset_x = 0
+    panel.spin_pivot_x.setValue(150)
+
+    spacing_after = [f["offset_x"] for f in canvas.fixtures]
+    gaps_before = [b - a for a, b in zip(spacing_before, spacing_before[1:])]
+    gaps_after = [b - a for a, b in zip(spacing_after, spacing_after[1:])]
+    assert gaps_before == gaps_after, "group move must preserve relative spacing"
+
+    win.close()
+
+
+def test_single_selection_move_stays_absolute(app):
+    """A lone fixture must land exactly on the requested value."""
+    win, panel = _visualizer_with_fixture()
+    canvas = panel.canvas_2d
+
+    canvas.selected_ids = {canvas.fixtures[0]["id"]}
+    panel.spin_pivot_x.setValue(200)
+    assert canvas.fixtures[0]["offset_x"] == 200
+
+    win.close()

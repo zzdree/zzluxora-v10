@@ -87,16 +87,32 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         self.recompute_layout()
 
     def set_selected_offsets(self, ox: int, oy: int) -> None:
-        """Updates offset position for selected fixtures."""
+        """Apply a position to the selection.
+
+        A single fixture is placed exactly at (ox, oy). With several selected the
+        change is applied RELATIVE to the last value, so the spacing the operator
+        built survives the move. Assigning the absolute value to every member
+        collapsed a multi-selection onto one point: three fixtures at x = 60, 120
+        and 180 all jumped to 150 after a single slider nudge.
+        """
         if not self.selected_ids:
             self.pivot_x = ox
             self.pivot_y = oy
             self.recompute_layout()
-        else:
+        elif len(self.selected_ids) == 1:
             for fix in self.fixtures:
                 if fix["id"] in self.selected_ids:
                     fix["offset_x"] = ox
                     fix["offset_y"] = oy
+        else:
+            delta_x = ox - getattr(self, "_last_offset_x", ox)
+            delta_y = oy - getattr(self, "_last_offset_y", oy)
+            for fix in self.fixtures:
+                if fix["id"] in self.selected_ids:
+                    fix["offset_x"] += delta_x
+                    fix["offset_y"] += delta_y
+            self._last_offset_x = ox
+            self._last_offset_y = oy
         self.update()
 
     def align_fixtures_horizontal(self) -> None:
@@ -432,18 +448,34 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             fix["base_z"] = base_z
 
     def set_selected_offsets(self, ox: float, oy: float, oz: float) -> None:
-        """Applies position offsets to selected fixtures."""
+        """Apply a position to the selection.
+
+        Absolute for a single fixture, relative when several are selected, so a
+        nudge moves the group instead of stacking every member on one point.
+        """
         if not self.selected_ids:
             self.pivot_x = int(ox)
             self.pivot_y = int(oy)
             self.pivot_z = int(oz)
             self.recompute_layout()
-        else:
+        elif len(self.selected_ids) == 1:
             for fix in self.fixtures_3d:
                 if fix["id"] in self.selected_ids:
                     fix["offset_x"] = ox
                     fix["offset_y"] = oy
                     fix["offset_z"] = oz
+        else:
+            dx = ox - getattr(self, "_last_offset_x", ox)
+            dy = oy - getattr(self, "_last_offset_y", oy)
+            dz = oz - getattr(self, "_last_offset_z", oz)
+            for fix in self.fixtures_3d:
+                if fix["id"] in self.selected_ids:
+                    fix["offset_x"] += dx
+                    fix["offset_y"] += dy
+                    fix["offset_z"] += dz
+            self._last_offset_x = ox
+            self._last_offset_y = oy
+            self._last_offset_z = oz
         self.update()
 
     def set_selected_rotations(self, rx: float, ry: float, rz: float) -> None:
