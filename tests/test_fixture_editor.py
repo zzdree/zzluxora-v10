@@ -132,3 +132,63 @@ def test_cell_widgets_do_not_leak_on_resize(app):
     )
     # 16 rows -> 2 widgets per row, with a small margin.
     assert after <= 40, f"cell widgets leaked: {baseline} grew to {after}"
+
+
+def test_invalid_documents_are_rejected_with_a_reason(app):
+    """FE-04/FE-05: broken or 0-channel files must be refused, not silently rewritten.
+
+    A 0-channel file was clamped to 1 channel by the spin box minimum, so the
+    editor invented a channel the file never had. A structurally invalid file
+    loaded as a live, editable fixture and was then written back in that shape.
+    """
+    from ui.panels.fixture_editor import FixtureEditorWindow
+
+    reject = {
+        "zero channels": {"app": "ZZLUXORA", "name": "Z", "channel_count": 0, "channels": []},
+        "channel without type": {"app": "ZZLUXORA", "name": "B", "channels": [{"label": "X"}]},
+        "count mismatch": {"app": "ZZLUXORA", "name": "M", "channel_count": 9,
+                           "channels": [{"type": "red", "label": "R"}]},
+        "not a fixture": {"foo": "bar"},
+        "channels not a list": {"app": "ZZLUXORA", "channels": "nope"},
+    }
+    for label, document in reject.items():
+        reason = FixtureEditorWindow._describe_document_problem(document)
+        assert reason, f"{label} must be rejected, but was accepted"
+
+    accept = {
+        "app": "ZZLUXORA", "id": "g", "model": "G", "type": "Color Changer",
+        "name": "Good", "manufacturer": "X", "channel_count": 1,
+        "channels": [{"type": "dimmer", "label": "D"}],
+    }
+    assert FixtureEditorWindow._describe_document_problem(accept) == "", \
+        "a valid fixture profile must be accepted"
+
+
+def test_save_is_atomic_and_rejects_unsafe_names(app, tmp_path):
+    """FE-06: a failed write must not truncate an existing profile."""
+    from unittest.mock import patch as mock_patch
+
+    from ui.panels.fixture_editor import FixtureEditorWindow
+
+    win = FixtureEditorWindow()
+    win.txt_model.setText("SafeFixture")
+    win.txt_maker.setText("Generic")
+    win._populate_table_rows(4)
+
+    target = tmp_path / "safe.zfx"
+    win._write_file(str(target))
+
+    assert target.exists()
+    assert list(tmp_path.glob("*.tmp")) == [], "no temp file may be left behind"
+    saved = json.loads(target.read_text(encoding="utf-8"))
+    assert saved["name"] == "SafeFixture"
+
+    # Unsafe names must be refused rather than written.
+    with mock_patch("ui.panels.fixture_editor.QMessageBox.warning") as warned:
+        win.txt_model.setText("bad/name")
+        win._write_file(str(tmp_path / "unsafe.zfx"))
+        assert warned.called, "a name with a slash must be refused"
+
+        win.txt_model.setText("")
+        win._write_file(str(tmp_path / "noname.zfx"))
+        assert warned.called, "an empty name must be refused"

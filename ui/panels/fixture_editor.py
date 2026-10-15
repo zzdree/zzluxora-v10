@@ -6,6 +6,7 @@ for authoring and managing .zfx / .json fixture definitions.
 
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 
 from ui.qt_compat import (
@@ -239,6 +240,35 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             combo.setCurrentText(init_type if init_type in CHANNEL_TYPES else "Empty")
             self.table.setCellWidget(i, 2, combo)
 
+    @staticmethod
+    def _describe_document_problem(data: object) -> str:
+        """Return a human-readable reason the document cannot be edited, or "".
+
+        Kept separate from loading so both the open path and any future caller
+        apply the same rules, and so the reason can be shown verbatim.
+        """
+        if not isinstance(data, dict):
+            return "the file does not contain a JSON object"
+        if data.get("app") not in (None, "ZZLUXORA") and "channels" not in data:
+            return "the file is not a ZZLUXORA fixture profile"
+        channels = data.get("channels")
+        if channels is None:
+            return "the file has no 'channels' list"
+        if not isinstance(channels, list):
+            return "'channels' is not a list"
+        if len(channels) == 0:
+            return "the file declares 0 channels"
+        for index, channel in enumerate(channels, start=1):
+            if not isinstance(channel, dict):
+                return f"channel {index} is not an object"
+            if "type" not in channel:
+                return f"channel {index} has no 'type'"
+        declared = data.get("channel_count")
+        if declared is not None and declared != len(channels):
+            return (f"'channel_count' says {declared} but the file lists "
+                    f"{len(channels)} channels")
+        return ""
+
     def _read_rows(self) -> list[dict]:
         """Current label/type of every populated row, in order."""
         rows: list[dict] = []
@@ -311,10 +341,26 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         try:
             with open(path, "r", encoding="utf-8") as fp:
                 data = json.load(fp)
-                self._loaded_document = data
-                self.txt_model.setText(data.get("name", Path(path).stem))
-                self.txt_maker.setText(data.get("manufacturer", "Generic"))
-                channels = data.get("channels", [])
+
+            # Validate before touching the editor. Loading a structurally broken
+            # file used to populate the form anyway and then silently rewrite it
+            # on save, and a 0-channel file was clamped to 1 channel by the spin
+            # box minimum, so the editor invented a channel the file never had.
+            problem = self._describe_document_problem(data)
+            if problem:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Fixture Profile",
+                    f"{Path(path).name} was not opened: {problem}\n\n"
+                    "A fixture needs at least one channel, each with a label and a type.",
+                )
+                return
+
+            self._loaded_document = data
+            self.txt_model.setText(data.get("name", Path(path).stem))
+            self.txt_maker.setText(data.get("manufacturer", "Generic"))
+            channels = data.get("channels", [])
+            if len(channels) != self.spin_channels.value():
                 self.spin_channels.setValue(len(channels))
                 self._populate_table_rows(len(channels))
 
@@ -361,10 +407,40 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             self._write_file(Path(path))
 
     def _write_file(self, target_path: Path) -> None:
+        """Write the fixture profile, atomically.
+
+        The previous implementation opened the destination directly, so an error
+        part-way through truncated an existing profile to a partial file. The
+        document is now written to a temporary sibling and moved into place,
+        which is atomic on the same filesystem.
+        """
         try:
             data = self._get_fixture_dict()
-            with open(target_path, "w", encoding="utf-8") as fp:
+
+            name = str(data.get("name", "")).strip()
+            if not name:
+                QMessageBox.warning(
+                    self, "Missing Name",
+                    "Give the fixture a model name before saving.",
+                )
+                return
+            if any(sep in name for sep in ("/", "\\")) or name in (".", ".."):
+                QMessageBox.warning(
+                    self, "Invalid Name",
+                    "The model name cannot contain path separators ('/' or '\\') "
+                    "or be '.' or '..'.",
+                )
+                return
+
+            target_path = Path(target_path)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target_path.with_name(target_path.name + ".tmp")
+            with open(temporary, "w", encoding="utf-8") as fp:
                 json.dump(data, fp, indent=2)
+                fp.flush()
+                os.fsync(fp.fileno())
+            os.replace(temporary, target_path)
+
             self.current_file_path = target_path
             self.setWindowTitle(f"Fixture Editor [{target_path.name}]")
             QMessageBox.information(self, "Saved", f"Fixture profile successfully saved to:\n{target_path.name}")
