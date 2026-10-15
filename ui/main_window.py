@@ -88,6 +88,8 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self._fade_target = bytearray(512)
         self._fade_duration = 0.0
         self._fade_elapsed = 0.0
+        # Look captured when a momentary flash is pressed, restored on release.
+        self._flash_restore_buffer = bytearray()
 
         self._init_ui()
         self._init_menu_bar()
@@ -529,9 +531,30 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
     def _on_cue_activated(self, cue_info: dict) -> None:
         """Smoothly or instantly crossfades stage lighting to the triggered cue."""
+        is_flash = (cue_info.get("type") == "flash")
+
+        # A flash is momentary: pressing it jumps to the flash look, and
+        # releasing it must return to whatever was running before. Without this
+        # memory the release was routed through the normal cue path with
+        # active=False, which zeroes the dimmer and leaves the colour channels
+        # latched at the flash values, so every flash ended in a blackout plus
+        # stuck white.
+        if is_flash:
+            if cue_info.get("active", True):
+                if not self._flash_restore_buffer:
+                    self._flash_restore_buffer = bytearray(self.dmx_buffer)
+            else:
+                restore = self._flash_restore_buffer
+                self._flash_restore_buffer = bytearray()
+                if restore:
+                    if self._crossfade_timer.isActive():
+                        self._crossfade_timer.stop()
+                    self.tab_perform.reset_crossfade_progress()
+                    self._apply_dmx_buffer(bytearray(restore))
+                    return
+
         target = self._get_target_dmx_for_cue(cue_info)
         fade_time = float(cue_info.get("fade_time", cue_info.get("fade_in", 0.0)))
-        is_flash = (cue_info.get("type") == "flash")
 
         if fade_time <= 0.05 or is_flash or not HAS_QT:
             if self._crossfade_timer.isActive():
