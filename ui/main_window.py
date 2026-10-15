@@ -189,7 +189,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         pbar_layout.addStretch()
 
         # Telemetry & Main Stage Action Buttons (Right)
-        self.btn_artnet_badge = QPushButton("ART-NET: IDLE")
+        self.btn_artnet_badge = QPushButton("OUTPUT: IDLE")
         self.btn_artnet_badge.setObjectName("ArtNetBadgeBtn")
         self.btn_artnet_badge.setProperty("connected", "false")
         self.btn_artnet_badge.clicked.connect(self._on_open_settings)
@@ -387,8 +387,9 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.btn_play_stop.setProperty("state", "stop")
             self.btn_play_stop.style().polish(self.btn_play_stop)
 
-            # Update Art-Net badge to TRANSMITTING (Green)
-            self.btn_artnet_badge.setText("ART-NET: TRANSMITTING")
+            # Badge reports that frames are being streamed. UDP gives no
+            # delivery confirmation, so it must not claim the node received them.
+            self.btn_artnet_badge.setText("OUTPUT: STREAMING")
             self.btn_artnet_badge.setProperty("connected", "true")
             self.btn_artnet_badge.style().polish(self.btn_artnet_badge)
 
@@ -401,8 +402,8 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.btn_play_stop.setProperty("state", "play")
             self.btn_play_stop.style().polish(self.btn_play_stop)
 
-            # Update Art-Net badge to IDLE (Red)
-            self.btn_artnet_badge.setText("ART-NET: IDLE")
+            # Streaming stopped; no frames are leaving this machine.
+            self.btn_artnet_badge.setText("OUTPUT: IDLE")
             self.btn_artnet_badge.setProperty("connected", "false")
             self.btn_artnet_badge.style().polish(self.btn_artnet_badge)
 

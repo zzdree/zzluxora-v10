@@ -127,6 +127,29 @@ class TestArtNetPacketIntegrity(unittest.TestCase):
         self.assertEqual(packet[8:10], b"\x00\x50")  # OpDmx little-endian
 
 
+class TestArtNetSenderClosedSocketSafety(unittest.TestCase):
+    """blackout() used to raise OSError on a closed socket while send_frame()
+    returned False for the same condition. Settings replaces the sender on every
+    save, so a stale reference can still be asked to black out."""
+
+    def test_blackout_on_closed_socket_returns_false_instead_of_raising(self):
+        sender = ArtNetSender()
+        sender.close()
+        self.assertFalse(sender.blackout())
+
+    def test_send_frame_on_closed_socket_returns_false(self):
+        sender = ArtNetSender()
+        sender.close()
+        self.assertFalse(sender.send_frame())
+
+    def test_blackout_after_settings_swap_does_not_raise(self):
+        sender = ArtNetSender()
+        sender.blackout()
+        sender.close()
+        # Simulates the window closing after Settings replaced the sender.
+        self.assertFalse(sender.blackout())
+
+
 class TestProjectIoSchemaCompatibility(unittest.TestCase):
     """ProjectIO once emitted a patch schema ({id,name,profile,...}) that no
     shipped showfile uses, so its output was not interchangeable with files

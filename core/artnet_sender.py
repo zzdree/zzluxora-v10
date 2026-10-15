@@ -95,13 +95,23 @@ class ArtNetSender:
         with self._lock:
             return bytes(self._dmx_buffer)
 
-    def blackout(self) -> None:
-        """Reset all 512 channels to 0 and immediately transmit the blackout frame atomically."""
+    def blackout(self) -> bool:
+        """Reset all 512 channels to 0 and transmit the blackout frame atomically.
+
+        Returns True when the frame was handed to the socket. Mirrors
+        send_frame(): a blackout on an already-closed socket must not raise,
+        because Settings replaces the sender on every save and a stale
+        reference can still be asked to black out.
+        """
         with self._lock:
             for i in range(512):
                 self._dmx_buffer[i] = 0
             packet = self._build_packet_locked()
-        self._transmit(packet)
+        try:
+            self._transmit(packet)
+            return True
+        except OSError:
+            return False
 
     def build_packet(self) -> bytes:
         """Construct the 530-byte ArtDmx binary packet under the buffer lock."""
@@ -139,12 +149,18 @@ class ArtNetSender:
         return self.send_frame()
 
     def send_frame(self) -> bool:
-        """Transmit current DMX buffer via UDP to target IP."""
+        """Transmit current DMX buffer via UDP to target IP.
+
+        Returns True when the datagram was handed to the socket. This is NOT a
+        delivery confirmation: UDP is fire-and-forget and the sender has no
+        acknowledgement from the Art-Net node, so a True result only means the
+        packet left this process.
+        """
         try:
             packet = self.build_packet()
             self._transmit(packet)
             return True
-        except Exception:
+        except OSError:
             return False
 
     def _transmit(self, packet: bytes) -> None:
