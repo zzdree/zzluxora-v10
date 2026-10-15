@@ -41,6 +41,9 @@ class TactileFader(QWidget if HAS_QT else object):
         if is_master:
             self.setFixedWidth(68)
             self.setMinimumHeight(230)
+            # The master is the dominant control and keeps its fixed height, so
+            # it stays taller than the channel strip at every resolution.
+            self.setMaximumHeight(230)
             self.cap_width = 42
             self.cap_height = 22
             self.track_width = 6
@@ -48,7 +51,14 @@ class TactileFader(QWidget if HAS_QT else object):
             self.bottom_margin = 52
         else:
             self.setFixedWidth(52)
+            # 190px is the design height at 768p, with only mild elastic growth
+            # allowed on taller screens. Without a ceiling the layout stretched a
+            # channel fader to 548px at 768p and 860px at 1080p, which inverted
+            # the intended hierarchy by making the channels dwarf the master.
+            # The ceiling stays below the master's 230px so the master remains
+            # the dominant control at every resolution.
             self.setMinimumHeight(190)
+            self.setMaximumHeight(215)
             self.cap_width = 30
             self.cap_height = 18
             self.track_width = 4

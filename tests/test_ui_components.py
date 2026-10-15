@@ -841,6 +841,40 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual(len(page.executor_buttons), 3)
         win.close()
 
+    def test_fader_heights_stay_compact_and_master_stays_dominant(self):
+        """Channel faders must not balloon past the documented height.
+
+        Without a ceiling the layout stretched a channel fader to 548px at 768p
+        and 860px at 1080p, which made the channels dwarf the 230px Grand Master
+        and inverted the intended control hierarchy.
+        """
+        self._application()
+        from ui.qt_compat import QApplication
+        from ui.main_window import MainWindow
+
+        app = QApplication.instance()
+        for width, height in ((1366, 768), (1920, 1080), (1200, 680)):
+            with self.subTest(resolution=f"{width}x{height}"):
+                win = MainWindow()
+                win.resize(width, height)
+                win.show()
+                win._switch_workspace(5)
+                win.tab_mixer.resize(width, height - 90)
+                app.processEvents()
+
+                master = win.tab_mixer.master_fader
+                channel = win.tab_mixer.faders[1]
+
+                self.assertLessEqual(
+                    channel.height(), 260,
+                    "channel fader must stay compact instead of stretching",
+                )
+                self.assertGreater(
+                    master.height(), channel.height(),
+                    "the Grand Master must stay taller than the channel faders",
+                )
+                win.close()
+
     def test_alien_and_kuma_autopatch_addressing(self):
         """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
         self._application()
