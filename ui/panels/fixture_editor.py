@@ -66,8 +66,13 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         # saving keeps every field the editor does not manage (id, model, type,
         # and any future key) instead of dropping them.
         self._loaded_document: dict | None = None
+        # Bottom bar carrying the document's changed/unchanged statement and the
+        # discard action. Built before the menu so the menu actions can drive it.
+        self._build_status_bar()
         self._init_menu_bar()
         self._init_ui()
+        self._mark_clean()
+        self._connect_dirty_signals()
 
     def _init_menu_bar(self) -> None:
         mb = self.menuBar()
@@ -101,6 +106,118 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         act_close.setShortcut(QKeySequence("Alt+F5"))
         act_close.triggered.connect(self.close)
         menu_file.addAction(act_close)
+
+    def _build_status_bar(self) -> None:
+        """Document state text plus the discard action, in a native status bar.
+
+        The editor kept no record of whether it had been changed, and it is a
+        reused instance: closing it and reopening it from Fixture > Fixture
+        Editor brought back the previous document, its path, and its edits, so a
+        later Ctrl+S pressed for an unrelated reason rewrote the file the
+        operator had never reopened.
+        """
+        self.lbl_state = QLabel("NEW")
+        self.lbl_state.setStyleSheet(
+            f"color: {Theme.TEXT_SECONDARY}; font-family: monospace; font-weight: 700;"
+        )
+        self.btn_discard = QPushButton("Discard Changes")
+        self.btn_discard.setStyleSheet("min-width: 110px; padding: 2px 10px; border-radius: 3px;")
+        self.btn_discard.clicked.connect(self._on_discard_changes)
+        self.statusBar().addWidget(self.lbl_state)
+        self.statusBar().addPermanentWidget(self.btn_discard)
+
+    def _connect_dirty_signals(self) -> None:
+        """Mark the document changed on every edit the editor owns.
+
+        Each row's label field and type combo is new on every repopulate, so the
+        wiring is re-applied from _populate_table_rows after the rows exist.
+        """
+        self.txt_model.textEdited.connect(self._mark_dirty)
+        self.txt_maker.textEdited.connect(self._mark_dirty)
+        self.spin_channels.valueChanged.connect(self._mark_dirty)
+        self._connect_row_signals()
+
+    def _connect_row_signals(self) -> None:
+        for row in range(self.table.rowCount()):
+            edit = self.table.cellWidget(row, 1)
+            combo = self.table.cellWidget(row, 2)
+            if isinstance(edit, QLineEdit):
+                edit.textEdited.connect(self._mark_dirty)
+            if isinstance(combo, QComboBox):
+                combo.currentTextChanged.connect(self._mark_dirty)
+
+    def _mark_dirty(self, *_args) -> None:
+        self.modified = True
+        self._refresh_modified_state()
+
+    def _mark_clean(self, *_args) -> None:
+        self.modified = False
+        self._refresh_modified_state()
+
+    def _refresh_modified_state(self) -> None:
+        if self.modified:
+            self.lbl_state.setText("MODIFIED, NOT SAVED")
+            self.lbl_state.setStyleSheet(
+                f"color: {Theme.ACCENT_AMBER}; font-family: monospace; font-weight: 700;"
+            )
+            self.btn_discard.setEnabled(True)
+        else:
+            self.lbl_state.setText(
+                "SAVED" if self.current_file_path and not self._is_new_document() else "NEW"
+            )
+            self.lbl_state.setStyleSheet(
+                f"color: {Theme.TEXT_SECONDARY}; font-family: monospace; font-weight: 700;"
+            )
+            self.btn_discard.setEnabled(False)
+
+    def _is_new_document(self) -> bool:
+        """A document that was never opened from disk and carries no editor text."""
+        if self._loaded_document is not None:
+            return False
+        if self.current_file_path is not None:
+            return False
+        return not self.txt_model.text().strip()
+
+    def _confirm_discard(self, reason: str) -> bool:
+        """True when the operator agrees to throw the unsaved edits away."""
+        reply = QMessageBox.question(
+            self,
+            "Unsaved Fixture Changes",
+            f"{reason}\n\n"
+            f"'{self.txt_model.text().strip() or 'this fixture'}' has unsaved changes.\n"
+            "Close the editor and discard them?",
+            QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return reply == QMessageBox.StandardButton.Discard
+
+    def _on_discard_changes(self) -> None:
+        """Throw the edits away and restore the document that is actually on disk."""
+        if self._loaded_document is not None:
+            self._apply_document(self._loaded_document, self.current_file_path)
+        else:
+            self._reset_document()
+        self._mark_clean()
+
+    def closeEvent(self, event) -> None:
+        """Never let a hidden window carry unsaved edits back from the dead.
+
+        Closing used to leave the edits, the loaded document, and the file path
+        in place; the same instance is reused by Fixture > Fixture Editor, so
+        reopening it restored the discarded document and a later Ctrl+S rewrote
+        the file unasked. The window still hides instead of being destroyed, so
+        the reopening stays instant, but the document is made clean first.
+        """
+        if self.modified and self.isVisible():
+            if not self._confirm_discard("Closing the editor discards the edits."):
+                event.ignore()
+                return
+        if self._loaded_document is not None:
+            self._apply_document(self._loaded_document, self.current_file_path)
+        else:
+            self._reset_document()
+        self._mark_clean()
+        super().closeEvent(event)
 
     def _init_ui(self) -> None:
         central_widget = QWidget(self)
@@ -240,6 +357,9 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
             combo.setCurrentText(init_type if init_type in CHANNEL_TYPES else "Empty")
             self.table.setCellWidget(i, 2, combo)
 
+        # The row widgets were just recreated, so their dirty wiring goes with them.
+        self._connect_row_signals()
+
     @staticmethod
     def _describe_document_problem(data: object) -> str:
         """Return a human-readable reason the document cannot be edited, or "".
@@ -321,7 +441,8 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         document.setdefault("type", "Color Changer")
         return document
 
-    def _on_new_fixture(self) -> None:
+    def _reset_document(self) -> None:
+        """Return the editor to the empty 4-channel start state."""
         self.current_file_path = None
         self._loaded_document = None
         self.txt_model.setText("")
@@ -329,6 +450,39 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
         self.spin_channels.setValue(4)
         self._populate_table_rows(4)
         self.setWindowTitle("Fixture Editor")
+
+    def _apply_document(self, data: dict, path: Path | None) -> None:
+        """Populate the form from a parsed fixture document.
+
+        Shared by New, Open and Discard so all three land in exactly the same
+        state, and so a reused window can never show a mix of two documents.
+        """
+        self._loaded_document = data
+        self.current_file_path = Path(path) if path else None
+        self.txt_model.setText(data.get("name", Path(path).stem if path else ""))
+        self.txt_maker.setText(data.get("manufacturer", "Generic"))
+
+        channels = data.get("channels", [])
+        self.spin_channels.setValue(max(1, len(channels)))
+        self._populate_table_rows(max(1, len(channels)))
+        for i, ch in enumerate(channels):
+            edit = self.table.cellWidget(i, 1)
+            combo = self.table.cellWidget(i, 2)
+            if isinstance(edit, QLineEdit):
+                edit.setText(ch.get("label", ""))
+            if isinstance(combo, QComboBox):
+                declared = str(ch.get("type", "")).lower()
+                matched = next((t for t in CHANNEL_TYPES if t.lower() == declared), None)
+                combo.setCurrentText(matched or "Empty")
+
+        self.setWindowTitle(
+            f"Fixture Editor [{self.current_file_path.name}]"
+            if self.current_file_path else "Fixture Editor"
+        )
+
+    def _on_new_fixture(self) -> None:
+        self._reset_document()
+        self._mark_clean()
 
     def _on_open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -356,30 +510,8 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
                 )
                 return
 
-            self._loaded_document = data
-            self.txt_model.setText(data.get("name", Path(path).stem))
-            self.txt_maker.setText(data.get("manufacturer", "Generic"))
-            channels = data.get("channels", [])
-            if len(channels) != self.spin_channels.value():
-                self.spin_channels.setValue(len(channels))
-                self._populate_table_rows(len(channels))
-
-                for i, ch in enumerate(channels):
-                    edit = self.table.cellWidget(i, 1)
-                    combo = self.table.cellWidget(i, 2)
-                    if isinstance(edit, QLineEdit): edit.setText(ch.get("label", ""))
-                    if isinstance(combo, QComboBox):
-                        t = ch.get("type", "dimmer").title()
-                        if t in CHANNEL_TYPES:
-                            combo.setCurrentText(t)
-                        else:
-                            for ct in CHANNEL_TYPES:
-                                if ct.lower() == ch.get("type", "").lower():
-                                    combo.setCurrentText(ct)
-                                    break
-
-                self.current_file_path = Path(path)
-                self.setWindowTitle(f"Fixture Editor [{self.current_file_path.name}]")
+            self._apply_document(data, Path(path))
+            self._mark_clean()
         except Exception as e:
             QMessageBox.critical(self, "Open Error", f"Failed to open fixture profile:\n{e}")
 
@@ -443,6 +575,7 @@ class FixtureEditorWindow(QMainWindow if HAS_QT else object):
 
             self.current_file_path = target_path
             self.setWindowTitle(f"Fixture Editor [{target_path.name}]")
+            self._mark_clean()
             QMessageBox.information(self, "Saved", f"Fixture profile successfully saved to:\n{target_path.name}")
         except Exception as e:
             QMessageBox.critical(self, "Save Error", f"Failed to save fixture profile:\n{e}")

@@ -749,14 +749,22 @@ class MainWindow(QMainWindow if HAS_QT else object):
             QMessageBox.critical(self, "Save Error", f"Failed to save project file:\n{e}")
 
     def closeEvent(self, event) -> None:
+        # Close all child windows. The Fixture Editor refuses to close while it
+        # holds unsaved changes the operator chose to keep, and aborting the whole
+        # shutdown is safer than destroying a document on the way out.
+        children = [
+            self.win_fixture_list,
+            self.win_fixture_editor,
+            self.win_visualizer,
+            self.win_settings,
+            self.win_help,
+            self.win_about,
+        ]
+        for window in children:
+            if window is not None and not window.close():
+                event.ignore()
+                return
         self.stream_timer.stop()
         self.artnet_sender.blackout()
         self.artnet_sender.close()
-        # Close all child windows
-        if self.win_fixture_list: self.win_fixture_list.close()
-        if self.win_fixture_editor: self.win_fixture_editor.close()
-        if self.win_visualizer: self.win_visualizer.close()
-        if self.win_settings: self.win_settings.close()
-        if self.win_help: self.win_help.close()
-        if self.win_about: self.win_about.close()
         event.accept()
