@@ -138,3 +138,26 @@ def test_complete_result_still_renders_and_enables_export(app):
     assert "2100.0 Hz" in joined
     assert "R:20 G:40 B:80 W:10" in joined
     assert tab.btn_export.isEnabled()
+
+
+def test_texture_metrics_are_normalized(app, tmp_path):
+    """ANLZ-03: the Result tab labels these as indices, so they must be 0-1.
+
+    The worker used to report the engine's raw unbounded quantities: spectral
+    flux summed per frame (0 to about 258) and the raw MFCC contrast mean (about
+    24 to 48). Read on screen as an "index" and a "density", those numbers invite
+    the wrong interpretation in a thesis table.
+    """
+    from pathlib import Path as _Path
+
+    repo_root = _Path(__file__).resolve().parent.parent
+    audio = sorted((repo_root / "data" / "audio").glob("*.wav"))
+    if not audio:
+        pytest.skip("no bundled audio to analyse")
+
+    result = _analyse(audio[0])
+
+    mfcc = result.get("mfcc_density")
+    flux = result.get("spectral_flux")
+    assert mfcc is not None and 0.0 <= mfcc <= 1.0, f"mfcc_density out of range: {mfcc}"
+    assert flux is not None and 0.0 <= flux <= 1.0, f"spectral_flux out of range: {flux}"

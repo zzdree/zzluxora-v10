@@ -90,18 +90,29 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
                 dominant_pitch = "-"
                 tonality_str = "No tonal content (silent or unanalysable input)"
 
-            # 2. Real MFCC Acoustic Density / Texture Index
+            # 2. MFCC acoustic texture, on the engine's normalized 0-1 scale.
+            #
+            # The raw frame-wise mean of |c1..c12| is an unbounded quantity
+            # (about 24 to 48 in practice), yet the Result tab labels it an
+            # "Index". The engine already provides _normalize_mfcc_contrast(),
+            # which min-max normalizes the same contrast to 0-1, so use that and
+            # keep the reported number on the scale the label claims.
             if frames and any(f.mfcc_coeffs for f in frames):
-                all_contrasts = [float(np.mean(np.abs(f.mfcc_coeffs[1:]))) for f in frames]
-                mfcc_density = float(np.mean(all_contrasts))
+                mfcc_matrix = np.array([f.mfcc_coeffs for f in frames], dtype=np.float64).T
+                normalized = extractor._normalize_mfcc_contrast(mfcc_matrix)
+                mfcc_density = float(np.mean(normalized)) if normalized.size else 0.0
             else:
-                mfcc_density = 0.5
+                mfcc_density = 0.0
 
-            # 3. Real Spectral Flux
+            # 3. Spectral flux, likewise normalized to 0-1 by the engine.
+            #
+            # extract_spectral_flux() returns an unbounded per-frame sum (0 to
+            # about 258 on real audio). extract_onset_strength() normalizes that
+            # same flux by its track peak, matching the "Density" label.
             stft_mat = extractor.stft_engine.compute_stft(signal)
             mag_spec = extractor.stft_engine.compute_magnitude_spectrogram(stft_mat)
-            flux_vals = extractor.extract_spectral_flux(mag_spec)
-            spectral_flux = float(np.mean(flux_vals)) if len(flux_vals) > 0 else 0.0
+            onset_vals = extractor.extract_onset_strength(mag_spec)
+            spectral_flux = float(np.mean(onset_vals)) if len(onset_vals) > 0 else 0.0
 
             # A quadrant only means something when there is audio to classify.
             # Silence produced valence 0 and arousal 0, which the quadrant
