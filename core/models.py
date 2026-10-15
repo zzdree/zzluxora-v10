@@ -6,7 +6,7 @@ Zero-GUI dependency: uses pure Python dataclasses and type hints.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class ChannelType(str, Enum):
@@ -186,7 +186,7 @@ class AudioFrameFeatures:
 class ProjectState:
     project_name: str = "Untitled.zlx"
     target_ip: str = "127.0.0.1"
-    universe: int = 1
+    universe: int = 0
     master_dimmer: int = 255
     patches: List[PatchEntry] = field(default_factory=list)
     songs: List[Dict[str, Any]] = field(default_factory=list)

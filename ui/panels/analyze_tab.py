@@ -39,7 +39,7 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
         try:
             self.progress_updated.emit(10, "Loading audio file (decoding signal to PCM 22,050 Hz)...")
             loader = AudioLoader()
-            signal = loader.load_audio_file(self.file_path)
+            signal, _loaded_sample_rate = loader.load_audio(self.file_path)
 
             self.progress_updated.emit(25, "Applying Hann windowing (N=2048, H=512) to attenuate spectral leakage...")
             time.sleep(0.2)
@@ -101,7 +101,7 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
                 "W": last_frame.color.white if last_frame else 0,
             }
 
-            duration_sec = len(signal) / 22050.0
+            duration_sec = len(signal) / float(extractor.sample_rate)
             bpm_est = extractor.estimate_tempo_bpm(signal)
 
             result = {
@@ -109,7 +109,7 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
                 "title": Path(self.file_path).stem,
                 "duration_sec": duration_sec,
                 "frames_count": len(frames),
-                "fps_rate": 43.07,
+                "fps_rate": float(extractor.stft_engine.fps),
                 "valence": avg_v,
                 "arousal": avg_a,
                 "rms": avg_rms,
@@ -357,6 +357,8 @@ class AnalyzeTab(QWidget if HAS_QT else object):
             self.btn_remove.setEnabled(len(self.loaded_songs) > 0)
 
     def _on_start_analysis(self) -> None:
+        if self.worker is not None and self.worker.isRunning():
+            return
         row = self.song_list_widget.currentRow()
         if not (0 <= row < len(self.loaded_songs)):
             return
@@ -371,7 +373,14 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         self.worker.progress_updated.connect(self._on_analysis_progress)
         self.worker.analysis_finished.connect(self._on_analysis_finished)
         self.worker.analysis_failed.connect(self._on_analysis_failed)
+        self.worker.finished.connect(self._release_worker)
         self.worker.start()
+
+    def _release_worker(self) -> None:
+        """Release the finished worker deterministically so threads are not leaked."""
+        if self.worker is not None:
+            self.worker.deleteLater()
+            self.worker = None
 
     def _on_analysis_progress(self, percent: int, msg: str) -> None:
         self.progress_bar.setValue(percent)

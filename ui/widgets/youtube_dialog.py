@@ -55,19 +55,30 @@ class YouTubeDownloaderWorker(QThread if HAS_QT else object):
                     "--no-playlist",
                     self.url
                 ]
+                # Snapshot existing WAVs so only a genuinely new file is accepted.
+                # Without this, a failed conversion silently attaches a stale WAV
+                # left over from a previous download.
+                before = {p.resolve() for p in self.output_dir.glob("*.wav")}
                 proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 if proc.returncode != 0:
-                    raise RuntimeError(f"Audio download failed: {proc.stderr[:200]}")
+                    raise RuntimeError(
+                        f"Audio download failed (is ffmpeg installed for --audio-format wav?): "
+                        f"{proc.stderr[:200]}"
+                    )
 
-                # Find the most recently created .wav in output_dir
-                wav_files = sorted(self.output_dir.glob("*.wav"), key=os.path.getmtime, reverse=True)
-                if wav_files:
-                    target_file = str(wav_files[0])
-                    self.progress_updated.emit(100, "Audio extraction complete!")
-                    self.download_finished.emit(target_file)
-                    return
-                else:
-                    raise FileNotFoundError("Downloaded audio file not found.")
+                produced = [
+                    p for p in self.output_dir.glob("*.wav")
+                    if p.resolve() not in before
+                ]
+                if not produced:
+                    raise FileNotFoundError(
+                        "yt-dlp finished but produced no new .wav file. "
+                        "Check that ffmpeg is installed and the URL is a valid single track."
+                    )
+                target_file = str(max(produced, key=os.path.getmtime))
+                self.progress_updated.emit(100, "Audio extraction complete!")
+                self.download_finished.emit(target_file)
+                return
             else:
                 # Standalone fallback: generate synthetic test worship audio if yt-dlp is missing
                 self.progress_updated.emit(50, "yt-dlp is not installed. Preparing local sample audio...")

@@ -16,7 +16,8 @@ class STFTEngine:
     Default parameters:
         sample_rate = 22050 Hz (MIR standard)
         n_fft       = 2048 samples (Frequency resolution ~10.77 Hz per bin)
-        hop_length  = 512 samples  (Time hop ~23.22 ms, ~43.07 FPS aligned with DMX512)
+        hop_length  = 512 samples  (Analysis rate ~23.22 ms per hop, ~43.07 fps)
+                                    DMX output rate is set independently by the ESP32 firmware.
     """
 
     def __init__(self, sample_rate: int = 22050, n_fft: int = 2048, hop_length: int = 512):

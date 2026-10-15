@@ -27,7 +27,7 @@ zzluxora_v10/
 ├── core/                      # PURE PYTHON ENGINE (ZERO-GUI DEPENDENCY)
 │   ├── __init__.py
 │   ├── audio_loader.py        # Pemuat audio multi-format (.wav, .mp3, .flac, .ogg)
-│   ├── fft_engine.py          # Implementasi STFT (Hann Window, N=2048, H=512, fs=22050, 43.07 FPS)
+│   ├── fft_engine.py          # STFT engine (Hann Window, N=2048, H=512, fs=22050, laju analisis 43.07 FPS; FFT via np.fft.rfft)
 │   ├── feature_extractor.py   # Ekstraksi RMS, Spectral Centroid, Chroma 12-semitone, MFCC, Flux
 │   ├── emotion_model.py       # Model Afektif Russell 2D Plane (Valence-Arousal)
 │   ├── color_engine.py        # Konversi (V, A, RMS) -> HSV -> RGB -> Physical 4-Kanal RGBW

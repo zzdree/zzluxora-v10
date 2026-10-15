@@ -81,7 +81,7 @@ class OutputTab(QWidget):
         proto_layout.addWidget(QLabel("• Transmission Protocol: Art-Net 4 (ArtDmx OpOutput 0x5000)"))
         proto_layout.addWidget(QLabel("• Network Port: UDP 6454"))
         proto_layout.addWidget(QLabel("• DMX Universe: Universe 0 (Sub-Net 0, Net 0)"))
-        proto_layout.addWidget(QLabel("• Frame Rate: 43.07 FPS (Sync STFT H=512 & DMX512-A Standard)"))
+        proto_layout.addWidget(QLabel("• Analysis Rate: 43.07 FPS (STFT hop H=512) | DMX output rate set by ESP32 firmware"))
         main_layout.addWidget(proto_group)
 
         # Save Button

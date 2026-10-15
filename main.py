@@ -35,7 +35,7 @@ def run_cli_demo(target_ip: str = "127.0.0.1", duration: float = 3.0) -> None:
     print("   Autonomous Audio-Reactive Stage Lighting Architecture")
     print("=" * 70)
     print(f"Target Art-Net Node IP : {target_ip}:6454 (Universe 0)")
-    print(f"Sample Rate / Window   : 22,050 Hz | N_FFT = 2048 | Hop = 512 (~43.07 FPS)")
+    print(f"Sample Rate / Window   : 22,050 Hz | N_FFT = 2048 | Hop = 512 (laju analisis ~43.07 FPS)")
 
     loader = AudioLoader()
     print("\n[1/3] Generating synthetic Praise & Worship acoustic stream...")

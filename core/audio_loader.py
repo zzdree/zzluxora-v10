@@ -39,12 +39,21 @@ class AudioLoader:
         elif sampwidth == 1:
             dtype = np.uint8
             max_val = 128.0
+        elif sampwidth == 3:
+            # 24-bit PCM: sign-extend three little-endian bytes into int32.
+            raw_24 = np.frombuffer(raw_bytes, dtype=np.uint8).reshape(-1, 3).astype(np.int32)
+            audio_24 = raw_24[:, 0] | (raw_24[:, 1] << 8) | (raw_24[:, 2] << 16)
+            audio_24 = np.where(audio_24 >= 0x800000, audio_24 - 0x1000000, audio_24)
+            audio = (audio_24.astype(np.float32)) / 8388608.0
+            return self._finalize(audio, n_channels, framerate)
         elif sampwidth == 4:
             dtype = np.int32
             max_val = 2147483648.0
         else:
-            dtype = np.int16
-            max_val = 32768.0
+            raise ValueError(
+                f"Unsupported WAV sample width: {sampwidth} bytes "
+                f"(supported: 1, 2, 3, 4). Refusing to guess a dtype."
+            )
 
         audio = np.frombuffer(raw_bytes, dtype=dtype).astype(np.float32)
 
@@ -53,6 +62,10 @@ class AudioLoader:
         else:
             audio = audio / max_val
 
+        return self._finalize(audio, n_channels, framerate)
+
+    def _finalize(self, audio: np.ndarray, n_channels: int, framerate: int) -> Tuple[np.ndarray, int]:
+        """Downmix to mono and resample to the target rate."""
         # Downmix stereo to mono
         if n_channels > 1:
             audio = audio.reshape(-1, n_channels)

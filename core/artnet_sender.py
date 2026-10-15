@@ -41,7 +41,9 @@ class ArtNetSender:
 
         # 512 DMX channels buffer (index 0 corresponds to DMX channel 1)
         self._dmx_buffer = bytearray(512)
-        self._sequence = 0
+        # Sequence counter starts at 1; the value 0 is reserved by the Art-Net
+        # specification to mean "sequence disabled", so it must never be emitted.
+        self._sequence = 1
         self._lock = threading.Lock()
 
         # Initialize UDP socket
@@ -94,16 +96,29 @@ class ArtNetSender:
             return bytes(self._dmx_buffer)
 
     def blackout(self) -> None:
-        """Reset all 512 channels to 0 and immediately send packet."""
+        """Reset all 512 channels to 0 and immediately transmit the blackout frame atomically."""
         with self._lock:
             for i in range(512):
                 self._dmx_buffer[i] = 0
-        self.send_frame()
+            packet = self._build_packet_locked()
+        self._transmit(packet)
 
     def build_packet(self) -> bytes:
-        """Construct the 530-byte ArtDmx binary packet."""
+        """Construct the 530-byte ArtDmx binary packet under the buffer lock."""
+        with self._lock:
+            return self._build_packet_locked()
+
+    def _build_packet_locked(self) -> bytes:
+        """Construct the ArtDmx packet. Caller MUST already hold self._lock."""
         sub_uni = self.universe & 0xFF
         net = (self.universe >> 8) & 0x7F
+
+        # Snapshot and advance the sequence counter atomically so no two
+        # concurrently-built packets ever share a Sequence value.
+        sequence = self._sequence
+        self._sequence = (self._sequence + 1) % 256
+        if self._sequence == 0:
+            self._sequence = 1
 
         # Header 18 bytes:
         # ID [8B] + OpCode 0x5000 [2B little-endian] + ProtVer 14 [2B big-endian] +
@@ -112,19 +127,11 @@ class ArtNetSender:
             self.HEADER_ID +
             b"\x00\x50" +
             b"\x00\x0e" +
-            bytes([self._sequence, 0x00, sub_uni, net]) +
+            bytes([sequence, 0x00, sub_uni, net]) +
             b"\x02\x00"
         )
 
-        with self._lock:
-            packet = header + bytes(self._dmx_buffer)
-
-        # Advance sequence number (1-255, 0 = disabled)
-        self._sequence = (self._sequence + 1) % 256
-        if self._sequence == 0:
-            self._sequence = 1
-
-        return packet
+        return header + bytes(self._dmx_buffer)
 
     def send_raw(self, buffer: Sequence[int]) -> bool:
         """Set DMX channels from buffer and immediately transmit packet."""
@@ -135,10 +142,14 @@ class ArtNetSender:
         """Transmit current DMX buffer via UDP to target IP."""
         try:
             packet = self.build_packet()
-            self._socket.sendto(packet, (self.target_ip, self.port))
+            self._transmit(packet)
             return True
         except Exception:
             return False
+
+    def _transmit(self, packet: bytes) -> None:
+        """Send a fully built packet to the target endpoint."""
+        self._socket.sendto(packet, (self.target_ip, self.port))
 
     def close(self) -> None:
         """Close the socket connection."""
