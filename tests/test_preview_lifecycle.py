@@ -233,3 +233,36 @@ def test_hit_test_picks_the_nearest_fixture(app):
             f"{key} hit-test must resolve the nearest fixture"
 
     win.close()
+
+
+def test_each_quadrant_gets_its_own_cue_character(app):
+    """ANLZ-05: Q2_INTENSE_REVERENCE must not be lit as joyful praise.
+
+    Only q3/q4 matched the worship branch, so Q2 (low valence, HIGH arousal,
+    solemn but driving) fell through to the Praise set and received the mood
+    "Praise Energy Rise" with a bright saturated amber palette.
+    """
+    from ui.panels.perform_tab import PerformTab
+
+    panel = PerformTab()
+    palette = {"R": 255, "G": 160, "B": 20, "W": 30}
+    mood = {}
+    energy = {}
+    for quadrant in ("Q1_PRAISE_HIGH", "Q2_INTENSE_REVERENCE",
+                     "Q3_DEEP_WORSHIP", "Q4_PEACE_INTIMACY"):
+        cues = panel._derive_section_cues(
+            {"title": "T", "quadrant": quadrant, "palette": palette}
+        )
+        mood[quadrant] = cues[0]["mood"]
+        energy[quadrant] = cues[0]["dimmer"]
+
+    # Q1 stays the joyful praise set.
+    assert "praise" in mood["Q1_PRAISE_HIGH"].lower()
+    # Q2 must be its own solemn-but-driving set, not praise and not the calm worship wash.
+    assert "praise" not in mood["Q2_INTENSE_REVERENCE"].lower()
+    assert mood["Q2_INTENSE_REVERENCE"] != mood["Q3_DEEP_WORSHIP"]
+    # Q2 is the low-valence HIGH-arousal quadrant, so it must be more energetic
+    # than the calm worship wash even though it is not joyful.
+    assert energy["Q2_INTENSE_REVERENCE"] > energy["Q3_DEEP_WORSHIP"]
+    # Q3 and Q4 both take the calm worship set.
+    assert mood["Q3_DEEP_WORSHIP"] == mood["Q4_PEACE_INTIMACY"]

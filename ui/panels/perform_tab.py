@@ -246,9 +246,80 @@ class PerformTab(QWidget if HAS_QT else object):
         b_base = int(base_palette.get("B", 100))
         w_base = int(base_palette.get("W", 40))
 
-        is_worship = ("worship" in quadrant or "q3" in quadrant or "q4" in quadrant)
+        # Route by the four quadrants in core.models.EmotionCoordinate:
+        #   Q1_PRAISE_HIGH        high valence, high arousal  -> Praise
+        #   Q2_INTENSE_REVERENCE  low valence,  high arousal  -> Reverence
+        #   Q3_DEEP_WORSHIP       low valence,  low arousal   -> Worship
+        #   Q4_PEACE_INTIMACY     high valence, low arousal   -> Worship
+        # Q2 used to fall into the Praise branch because only q3/q4 matched, so a
+        # solemn but driving song was lit as joyful praise ("Praise Energy Rise").
+        is_reverence = "q2" in quadrant or "reverence" in quadrant
+        is_worship = (not is_reverence) and (
+            "worship" in quadrant or "q3" in quadrant or "q4" in quadrant
+        )
 
-        if is_worship:
+        if is_reverence:
+            # Q2_INTENSE_REVERENCE: low valence with HIGH arousal. Solemn weight
+            # carried by a driving, high-energy dynamic: deep saturated blues and
+            # ambers, strong dimmer, brisk chases. Distinct from the Praise set
+            # (joyful, high valence) and from the Worship set (calm, low arousal).
+            cues = [
+                {
+                    "section": "Intro",
+                    "mood": "Reverent Awe (Low Wash)",
+                    "fade_in": 2.5,
+                    "fade_out": 2.0,
+                    "dimmer": 165,
+                    "chase_rate": 0.7,
+                    "color": {"R": max(30, int(r_base * 0.5)), "G": max(40, int(g_base * 0.5)), "B": max(150, int(b_base * 1.1)), "W": 25},
+                },
+                {
+                    "section": "Verse 1",
+                    "mood": "Deep Conviction",
+                    "fade_in": 1.8,
+                    "fade_out": 1.8,
+                    "dimmer": 205,
+                    "chase_rate": 1.0,
+                    "color": {"R": max(190, int(r_base * 0.95)), "G": max(90, int(g_base * 0.6)), "B": 55, "W": 80},
+                },
+                {
+                    "section": "Chorus",
+                    "mood": "Majestic Surge",
+                    "fade_in": 1.2,
+                    "fade_out": 1.6,
+                    "dimmer": 250,
+                    "chase_rate": 1.6,
+                    "color": {"R": 255, "G": 120, "B": 60, "W": 110},
+                },
+                {
+                    "section": "Verse 2",
+                    "mood": "Intimate Soft Lavender",
+                    "fade_in": 2.0,
+                    "fade_out": 2.0,
+                    "dimmer": 180,
+                    "chase_rate": 0.8,
+                    "color": {"R": 170, "G": 90, "B": 230, "W": 50},
+                },
+                {
+                    "section": "Bridge",
+                    "mood": "Holy Surrender (Altar Call)",
+                    "fade_in": 2.5,
+                    "fade_out": 2.0,
+                    "dimmer": 255,
+                    "chase_rate": 1.0,
+                    "color": {"R": 230, "G": 230, "B": 255, "W": 255},
+                },
+                {
+                    "section": "Ending",
+                    "mood": "Quiet Peaceful Night",
+                    "fade_in": 3.0,
+                    "fade_out": 4.0,
+                    "dimmer": 100,
+                    "chase_rate": 0.5,
+                    "color": {"R": 15, "G": 30, "B": 160, "W": 0},
+                },
+            ]
+        elif is_worship:
             # Worship: Deep reverence, meditative intro, sacred altar call, high white ratio
             cues = [
                 {
