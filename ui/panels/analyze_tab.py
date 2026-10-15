@@ -325,7 +325,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
             self,
             "Select Audio File",
             "",
-            "Audio Files (*.wav *.mp3 *.flac *.ogg);;All Files (*.*)",
+            "Audio Files (*.wav *.mp3 *.flac *.ogg *.m4a *.webm *.opus *.aac);;All Files (*.*)",
         )
         if file_path:
             self._add_audio_path(file_path)

@@ -5,6 +5,14 @@
 numpy>=1.22.0
 soundfile>=0.12.1
 
+# YouTube audio import
+# yt-dlp is a Python package rather than a system binary so its version stays
+# current on both dev machines (a stale extractor silently fails on YouTube).
+yt-dlp>=2025.1.1
+# imageio-ffmpeg ships a static ffmpeg binary (Linux + Windows wheels) so audio
+# conversion works without a system ffmpeg or root access.
+imageio-ffmpeg>=0.5.1
+
 # GUI Framework
 PySide6>=6.5.0
 

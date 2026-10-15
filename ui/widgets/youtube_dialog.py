@@ -5,9 +5,6 @@ and automatically load the extracted audio into ZZLUXORA's Analyze workspace.
 """
 
 from __future__ import annotations
-import os
-import re
-import subprocess
 from pathlib import Path
 
 from ui.qt_compat import (
@@ -15,6 +12,7 @@ from ui.qt_compat import (
     QPushButton, QProgressBar, QMessageBox, QWidget, Qt, Signal, QThread
 )
 from ui.styles import Theme, CONSOLE_QSS
+from core import youtube_importer as yt
 
 
 class YouTubeDownloaderWorker(QThread if HAS_QT else object):
@@ -31,69 +29,21 @@ class YouTubeDownloaderWorker(QThread if HAS_QT else object):
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def run(self) -> None:
+        """Download and convert via core.youtube_importer, reporting progress."""
         try:
-            self.progress_updated.emit(10, "Validating YouTube link...")
+            target = yt.download_and_convert(
+                self.url,
+                self.output_dir,
+                progress=lambda percent, message: self.progress_updated.emit(percent, message),
+            )
+        except yt.YouTubeImportError as exc:
+            self.download_failed.emit(str(exc))
+            return
+        except Exception as exc:  # unexpected: still surface it instead of hanging
+            self.download_failed.emit(f"Unexpected import error: {exc}")
+            return
 
-            # Check yt-dlp availability
-            has_ytdlp = False
-            try:
-                res = subprocess.run(["yt-dlp", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                has_ytdlp = (res.returncode == 0)
-            except Exception:
-                has_ytdlp = False
-
-            if has_ytdlp:
-                self.progress_updated.emit(25, "Downloading audio stream via yt-dlp...")
-                # Download audio only as wav/mp3
-                output_template = str(self.output_dir / "%(title)s.%(ext)s")
-                cmd = [
-                    "yt-dlp",
-                    "-x",
-                    "--audio-format", "wav",
-                    "--audio-quality", "0",
-                    "-o", output_template,
-                    "--no-playlist",
-                    self.url
-                ]
-                # Snapshot existing WAVs so only a genuinely new file is accepted.
-                # Without this, a failed conversion silently attaches a stale WAV
-                # left over from a previous download.
-                before = {p.resolve() for p in self.output_dir.glob("*.wav")}
-                proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                if proc.returncode != 0:
-                    raise RuntimeError(
-                        f"Audio download failed (is ffmpeg installed for --audio-format wav?): "
-                        f"{proc.stderr[:200]}"
-                    )
-
-                produced = [
-                    p for p in self.output_dir.glob("*.wav")
-                    if p.resolve() not in before
-                ]
-                if not produced:
-                    raise FileNotFoundError(
-                        "yt-dlp finished but produced no new .wav file. "
-                        "Check that ffmpeg is installed and the URL is a valid single track."
-                    )
-                target_file = str(max(produced, key=os.path.getmtime))
-                self.progress_updated.emit(100, "Audio extraction complete!")
-                self.download_finished.emit(target_file)
-                return
-            else:
-                # Standalone fallback: generate synthetic test worship audio if yt-dlp is missing
-                self.progress_updated.emit(50, "yt-dlp is not installed. Preparing local sample audio...")
-                from core.audio_loader import AudioLoader
-                import soundfile as sf
-                loader = AudioLoader()
-                synth = loader.generate_synthetic_praise_beat(duration_sec=30.0)
-                fallback_path = self.output_dir / "YouTube_Import_Sample.wav"
-                sf.write(str(fallback_path), synth, 22050)
-
-                self.progress_updated.emit(100, "Audio is ready for analysis!")
-                self.download_finished.emit(str(fallback_path))
-
-        except Exception as e:
-            self.download_failed.emit(str(e))
+        self.download_finished.emit(str(target))
 
 
 class YouTubeDialog(QDialog if HAS_QT else object):
@@ -104,10 +54,13 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         if not HAS_QT: return
         super().__init__(parent)
         self.setWindowTitle("Import YouTube Audio | ZZLUXORA")
-        self.setFixedSize(540, 260)
+        self.setMinimumSize(560, 320)
         self.setStyleSheet(CONSOLE_QSS)
 
-        self.output_dir = Path.home() / "ANDREAS" / "zzluxora_v10" / "data" / "audio"
+        # Derive from the repository location rather than a fixed home path, so
+        # the dialog works on the Windows build machine as well as on Linux.
+        repo_root = Path(__file__).resolve().parents[2]
+        self.output_dir = repo_root / "data" / "audio"
         self.worker: YouTubeDownloaderWorker | None = None
 
         self._init_ui()
@@ -155,6 +108,12 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         """)
         layout.addWidget(self.progress_bar)
 
+        # Dependency line: tells the operator up front whether imports can run.
+        self.dep_lbl = QLabel("")
+        self.dep_lbl.setWordWrap(True)
+        layout.addWidget(self.dep_lbl)
+        self._refresh_dependency_line()
+
         # Status message label
         self.status_lbl = QLabel("Ready to download.")
         self.status_lbl.setStyleSheet(f"color: {Theme.TEXT_MUTED}; font-size: 11px;")
@@ -175,22 +134,69 @@ class YouTubeDialog(QDialog if HAS_QT else object):
 
         layout.addLayout(btn_layout)
 
+    def _refresh_dependency_line(self) -> None:
+        """Show whether the required components are present, before any attempt."""
+        missing = [status for status in yt.check_dependencies() if not status.available]
+        if missing:
+            names = ", ".join(status.name for status in missing)
+            self.dep_lbl.setText(f"Missing: {names}. Cannot import until installed.")
+            self.dep_lbl.setStyleSheet(
+                f"color: {Theme.COLOR_DANGER}; font-size: 11px; font-weight: 700;"
+            )
+            self.btn_download.setEnabled(False)
+        else:
+            self.dep_lbl.setText("All components ready (yt-dlp, ffmpeg).")
+            self.dep_lbl.setStyleSheet(f"color: {Theme.COLOR_SUCCESS}; font-size: 11px;")
+            self.btn_download.setEnabled(True)
+
     def _on_start_download(self) -> None:
+        if self.worker is not None and self.worker.isRunning():
+            return
+
         url = self.url_input.text().strip()
         if not url:
             QMessageBox.warning(self, "Empty URL", "Please enter a valid YouTube video link first.")
             return
 
+        if not yt.looks_like_youtube_url(url):
+            QMessageBox.warning(
+                self,
+                "Invalid Link",
+                "That does not look like a YouTube video link.\n\n"
+                "Paste a single video URL, for example:\n"
+                "https://www.youtube.com/watch?v=...  or  https://youtu.be/...",
+            )
+            return
+
+        missing = [status for status in yt.check_dependencies() if not status.available]
+        if missing:
+            details = "\n".join(f"- {s.name}: install with {s.remedy}" for s in missing)
+            self.status_lbl.setText("Missing required components.")
+            QMessageBox.critical(
+                self,
+                "Missing Components",
+                "YouTube import needs components that are not installed:\n\n" + details,
+            )
+            return
+
         self.btn_download.setEnabled(False)
+        self.btn_cancel.setEnabled(False)
         self.url_input.setEnabled(False)
         self.progress_bar.setValue(5)
-        self.status_lbl.setText("Starting download process...")
+        self.status_lbl.setText("Preparing download...")
 
         self.worker = YouTubeDownloaderWorker(url, self.output_dir)
         self.worker.progress_updated.connect(self._on_progress)
         self.worker.download_finished.connect(self._on_finished)
         self.worker.download_failed.connect(self._on_failed)
+        self.worker.finished.connect(self._release_worker)
         self.worker.start()
+
+    def _release_worker(self) -> None:
+        """Release the finished worker so a second import does not leak a thread."""
+        if self.worker is not None:
+            self.worker.deleteLater()
+            self.worker = None
 
     def _on_progress(self, percent: int, msg: str) -> None:
         self.progress_bar.setValue(percent)
@@ -209,7 +215,8 @@ class YouTubeDialog(QDialog if HAS_QT else object):
 
     def _on_failed(self, error_msg: str) -> None:
         self.btn_download.setEnabled(True)
+        self.btn_cancel.setEnabled(True)
         self.url_input.setEnabled(True)
         self.progress_bar.setValue(0)
-        self.status_lbl.setText("Failed to download audio.")
-        QMessageBox.critical(self, "Download Error", f"An error occurred while downloading audio:\n{error_msg}")
+        self.status_lbl.setText("Import failed. See the message for the reason.")
+        QMessageBox.critical(self, "Import Failed", error_msg)
