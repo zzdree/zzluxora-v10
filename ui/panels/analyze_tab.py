@@ -64,18 +64,31 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
             avg_centroid = sum(f.spectral_centroid for f in frames) / len(frames) if frames else 0.0
 
             # 1. 12-Semitone Chroma STFT analysis & Tonality Detection
+            #
+            # Silence and near-silence must not produce a key claim. Every chroma
+            # bin is zero for silent input, so argmax() returned index 0 and the
+            # report confidently said "C Major (Praise character)" for two
+            # seconds of digital silence and even for a zero-sample file. For a
+            # research tool that is fabricated evidence, so tonality is gated on
+            # the summed chroma energy being above an audibility floor.
             pitch_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
             chroma_sums = [sum(f.chroma_vector[i] for f in frames) for i in range(12)] if frames else [0.0] * 12
-            dominant_idx = int(np.argmax(chroma_sums)) if frames else 0
-            dominant_pitch = pitch_names[dominant_idx]
+            chroma_energy = float(sum(chroma_sums))
+            has_tonal_content = bool(frames) and chroma_energy > 1e-6
 
-            # In musical harmony (Krumhansl profile): Major 3rd (+4 semitones) vs Minor 3rd (+3 semitones)
-            maj_energy = chroma_sums[(dominant_idx + 4) % 12]
-            min_energy = chroma_sums[(dominant_idx + 3) % 12]
-            if maj_energy >= min_energy:
-                tonality_str = f"{dominant_pitch} Major (Praise character)"
+            if has_tonal_content:
+                dominant_idx = int(np.argmax(chroma_sums))
+                dominant_pitch = pitch_names[dominant_idx]
+                # In musical harmony (Krumhansl profile): Major 3rd (+4 semitones) vs Minor 3rd (+3 semitones)
+                maj_energy = chroma_sums[(dominant_idx + 4) % 12]
+                min_energy = chroma_sums[(dominant_idx + 3) % 12]
+                if maj_energy >= min_energy:
+                    tonality_str = f"{dominant_pitch} Major (Praise character)"
+                else:
+                    tonality_str = f"{dominant_pitch} Minor (Worship character)"
             else:
-                tonality_str = f"{dominant_pitch} Minor (Worship character)"
+                dominant_pitch = "-"
+                tonality_str = "No tonal content (silent or unanalysable input)"
 
             # 2. Real MFCC Acoustic Density / Texture Index
             if frames and any(f.mfcc_coeffs for f in frames):
@@ -90,7 +103,14 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
             flux_vals = extractor.extract_spectral_flux(mag_spec)
             spectral_flux = float(np.mean(flux_vals)) if len(flux_vals) > 0 else 0.0
 
-            quad = EmotionCoordinate(valence=avg_v, arousal=avg_a).quadrant
+            # A quadrant only means something when there is audio to classify.
+            # Silence produced valence 0 and arousal 0, which the quadrant
+            # mapping still resolved into a worship quadrant, so the report read
+            # as a real affective finding for empty input.
+            if has_tonal_content:
+                quad = EmotionCoordinate(valence=avg_v, arousal=avg_a).quadrant
+            else:
+                quad = "Idle"
 
             # Palette representative
             last_frame = frames[len(frames) // 2] if frames else None
@@ -417,4 +437,13 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         self.btn_import_yt.setEnabled(True)
         self.progress_bar.setValue(0)
         self.lbl_dsp_status.setText("Audio analysis failed.")
+        # Clear the previous run's metrics. Leaving them on screen made a failed
+        # re-analysis look like it had produced a result: the stats card and the
+        # Russell plane still showed the earlier track's numbers.
+        self.stats_label.setText(
+            "<b>Analysis failed.</b><br>"
+            "No metrics are available for this file. Fix the input and analyse again."
+        )
+        if hasattr(self, "russell_plane"):
+            self.russell_plane.set_coordinates(0.0, 0.0, "Idle")
         QMessageBox.critical(self, "DSP Analysis Error", f"Failed to analyze audio:\n{err_msg}")

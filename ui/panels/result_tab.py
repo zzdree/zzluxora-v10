@@ -117,7 +117,29 @@ class ResultTab(QWidget if HAS_QT else object):
     def load_analysis_result(self, res: dict) -> None:
         """Loads and visualizes analysis data from AnalyzeTab."""
         self.current_analysis = res
-        self.btn_export.setEnabled(True)
+
+        # Only offer Export when the result carries real, usable numbers.
+        # Previously every row was rendered from a plausible numeric default
+        # (centroid 1850 Hz, MFCC 0.500, BPM 120, a white RGBW palette), so a
+        # partial result read as a complete measurement and Export was enabled
+        # for data that did not exist.
+        required = ("bpm", "valence", "arousal", "rms", "palette")
+        analysed = res.get("frames_count", 0) > 1 and all(res.get(k) is not None for k in required)
+        self.btn_export.setEnabled(analysed)
+
+        def value(key, default=None):
+            """Return the recorded value or None, never a stand-in number."""
+            raw = res.get(key)
+            return default if raw is None else raw
+
+        def show(fmt: str, key: str, fallback: str = "- (not measured)") -> str:
+            raw = res.get(key)
+            if raw is None:
+                return fallback
+            try:
+                return fmt.format(raw)
+            except (TypeError, ValueError):
+                return fallback
 
         v = float(res.get("valence", 0.0))
         a = float(res.get("arousal", 0.0))
@@ -125,40 +147,48 @@ class ResultTab(QWidget if HAS_QT else object):
 
         self.russell_plane.set_coordinates(v, a, quad)
 
-        palette = res.get("palette", {})
-        r = palette.get("R", 255)
-        g = palette.get("G", 255)
-        b = palette.get("B", 255)
-        w = palette.get("W", 0)
+        palette = res.get("palette")
+        has_palette = isinstance(palette, dict) and bool(palette)
+        r = palette.get("R") if has_palette else None
+        g = palette.get("G") if has_palette else None
+        b = palette.get("B") if has_palette else None
+        w = palette.get("W") if has_palette else None
 
-        frames_cnt = res.get("frames_count", 0)
-        fps_rate = res.get("fps_rate", 43.07)
-        centroid = res.get("spectral_centroid", 1850.0)
-        chroma_key = res.get("chroma_key", "Deteksi Tonalitas...")
-        mfcc_dens = res.get("mfcc_density", 0.5)
-        flux_val = res.get("spectral_flux", 0.15)
+        frames_cnt = res.get("frames_count")
+        fps_rate = value("fps_rate")
 
         vals = [
             res.get("title", "Untitled"),
-            f"{res.get('bpm', 120.0):.1f} BPM (Beat Tracking)",
-            f"{res.get('duration_sec', 0.0):.1f}s ({frames_cnt:,} Frame @ {fps_rate:.2f} FPS)",
-            f"{res.get('rms', 0.0):.3f} (Dinamika Master Dimmer)",
-            f"{centroid:.1f} Hz (Kecerahan Timbre Audio)",
-            f"{chroma_key}",
-            f"{mfcc_dens:.3f} (Indeks Tekstur Akustik)",
-            f"{flux_val:.3f} (Kepadatan Onset Ritmik)",
+            show("{:.1f} BPM (Beat Tracking)", "bpm"),
+            show("{:.1f}s", "duration_sec") if value("duration_sec") is not None else "- (not measured)",
+            show("{:.3f} (Dinamika Master Dimmer)", "rms"),
+            show("{:.1f} Hz (Kecerahan Timbre Audio)", "spectral_centroid"),
+            res.get("chroma_key", "- (not measured)"),
+            show("{:.3f} (Indeks Tekstur Akustik)", "mfcc_density"),
+            show("{:.3f} (Kepadatan Onset Ritmik)", "spectral_flux"),
             f"{v:+.2f} ({'Praise/Joyful' if v >= 0 else 'Worship/Solemn'})",
             f"{a:+.2f} ({'Dynamic/High' if a >= 0 else 'Ambient/Calm'})",
             f"{quad}",
-            f"R:{r} G:{g} B:{b} W:{w} (Anti-Washout)",
+            (f"R:{r} G:{g} B:{b} W:{w} (Anti-Washout)" if has_palette
+             else "- (no palette assigned)"),
         ]
         for row, val_str in enumerate(vals):
             self.table.item(row, 1).setText(val_str)
 
-        self.lbl_palette_desc.setText(
-            f"<b>Recommended Stage Lighting Color:</b><br>"
-            f"<span style='color: rgb({r},{g},{b}); font-size: 14px;'>■■■ RGBW: ({r}, {g}, {b}, {w})</span>"
-        )
+        # Fold the frame/rate detail into the duration cell only when known.
+        if frames_cnt is not None and fps_rate is not None:
+            self.table.item(2, 1).setText(
+                f"{res.get('duration_sec', 0.0):.1f}s ({frames_cnt:,} Frame @ {fps_rate:.2f} FPS)"
+            )
+
+        if has_palette:
+            self.lbl_palette_desc.setText(
+                f"<b>Recommended Stage Lighting Color:</b><br>"
+                f"<span style='color: rgb({r},{g},{b}); font-size: 14px;'>"
+                f"RGBW: ({r}, {g}, {b}, {w})</span>"
+            )
+        else:
+            self.lbl_palette_desc.setText("<b>Recommended Stage Lighting Color:</b> not assigned.")
 
     def _on_export_clicked(self) -> None:
         if self.current_analysis:
