@@ -127,5 +127,76 @@ class TestArtNetPacketIntegrity(unittest.TestCase):
         self.assertEqual(packet[8:10], b"\x00\x50")  # OpDmx little-endian
 
 
+class TestProjectIoSchemaCompatibility(unittest.TestCase):
+    """ProjectIO once emitted a patch schema ({id,name,profile,...}) that no
+    shipped showfile uses, so its output was not interchangeable with files
+    produced by the console UI. The canonical schema is
+    {start_channel, model, channels:[...]}."""
+
+    def test_default_project_matches_canonical_patch_schema(self):
+        from core.project_io import ProjectIO
+
+        patch = ProjectIO.create_default_project()["patches"][0]
+        self.assertEqual(sorted(patch.keys()), ["channels", "model", "start_channel"])
+        self.assertIsInstance(patch["channels"], list)
+        self.assertTrue(all("type" in ch and "index" in ch for ch in patch["channels"]))
+
+    def test_loads_shipped_gia_showfile_and_enumerates_addressing(self):
+        import os
+
+        from core.project_io import ProjectIO
+
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(repo_root, "showfiles", "gia_deliksari_alien_4x.zlx")
+        data = ProjectIO.load_project(path)
+
+        self.assertIsNotNone(data, "GIA showfile must load through ProjectIO")
+        patches = ProjectIO.iter_patches(data)
+        self.assertEqual(len(patches), 4, "GIA showfile patches 4 Alien AL36 units")
+
+        starts = [int(p["start_channel"]) for p in patches]
+        self.assertEqual(starts, [1, 17, 33, 49])
+
+        for patch in patches:
+            span = list(ProjectIO.patch_channel_span(patch))
+            self.assertEqual(len(span), 8, "each Alien AL36 occupies 8 DMX channels")
+
+    def test_roundtrip_preserves_patch_schema(self):
+        import os
+        import tempfile
+
+        from core.project_io import ProjectIO
+
+        project = ProjectIO.create_default_project("Roundtrip")
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "roundtrip.zlx")
+            self.assertTrue(ProjectIO.save_project(project, path))
+            loaded = ProjectIO.load_project(path)
+
+        self.assertIsNotNone(loaded)
+        self.assertEqual(
+            sorted(ProjectIO.iter_patches(loaded)[0].keys()),
+            ["channels", "model", "start_channel"],
+        )
+
+    def test_rejects_foreign_and_missing_files(self):
+        import os
+        import tempfile
+
+        from core.project_io import ProjectIO
+
+        self.assertIsNone(ProjectIO.load_project("/nonexistent/path/nowhere.zlx"))
+        with tempfile.TemporaryDirectory() as directory:
+            foreign = os.path.join(directory, "foreign.zlx")
+            with open(foreign, "w", encoding="utf-8") as handle:
+                handle.write('{"app": "OTHER", "patches": []}')
+            self.assertIsNone(ProjectIO.load_project(foreign))
+
+            broken = os.path.join(directory, "broken.zlx")
+            with open(broken, "w", encoding="utf-8") as handle:
+                handle.write("{not json")
+            self.assertIsNone(ProjectIO.load_project(broken))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,9 @@
 # Core Audio & Signal Processing
+# DSP/MIR engine is pure NumPy: FFT, STFT, MFCC, chroma, spectral flux and
+# tempo estimation are all implemented with numpy only. librosa and scipy are
+# deliberately NOT dependencies, so this list must stay free of them.
 numpy>=1.22.0
-scipy>=1.9.0
 soundfile>=0.12.1
-librosa>=0.10.0
 
 # GUI Framework
 PySide6>=6.5.0

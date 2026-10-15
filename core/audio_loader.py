@@ -84,9 +84,11 @@ class AudioLoader:
 
     def load_audio(self, file_path: str) -> Tuple[np.ndarray, int]:
         """
-        Attempts to load audio file using available libraries:
-        1. soundfile / librosa (if installed)
-        2. native wave parser (for standard WAV)
+        Attempts to load an audio file using available decoders:
+        1. soundfile (if installed) - covers .wav, .flac, .ogg
+        2. native wave parser - fallback for standard PCM .wav files
+
+        librosa is intentionally not used; the DSP/MIR engine is pure NumPy.
         """
         ext = os.path.splitext(file_path)[1].lower()
 
