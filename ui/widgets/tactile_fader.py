@@ -105,8 +105,22 @@ class TactileFader(QWidget if HAS_QT else object):
             self.is_dragging = False
 
     def wheelEvent(self, event) -> None:
+        """Adjust the value only with a modifier held; otherwise let it scroll.
+
+        The faders sit inside a horizontally scrollable deck. Taking every wheel
+        event here meant an ordinary scroll across the mixer silently rewrote
+        DMX levels, so a stray trackpad gesture during a service changed the
+        rig. Requiring Ctrl (or Shift) keeps wheel-to-scroll working and makes a
+        value change deliberate.
+        """
+        modifiers = event.modifiers()
+        if not (modifiers & (Qt.ControlModifier | Qt.ShiftModifier)):
+            event.ignore()
+            return
+
         delta = 5 if event.angleDelta().y() > 0 else -5
         self.value = self._value + delta
+        event.accept()
 
     def mouseDoubleClickEvent(self, event) -> None:
         self._open_direct_input()
@@ -131,16 +145,28 @@ class TactileFader(QWidget if HAS_QT else object):
         return y_top, y_bottom
 
     def _update_from_mouse_y(self, mouse_y: float) -> None:
+        """Map a vertical position to a DMX value, ignoring presses outside the track.
+
+        Only positions inside the track band change the value. A press in the
+        strip below the track (where the value readout and the [X] button live)
+        previously clamped to the track bottom and therefore wrote DMX 0, so
+        aiming for a low level such as 1, 5 or 10 blacked the channel out
+        instead. On the master fader that strip was 47 percent of the track, so
+        the master could not be dragged below roughly DMX 63 at all.
+        """
         y_top, y_bottom = self._track_y_bounds()
         track_len = y_bottom - y_top
         if track_len <= 0:
             return
 
-        # Clamp mouse_y to track bounds
-        clamped_y = max(y_top, min(y_bottom, mouse_y))
-        # Top is 255, Bottom is 0
-        norm = 1.0 - ((clamped_y - y_top) / track_len)
-        self.value = int(round(norm * 255.0))
+        if mouse_y < y_top:
+            self.value = 255
+        elif mouse_y > y_bottom:
+            # Outside the track: leave the value untouched rather than forcing 0.
+            return
+        else:
+            norm = 1.0 - ((mouse_y - y_top) / track_len)
+            self.value = int(round(norm * 255.0))
 
     def _cap_center_y(self) -> float:
         y_top, y_bottom = self._track_y_bounds()

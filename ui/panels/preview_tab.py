@@ -1007,14 +1007,14 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         drawer_layout.addWidget(lbl_pos)
 
         # Pivot X
-        self.slider_pivot_x, self.spin_pivot_x, col_px = self._create_slider_spin_row("Pivot X:", -300, 300, 0)
+        self.slider_pivot_x, self.spin_pivot_x, col_px = self._create_slider_spin_row("Position X:", -300, 300, 0)
         self.slider_pivot_x.valueChanged.connect(self.spin_pivot_x.setValue)
         self.spin_pivot_x.valueChanged.connect(self.slider_pivot_x.setValue)
         self.spin_pivot_x.valueChanged.connect(self._on_position_changed)
         drawer_layout.addLayout(col_px)
 
         # Pivot Y
-        self.slider_pivot_y, self.spin_pivot_y, col_py = self._create_slider_spin_row("Pivot Y:", -300, 300, 0)
+        self.slider_pivot_y, self.spin_pivot_y, col_py = self._create_slider_spin_row("Position Y:", -300, 300, 0)
         self.slider_pivot_y.valueChanged.connect(self.spin_pivot_y.setValue)
         self.spin_pivot_y.valueChanged.connect(self.slider_pivot_y.setValue)
         self.spin_pivot_y.valueChanged.connect(self._on_position_changed)
@@ -1024,7 +1024,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         self.col_pz_widget = QWidget()
         pz_box = QVBoxLayout(self.col_pz_widget)
         pz_box.setContentsMargins(0, 0, 0, 0)
-        self.slider_pivot_z, self.spin_pivot_z, col_pz = self._create_slider_spin_row("Pivot Z:", -300, 300, 0)
+        self.slider_pivot_z, self.spin_pivot_z, col_pz = self._create_slider_spin_row("Position Z (3D):", -300, 300, 0)
         self.slider_pivot_z.valueChanged.connect(self.spin_pivot_z.setValue)
         self.spin_pivot_z.valueChanged.connect(self.slider_pivot_z.setValue)
         self.spin_pivot_z.valueChanged.connect(self._on_position_changed)
@@ -1155,7 +1155,19 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         self.drawer_widget.setVisible(not self.drawer_widget.isVisible())
 
     def _on_fixture_selected(self, fixture_id: int) -> None:
-        """When a fixture is selected in either 2D or 3D canvas, load its current pivot values into sliders."""
+        """When a single fixture is selected in 2D or 3D, load its pivot values into the sliders.
+
+        With more than one fixture selected the sliders are deliberately left
+        alone. Loading the last-clicked fixture's offsets and then broadcasting
+        any change to the whole selection collapsed a multi-selection onto one
+        point: Shift+click two fixtures, nudge a slider once, and every selected
+        fixture was forced onto the same (x, y), silently destroying the spacing
+        the operator had just built.
+        """
+        selection = self.canvas_2d.selected_ids | self.canvas_3d.selected_ids
+        if len(selection) > 1:
+            return
+
         target_2d = next((f for f in self.canvas_2d.fixtures if f["id"] == fixture_id), None)
         target_3d = next((f for f in self.canvas_3d.fixtures_3d if f["id"] == fixture_id), None)
 

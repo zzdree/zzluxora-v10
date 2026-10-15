@@ -651,6 +651,111 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_flash_release_restores_the_running_look(self):
+        """Releasing a momentary FLASH must return to the previous look, not black out.
+
+        The release used to be routed through the normal cue path with
+        active=False, which zeroed the dimmer and left the colour channels
+        latched at the flash values.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+        win.tab_address._on_fixture_dropped(
+            1,
+            {"name": "PAR", "channels": [
+                {"type": t, "label": t.upper()}
+                for t in ("dimmer", "red", "green", "blue", "empty", "program", "speed", "empty")
+            ]},
+        )
+
+        verse = {"label": "VERSE", "type": "scene",
+                 "color": {"R": 11, "G": 22, "B": 33, "W": 0}, "dimmer": 180, "fade_time": 0.0}
+        win._on_cue_activated(dict(verse))
+        look_after_verse = list(win.dmx_buffer[0:8])
+        self.assertEqual(win.dmx_buffer[0], 180)
+
+        flash = {"label": "FLASH", "type": "flash",
+                 "color": {"R": 255, "G": 255, "B": 255, "W": 255}, "dimmer": 255, "fade_time": 0.0}
+        win._on_cue_activated({**flash, "active": True})
+        self.assertEqual(win.dmx_buffer[0], 255)
+
+        win._on_cue_activated({**flash, "active": False})
+        self.assertEqual(
+            list(win.dmx_buffer[0:8]), look_after_verse,
+            "flash release must restore the previous look exactly",
+        )
+        self.assertNotEqual(win.dmx_buffer[0], 0, "release must not black out the stage")
+
+        win.close()
+
+    def test_fader_press_below_track_does_not_clobber_value(self):
+        """A press in the strip below the track holds the readout and [X] button.
+
+        It used to clamp to the track bottom and write DMX 0, so aiming for a
+        low level blacked the channel out, and the master could not be dragged
+        below roughly DMX 63 at all.
+        """
+        self._application()
+        from ui.widgets.tactile_fader import TactileFader
+
+        fader = TactileFader(channel_id=5, initial_value=100)
+        fader.resize(52, 190)
+        _, y_bottom = fader._track_y_bounds()
+
+        fader.set_value_silent(100)
+        for y in (y_bottom + 1, y_bottom + 20, fader.height() - 1):
+            fader._update_from_mouse_y(y)
+            self.assertEqual(fader.value, 100, f"press at y={y} must not change the value")
+
+        # The track itself still maps the full range.
+        y_top, y_bottom = fader._track_y_bounds()
+        fader._update_from_mouse_y(y_top)
+        self.assertEqual(fader.value, 255)
+        fader._update_from_mouse_y(y_bottom)
+        self.assertEqual(fader.value, 0)
+
+    def test_multiselect_does_not_reset_slider_or_collapse_layout(self):
+        """Shift+clicking a second fixture must not reload the sliders from it.
+
+        Reloading the last-clicked fixture's offsets replaced the group's value
+        in the widgets, and the next slider event forced every selected fixture
+        onto that one point, silently destroying the spacing just built.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        for start, name in ((1, "A"), (9, "B")):
+            win.tab_address._on_fixture_dropped(
+                start,
+                {"name": f"PAR-{name}", "channels": [
+                    {"type": t, "label": t.upper()}
+                    for t in ("dimmer", "red", "green", "blue", "empty", "program", "speed", "empty")
+                ]},
+            )
+        win._on_open_visualizer()
+        panel = win.win_visualizer
+        canvas = panel.canvas_2d
+        self.assertGreaterEqual(len(canvas.fixtures), 2)
+
+        first, second = canvas.fixtures[0]["id"], canvas.fixtures[1]["id"]
+        canvas.selected_ids = {first}
+        panel._on_fixture_selected(first)
+        panel.spin_pivot_x.setValue(140)
+        self.assertEqual(canvas.fixtures[0]["offset_x"], 140)
+
+        # Adding a second fixture to the selection must leave the slider alone.
+        canvas.selected_ids = {first, second}
+        panel._on_fixture_selected(second)
+        self.assertEqual(
+            panel.spin_pivot_x.value(), 140,
+            "adding to the selection must not reload the slider from the new fixture",
+        )
+        self.assertEqual(canvas.fixtures[0]["offset_x"], 140, "F1 must keep its position")
+
+        win.close()
+
     def test_alien_and_kuma_autopatch_addressing(self):
         """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
         self._application()
