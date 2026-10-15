@@ -277,13 +277,31 @@ class MixerTab(QWidget if HAS_QT else object):
                 fader.value = val
 
     def apply_blackout(self) -> None:
-        """Instant blackout: sets Grand Master to 0."""
-        self.master_fader.value = 0
+        """Instant blackout: zero the Grand Master and every channel fader.
+
+        Both must move together. Zeroing the Grand Master alone left the 256
+        channel faders visually lit while the console transmitted zeros, so the
+        mixer contradicted the DMX output on screen (and the operator had no
+        indication the rig was dark). This mirrors what the BLACKOUT button
+        writes to the wire, so the surface and the output always agree.
+
+        Every fader is moved with the silent setter on purpose. Emitting
+        valueChanged here would make the shell transmit once per fader, so a
+        single blackout would push hundreds of frames and, worse, the first of
+        them would carry the pre-blackout levels.
+        """
+        self.master_fader.set_value_silent(0)
+        self._reset_dmx_channels()
 
     def _reset_dmx_channels(self) -> None:
-        """Sets channels 1-256 to 0 while preserving Grand Master."""
+        """Sets channels 1-256 to 0 while preserving Grand Master.
+
+        Uses the silent setter: emitting valueChanged for 256 faders would make
+        the shell transmit one Art-Net packet per channel, so a single blackout
+        would burst hundreds of frames onto the wire.
+        """
         for ch in range(1, 257):
-            self.faders[ch].value = 0
+            self.faders[ch].set_value_silent(0)
 
     def refresh_display(self) -> None:
         for f in self.faders.values():

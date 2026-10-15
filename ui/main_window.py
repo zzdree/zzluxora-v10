@@ -366,6 +366,12 @@ class MainWindow(QMainWindow if HAS_QT else object):
         for i in range(512):
             self.dmx_buffer[i] = 0
         if self.is_transmitting:
+            # Push the zeroed buffer into the sender BEFORE asking it to black
+            # out. ArtNetSender keeps its own copy of the 512 channels, and its
+            # blackout() transmits that copy; without this push the stale
+            # previous frame (including any channels the UI never rewrites, such
+            # as 257-512) is sent to the rig first, briefly re-lighting it.
+            self.artnet_sender.send_raw(self.dmx_buffer)
             self.artnet_sender.blackout()
         if self.win_visualizer and self.win_visualizer.isVisible():
             self.win_visualizer.update_dmx([0] * 512)

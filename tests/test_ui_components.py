@@ -502,6 +502,53 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_blackout_clears_channel_faders_and_wire_together(self):
+        """BLACKOUT must not leave lit faders over a dark wire, and must never
+        put a stale frame on the wire.
+
+        Two defects are covered here. First, only the Grand Master used to move,
+        so 256 channel faders stayed lit on screen while the console sent zeros.
+        Second, ArtNetSender keeps its own copy of the channels and its
+        blackout() transmits that copy, so without pushing the zeroed buffer
+        first the previous frame (including channels the UI never rewrites, such
+        as 257-512) reached the rig and briefly re-lit it.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        lit_channels = (1, 5, 257, 300, 512)
+        for ch in lit_channels:
+            if ch <= 512:
+                win.dmx_buffer[ch - 1] = 200
+        win.tab_mixer.faders[1].value = 200
+        win.tab_mixer.faders[5].value = 200
+        # Seed the sender's internal buffer with the pre-blackout levels.
+        win.artnet_sender.send_raw(win.dmx_buffer)
+
+        captured = []
+        win.artnet_sender._transmit = lambda packet: captured.append(packet)
+        win.is_transmitting = True
+
+        win._on_blackout_clicked()
+
+        # Every frame sent during blackout must be fully dark.
+        self.assertTrue(captured, "blackout should transmit while playing")
+        for index, packet in enumerate(captured):
+            payload = packet[18:18 + 512]
+            offending = [ch for ch in lit_channels if payload[ch - 1] != 0]
+            self.assertEqual(
+                offending, [],
+                f"frame {index + 1} carried stale nonzero channels {offending} on the wire",
+            )
+
+        # The visible surface must agree with the wire.
+        self.assertEqual(win.tab_mixer.master_fader.value, 0)
+        for ch in (1, 5):
+            self.assertEqual(win.tab_mixer.faders[ch].value, 0)
+
+        win.close()
+
     def test_alien_and_kuma_autopatch_addressing(self):
         """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
         self._application()
