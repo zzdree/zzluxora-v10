@@ -110,6 +110,9 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
                     fix["offset_x"] = ox
                     fix["offset_y"] = oy
         else:
+            # The anchor is seeded by the caller (StageVisualizerWindow mirrors the
+            # selection's own value into the sliders), so the FIRST nudge already
+            # carries a real delta instead of being swallowed by a default of ox.
             delta_x = ox - getattr(self, "_last_offset_x", ox)
             delta_y = oy - getattr(self, "_last_offset_y", oy)
             for fix in self.fixtures:
@@ -119,6 +122,11 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             self._last_offset_x = ox
             self._last_offset_y = oy
         self.update()
+
+    def prime_position_anchor(self, ox: int, oy: int) -> None:
+        """Set the reference point for the next relative group move."""
+        self._last_offset_x = ox
+        self._last_offset_y = oy
 
     def align_fixtures_horizontal(self) -> None:
         """Aligns selected (or all) fixtures to a horizontal line."""
@@ -485,6 +493,12 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
             self._last_offset_y = oy
             self._last_offset_z = oz
         self.update()
+
+    def prime_position_anchor(self, ox: float, oy: float, oz: float) -> None:
+        """Set the reference point for the next relative group move."""
+        self._last_offset_x = ox
+        self._last_offset_y = oy
+        self._last_offset_z = oz
 
     def set_selected_rotations(self, rx: float, ry: float, rz: float) -> None:
         """Applies 3-axis rotation (Pitch, Yaw, Roll) to selected fixtures."""
@@ -1225,6 +1239,23 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         if self.canvas_3d.selected_ids != wanted:
             self.canvas_3d.selected_ids = wanted
             self.canvas_3d.update()
+        self._prime_position_anchors()
+
+    def _prime_position_anchors(self) -> None:
+        """Anchor a relative group move at the selection's current position.
+
+        The position control is absolute for one fixture and relative for
+        several. The reference point has to be the value the sliders currently
+        show, otherwise the first nudge of a fresh selection computes a delta of
+        zero and appears to do nothing.
+        """
+        ox = self.spin_pivot_x.value()
+        oy = self.spin_pivot_y.value()
+        oz = self.spin_pivot_z.value()
+        if hasattr(self.canvas_2d, "prime_position_anchor"):
+            self.canvas_2d.prime_position_anchor(ox, oy)
+        if hasattr(self.canvas_3d, "prime_position_anchor"):
+            self.canvas_3d.prime_position_anchor(ox, oy, oz)
 
     def _mirror_selection_from_3d(self, ids: list) -> None:
         """Propagate the 3D canvas selection to the 2D canvas."""
@@ -1232,6 +1263,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         if self.canvas_2d.selected_ids != wanted:
             self.canvas_2d.selected_ids = wanted
             self.canvas_2d.update()
+        self._prime_position_anchors()
 
     def _on_fixture_selected(self, fixture_id: int) -> None:
         """When a single fixture is selected in 2D or 3D, load its pivot values into the sliders.
@@ -1246,6 +1278,9 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         selection = self.canvas_2d.selected_ids | self.canvas_3d.selected_ids
         if len(selection) > 1:
             return
+        # A fresh single selection becomes the new reference point for any later
+        # group move, so the anchor must follow the loaded values.
+        self._prime_position_anchors()
 
         target_2d = next((f for f in self.canvas_2d.fixtures if f["id"] == fixture_id), None)
         target_3d = next((f for f in self.canvas_3d.fixtures_3d if f["id"] == fixture_id), None)

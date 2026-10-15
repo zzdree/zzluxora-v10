@@ -266,3 +266,31 @@ def test_each_quadrant_gets_its_own_cue_character(app):
     assert energy["Q2_INTENSE_REVERENCE"] > energy["Q3_DEEP_WORSHIP"]
     # Q3 and Q4 both take the calm worship set.
     assert mood["Q3_DEEP_WORSHIP"] == mood["Q4_PEACE_INTIMACY"]
+
+
+def test_first_group_nudge_is_not_swallowed(app):
+    """The very first slider move of a fresh selection must move the group.
+
+    The relative group move needs a reference point. Without priming it from the
+    selection's current value, the first nudge computes a delta of zero and the
+    operator has to move the slider twice before anything happens.
+    """
+    win, panel = _visualizer_with_fixture()
+    canvas = panel.canvas_2d
+
+    for index, fixture in enumerate(canvas.fixtures):
+        fixture["offset_x"] = (index + 1) * 60
+
+    ids = {f["id"] for f in canvas.fixtures}
+    canvas.selected_ids = ids
+    canvas.selection_changed.emit(list(ids))
+
+    before = [f["offset_x"] for f in canvas.fixtures]
+    panel.spin_pivot_x.setValue(150)
+    after = [f["offset_x"] for f in canvas.fixtures]
+
+    assert after != before, "the first nudge must move the group"
+    gaps = [b - a for a, b in zip(after, after[1:])]
+    assert gaps == [60] * (len(after) - 1), "spacing must survive the first nudge"
+
+    win.close()
