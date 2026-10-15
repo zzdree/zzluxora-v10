@@ -249,37 +249,39 @@ class MainWindow(QMainWindow if HAS_QT else object):
         root_layout.addWidget(self.stack, 1)
 
     def _init_shortcuts(self) -> None:
-        """Global Keyboard Shortcuts."""
+        """Global Keyboard Shortcuts.
+
+        Every shortcut is bound with ApplicationShortcut context on purpose.
+        The default WindowShortcut context only fires while the main window is
+        the active window, so opening Help, About, Settings, the Fixture windows
+        or the Stage Visualizer (all non-modal) silently disabled Play, Blackout
+        and workspace switching until the popup was closed. A console must keep
+        responding while an operator has a tool window open.
+        """
+        def bind(sequence: str, handler) -> None:
+            action = QAction(self)
+            action.setShortcut(QKeySequence(sequence))
+            action.setShortcutContext(Qt.ApplicationShortcut)
+            action.triggered.connect(handler)
+            self.addAction(action)
+
         # Ctrl+F1 to Ctrl+F6: Direct workspace tab switching
         for i in range(6):
-            act = QAction(self)
-            act.setShortcut(QKeySequence(f"Ctrl+F{i+1}"))
-            act.triggered.connect(lambda _, idx=i: self._switch_workspace(idx))
-            self.addAction(act)
+            bind(f"Ctrl+F{i + 1}", lambda _, idx=i: self._switch_workspace(idx))
 
         # Space: Toggle Play / Stop
-        act_play = QAction(self)
-        act_play.setShortcut(QKeySequence(Qt.Key_Space))
-        act_play.triggered.connect(self._on_play_stop_toggled)
-        self.addAction(act_play)
+        bind("Space", self._on_play_stop_toggled)
 
-        # Escape / B: Blackout
-        act_blackout = QAction(self)
-        act_blackout.setShortcut(QKeySequence(Qt.Key_Escape))
-        act_blackout.triggered.connect(self._on_blackout_clicked)
-        self.addAction(act_blackout)
+        # Escape and B: Blackout. Both are documented in the Help panel.
+        bind("Escape", self._on_blackout_clicked)
+        bind("B", self._on_blackout_clicked)
 
         # Global Undo: Ctrl+Z
-        act_undo = QAction(self)
-        act_undo.setShortcut(QKeySequence("Ctrl+Z"))
-        act_undo.triggered.connect(self.tab_address.undo_patch)
-        self.addAction(act_undo)
+        bind("Ctrl+Z", self.tab_address.undo_patch)
 
-        # Global Redo: Ctrl+Shift+Z / Ctrl+Y
-        act_redo = QAction(self)
-        act_redo.setShortcut(QKeySequence("Ctrl+Shift+Z"))
-        act_redo.triggered.connect(self.tab_address.redo_patch)
-        self.addAction(act_redo)
+        # Global Redo: Ctrl+Shift+Z or Ctrl+Y (both are documented)
+        bind("Ctrl+Shift+Z", self.tab_address.redo_patch)
+        bind("Ctrl+Y", self.tab_address.redo_patch)
 
     def _switch_workspace(self, index: int) -> None:
         self.stack.setCurrentIndex(index)

@@ -67,7 +67,7 @@ except ImportError:
             QtCore.Qt.BrushStyle, QtCore.Qt.AspectRatioMode, QtCore.Qt.TransformationMode,
             QtCore.Qt.MouseButton, QtCore.Qt.WindowType, QtCore.Qt.DropAction,
             QtCore.Qt.ItemDataRole, QtCore.Qt.ScrollBarPolicy, QtCore.Qt.Key,
-            QtCore.Qt.FocusPolicy, QtCore.Qt.ItemFlag
+            QtCore.Qt.FocusPolicy, QtCore.Qt.ItemFlag, QtCore.Qt.ShortcutContext
         ])
         _promote_enums(QtGui.QPainter, [QtGui.QPainter.RenderHint])
         _promote_enums(QtGui.QFont, [QtGui.QFont.Weight])

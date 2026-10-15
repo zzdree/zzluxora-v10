@@ -549,6 +549,36 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_global_shortcuts_survive_popups_and_cover_documented_keys(self):
+        """Console shortcuts must work while a floating window has focus.
+
+        Actions registered with the default WindowShortcut context stop firing
+        as soon as a non-modal popup (Help, About, Settings, Fixture windows,
+        Visualizer) takes focus, which silently disabled Play, Blackout and
+        workspace switching. They are also required to cover every key the Help
+        panel documents (B for blackout, Ctrl+Y as well as Ctrl+Shift+Z for redo).
+        """
+        self._application()
+        from ui.qt_compat import Qt
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        actions = [a for a in win.actions() if a.shortcut().toString()]
+        self.assertTrue(actions)
+
+        for action in actions:
+            self.assertEqual(
+                action.shortcutContext(), Qt.ApplicationShortcut,
+                f"{action.shortcut().toString()} must keep working while a popup is open",
+            )
+
+        bound = {a.shortcut().toString() for a in actions}
+        for expected in ("Ctrl+F1", "Ctrl+F6", "Space", "Esc", "B",
+                         "Ctrl+Z", "Ctrl+Shift+Z", "Ctrl+Y"):
+            self.assertIn(expected, bound, f"{expected} should be bound")
+
+        win.close()
+
     def test_alien_and_kuma_autopatch_addressing(self):
         """Verifies requested DMX addressing: Alien AL36 at 001, 017, 033, 049 and Kumastb at 001."""
         self._application()
