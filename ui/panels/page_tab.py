@@ -130,7 +130,14 @@ class PageTab(QWidget if HAS_QT else object):
         main_layout.addWidget(scroll, 1)
 
     def load_cues(self, cues: list[dict]) -> None:
-        """Loads a list of cues and displays them on the executor grid."""
+        """Replace the executor page with the given cues.
+
+        The page is cleared first so an export replaces what is shown. Without
+        this, every GENERATE EXECUTORS run appended another copy, so pressing it
+        three times left three identical sets of executor buttons stacked on the
+        grid.
+        """
+        self._clear_executors()
         for cue in cues:
             btn = ExecutorButton(cue, self.grid_container)
             btn.cue_triggered.connect(self._on_cue_triggered)

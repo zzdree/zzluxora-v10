@@ -494,6 +494,12 @@ class PerformTab(QWidget if HAS_QT else object):
 
     def _on_fade_black_clicked(self) -> None:
         """Smoothly fade to blackout over 2.5s."""
+        # Forget the active cue and clear the transition telemetry so the next
+        # GO+ starts from a clean state. Previously the index stayed current, so
+        # a second FADE BLACK resumed as if a cue were still playing.
+        self.active_cue_index = -1
+        self.reset_crossfade_progress()
+
         self.lbl_cue_status.setText("ACTIVE: [BLACKOUT] | Fade: 2.5s")
         # Deselect rows
         for r in range(self.cue_table.rowCount()):

@@ -405,12 +405,33 @@ class AddressTab(QWidget if HAS_QT else object):
         channels = fixture_data.get("channels", [])
         if not channels: return
 
+        # Refuse a patch that would run past DMX 256 instead of silently keeping
+        # a truncated footprint. The truncation was previously persisted to the
+        # .zlx file, so a 12-channel head dropped at 250 was saved as a
+        # 7-channel fixture and the rig then drove the wrong DMX offsets.
+        last_channel = start_channel + len(channels) - 1
+        if start_channel < 1 or last_channel > 256:
+            fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
+            if start_channel < 1:
+                detail = f"start channel {start_channel} is below 1"
+            else:
+                detail = (
+                    f"channels {start_channel} to {last_channel} exceed the last "
+                    f"DMX channel (256); the fixture needs {len(channels)} channels"
+                )
+            QMessageBox.warning(
+                self,
+                "Patch Out Of Range",
+                f"{fixture_name} was not patched: {detail}.\n\n"
+                "Choose a start channel that leaves room for the whole fixture.",
+            )
+            return
+
         self.record_undo()
         fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
 
         for idx, ch_info in enumerate(channels):
             target_ch = start_channel + idx
-            if target_ch > 256: break
             box = self.grid_area.boxes.get(target_ch)
             if box:
                 ch_type = ch_info.get("type", "empty")
