@@ -43,6 +43,11 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
 
     def set_fixtures(self, fixtures_data: list[dict]) -> None:
         """Loads patched fixtures and auto-arranges them center-aligned in 2D."""
+        # Clear the stored pivot. Touching the drawer sliders while the stage was
+        # empty wrote the value here and every later patch was then laid out
+        # around it, permanently re-centring a rig the operator never moved.
+        self.pivot_x = 0
+        self.pivot_y = 0
         self.fixtures = []
         for idx, fix in enumerate(fixtures_data):
             self.fixtures.append({
@@ -96,9 +101,9 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         and 180 all jumped to 150 after a single slider nudge.
         """
         if not self.selected_ids:
-            self.pivot_x = ox
-            self.pivot_y = oy
-            self.recompute_layout()
+            # Nothing is selected, so a slider move must not store a pivot that
+            # would re-centre the next patch. Return without changing anything.
+            return
         elif len(self.selected_ids) == 1:
             for fix in self.fixtures:
                 if fix["id"] in self.selected_ids:
@@ -405,6 +410,11 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
 
     def set_fixtures(self, fixtures_data: list[dict]) -> None:
         """Loads patched fixtures and auto-arranges them center-aligned in 3D."""
+        # See Stage2DCanvas.set_fixtures: a pivot absorbed on an empty stage must
+        # not survive into the next patch.
+        self.pivot_x = 0
+        self.pivot_y = 0
+        self.pivot_z = 0
         self.fixtures_3d = []
         for idx, fix in enumerate(fixtures_data):
             self.fixtures_3d.append({
@@ -454,10 +464,8 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         nudge moves the group instead of stacking every member on one point.
         """
         if not self.selected_ids:
-            self.pivot_x = int(ox)
-            self.pivot_y = int(oy)
-            self.pivot_z = int(oz)
-            self.recompute_layout()
+            # See Stage2DCanvas.set_selected_offsets: an empty stage absorbs nothing.
+            return
         elif len(self.selected_ids) == 1:
             for fix in self.fixtures_3d:
                 if fix["id"] in self.selected_ids:
@@ -631,14 +639,16 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
                 cx = w / 2.0
                 cy = h / 2.0 + 40.0
                 clicked_id = None
+                best_distance_sq = 28 ** 2
                 for fix in self.fixtures_3d:
                     fx = fix["base_x"] + fix["offset_x"]
                     fy = fix["base_y"] + fix["offset_y"]
                     fz = fix["base_z"] + fix["offset_z"]
                     sx, sy, _ = self.project(fx, fy, fz, cx, cy)
-                    if (cur_pos.x() - sx)**2 + (cur_pos.y() - sy)**2 <= 28**2:
+                    distance_sq = (cur_pos.x() - sx)**2 + (cur_pos.y() - sy)**2
+                    if distance_sq <= best_distance_sq:
+                        best_distance_sq = distance_sq
                         clicked_id = fix["id"]
-                        break
 
                 if clicked_id is not None:
                     if event.modifiers() & Qt.ShiftModifier:

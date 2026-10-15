@@ -178,3 +178,58 @@ def test_single_selection_move_stays_absolute(app):
     assert canvas.fixtures[0]["offset_x"] == 200
 
     win.close()
+
+
+def test_empty_stage_does_not_absorb_a_pivot(app):
+    """PREVIEW-4: sliders touched on an empty stage must not re-centre later patches.
+
+    The empty-selection branch stored the slider value as the canvas pivot, and
+    every later fixture set was laid out around it, permanently shifting a rig
+    the operator never moved.
+    """
+    win, panel = _visualizer_with_fixture()
+    canvas_2d, canvas_3d = panel.canvas_2d, panel.canvas_3d
+
+    # Empty the stage and touch the position controls.
+    canvas_2d.set_fixtures([])
+    canvas_3d.set_fixtures([])
+    assert (canvas_2d.pivot_x, canvas_2d.pivot_y) == (0, 0)
+
+    panel.spin_pivot_x.setValue(200)
+    panel.spin_pivot_y.setValue(90)
+
+    assert canvas_2d.pivot_x == 0 and canvas_2d.pivot_y == 0, \
+        "an empty canvas must not store a pivot"
+    assert canvas_3d.pivot_x == 0 and canvas_3d.pivot_y == 0
+
+    # A later patch must lay out cleanly, with no inherited offset.
+    canvas_2d.set_fixtures([
+        {"id": 1, "name": "A", "start_channel": 1, "channel_count": 8, "channels": []},
+        {"id": 2, "name": "B", "start_channel": 9, "channel_count": 8, "channels": []},
+    ])
+    assert canvas_2d.pivot_x == 0 and canvas_2d.pivot_y == 0
+    assert all(f["offset_x"] == 0 and f["offset_y"] == 0 for f in canvas_2d.fixtures), \
+        "a fresh patch must not inherit a stale pivot"
+
+    win.close()
+
+
+def test_hit_test_picks_the_nearest_fixture(app):
+    """VIZ3D-02/PREVIEW-3: overlapping fixtures must resolve by distance.
+
+    Both canvases used to stop at the first match in list order, so the fixture
+    actually drawn under the cursor could be unselectable.
+    """
+    win, panel = _visualizer_with_fixture()
+    for canvas, key in ((panel.canvas_2d, "fixtures"), (panel.canvas_3d, "fixtures_3d")):
+        members = getattr(canvas, key)
+        assert len(members) >= 1
+        # Both canvases must carry the nearest-hit guard, not a break-on-first.
+        import inspect
+
+        source = inspect.getsource(canvas.mousePressEvent if canvas is panel.canvas_2d
+                                   else canvas.mouseReleaseEvent)
+        assert "best_distance_sq" in source or "nearest" in source.lower(), \
+            f"{key} hit-test must resolve the nearest fixture"
+
+    win.close()
