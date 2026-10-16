@@ -80,10 +80,15 @@ class FixtureProfile:
         )
 
     @classmethod
-    def create_kumastb_stl47(cls, name: str = "Kumastb STL47 (8CH RGBW)") -> FixtureProfile:
-        """Official bench-test RGBW fixture profile: Dimmer, RGBW, Strobe, Program, Speed."""
+    def create_kumastb_stl47(cls, name: str = "Kumastb-STL47") -> FixtureProfile:
+        """Official bench-test RGBW fixture profile: Dimmer, RGBW, Strobe, Program, Speed.
+
+        The default name follows the feedback v4 section 2 standard: the official
+        spelling with no technical qualifier in parentheses, matching
+        fixtures/Kumastb-STL47.zfx and the quick-patch label.
+        """
         return cls(
-            id="kumastb_stl47_8ch",
+            id="kumastb_stl47",
             name=name,
             manufacturer="Kumastb",
             channel_count=8,
@@ -100,10 +105,15 @@ class FixtureProfile:
         )
 
     @classmethod
-    def create_alien_al36(cls, name: str = "Alien AL36 (8CH RGB)") -> FixtureProfile:
-        """Official GIA Deliksari church stage fixture profile: Dimmer, RGB, Empty, Program, Speed, Emptz."""
+    def create_alien_al36(cls, name: str = "Alien-AL36") -> FixtureProfile:
+        """Official GIA Deliksari church stage fixture profile: Dimmer, RGB, Empty, Program, Speed, Emptz.
+
+        The default name and id follow the feedback v4 section 2 standard, matching
+        fixtures/Alien-AL36.zfx and the quick-patch label, so every producer of an
+        Alien profile spells it the same way.
+        """
         return cls(
-            id="alien_al36_8ch",
+            id="alien_al36",
             name=name,
             manufacturer="Alien",
             channel_count=8,

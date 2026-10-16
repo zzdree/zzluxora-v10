@@ -20,7 +20,6 @@ class MixerTab(QWidget if HAS_QT else object):
     Emulates the hardware touch and lighting of grandMA3 lighting consoles.
     """
     fader_changed = Signal(int, int)  # (channel_id, value)
-    blackout_triggered = Signal()
 
     def __init__(self, project_state=None, parent: QWidget | None = None):
         if not HAS_QT: return
