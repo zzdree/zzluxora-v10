@@ -189,7 +189,7 @@ dikumpulkan.*
 
 ## 3. Yang BELUM Dikerjakan
 
-### UI: sisa dari feedback v5 (`script/notes/feedback_v5.md`)
+### UI: sisa dari feedback v4 §11-14 (`script/notes/feedback_v4.md`)
 
 Dua butir dari feedback 16 Okt **belum** tuntas:
 - **Drag dari panel fixture ke grid belum diuji dengan mouse sungguhan.**
@@ -333,8 +333,7 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
 | `tests/test_suite_hygiene.py` | penjaga agar test tidak lolos tanpa dijalankan |
 | `scripts/check-anti-slop.js` | pemindai mutu |
 | `scripts/memlog.py` | memori agen |
-| `../script/notes/feedback_v5.md` | **umpan balik terbaru** (UI penerimaan 16 Okt) |
-| `../script/notes/feedback_v4.md` | umpan balik sebelumnya (6 Okt), sebagian dibatalkan v5 |
+| `../script/notes/feedback_v4.md` | **lembar acuan tunggal.** Bagian 1-10 (6 Okt) + bagian 11-14 (17 Okt) |
 | `../script/markdowns/script_plans.md` | status naskah skripsi |
 | `../script/markdowns/script_konsultasi_pembimbing.md` | agenda konsultasi dospem |
 
@@ -343,7 +342,7 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
 ## 7. Langkah Pertama yang Disarankan
 
 1. Baca **§0** dokumen ini (30 detik), lalu `markdowns/ROADMAP.md` FASE 8,
-   **§2b**, **§2c**, dan `../script/notes/feedback_v5.md`.
+   **§2b**, **§2c**, dan `../script/notes/feedback_v4.md` bagian 11-14.
 2. Verifikasi keadaan. **Periksa jumlah test, bukan hanya status `OK`:**
    ```bash
    PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py
