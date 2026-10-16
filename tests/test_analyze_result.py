@@ -161,3 +161,91 @@ def test_texture_metrics_are_normalized(app, tmp_path):
     flux = result.get("spectral_flux")
     assert mfcc is not None and 0.0 <= mfcc <= 1.0, f"mfcc_density out of range: {mfcc}"
     assert flux is not None and 0.0 <= flux <= 1.0, f"spectral_flux out of range: {flux}"
+
+
+def _write_tone(path: Path, segments) -> None:
+    """Write a mono 16-bit WAV from a list of (seconds, amplitude, frequency)."""
+    sample_rate = 22050
+    frames = array("h")
+    for seconds, amplitude, frequency in segments:
+        count = int(sample_rate * seconds)
+        for i in range(count):
+            import math
+
+            value = amplitude * math.sin(2.0 * math.pi * frequency * i / sample_rate)
+            frames.append(int(max(-1.0, min(1.0, value)) * 32767))
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(sample_rate)
+        handle.writeframes(frames.tobytes())
+
+
+def test_palette_matches_the_reported_valence_and_arousal(app, tmp_path):
+    """The palette must be the colour of the average mood, not of one instant.
+
+    The worker reported average Valence and Arousal but took the palette from
+    frames[len//2], a single middle frame. On a track whose mood moves, the two
+    described different moments, yet Bab 4 Tabel 4.6 lines up "Rata-rata V |
+    Rata-rata A | RGBW algoritmik" on one row per track. Measured on a
+    calm-dark then loud-bright signal: average V=+0.00 A=+0.14, middle frame
+    V=+0.03 A=+0.54, and the palettes differed (15,30,0,117) vs (32,57,0,92).
+    """
+    from core.color_engine import ColorEngine
+    from core.models import EmotionCoordinate
+
+    path = tmp_path / "moving_mood.wav"
+    _write_tone(path, [(4.0, 0.15, 110.0), (4.0, 0.9, 880.0)])
+
+    result = _analyse(path)
+    assert result.get("frames_count", 0) > 1
+
+    expected = ColorEngine().process_frame(
+        EmotionCoordinate(valence=result["valence"], arousal=result["arousal"]),
+        rms_energy=result["rms"],
+        master_dimmer=1.0,
+    )
+    palette = result["palette"]
+    assert (palette["R"], palette["G"], palette["B"], palette["W"]) == (
+        expected.red,
+        expected.green,
+        expected.blue,
+        expected.white,
+    ), "palette must be derived from the averages the report shows"
+
+
+def test_palette_is_not_a_single_middle_frame_when_mood_moves(app, tmp_path):
+    """A moving track must not report the colour of a random instant."""
+    from core.feature_extractor import FeatureExtractor
+
+    path = tmp_path / "moves.wav"
+    _write_tone(path, [(4.0, 0.15, 110.0), (4.0, 0.9, 880.0)])
+
+    result = _analyse(path)
+
+    from core.audio_loader import AudioLoader
+
+    signal, _ = AudioLoader().load_audio(str(path))
+    frames = FeatureExtractor().analyze_audio_stream(signal)
+    middle = frames[len(frames) // 2]
+    middle_rgbw = (middle.color.red, middle.color.green, middle.color.blue, middle.color.white)
+    palette = result["palette"]
+    reported_rgbw = (palette["R"], palette["G"], palette["B"], palette["W"])
+
+    assert reported_rgbw != middle_rgbw, (
+        "the palette still equals the middle frame; it must describe the whole track"
+    )
+
+
+def test_silent_audio_reports_a_dark_palette(app, tmp_path):
+    """Silence must not invent a warm default colour."""
+    path = tmp_path / "silence.wav"
+    _write_silent_wav(path)
+
+    result = _analyse(path)
+    palette = result["palette"]
+
+    assert (palette["R"], palette["G"], palette["B"], palette["W"]) == (0, 0, 0, 0), (
+        "silent input must report no light, not a fallback amber"
+    )
+

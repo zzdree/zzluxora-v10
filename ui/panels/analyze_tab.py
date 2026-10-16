@@ -124,14 +124,33 @@ class AudioAnalysisWorker(QThread if HAS_QT else object):
             else:
                 quad = "Idle"
 
-            # Palette representative
-            last_frame = frames[len(frames) // 2] if frames else None
-            palette = {
-                "R": last_frame.color.red if last_frame else 255,
-                "G": last_frame.color.green if last_frame else 180,
-                "B": last_frame.color.blue if last_frame else 50,
-                "W": last_frame.color.white if last_frame else 0,
-            }
+            # Palette representative.
+            #
+            # The palette must describe the SAME moment as the Valence and Arousal
+            # this report shows, and those are track averages. It used to be taken
+            # from frames[len//2], a single middle frame, so the table printed an
+            # average mood next to the colour of one arbitrary instant. On a track
+            # whose mood moves, the two disagreed: measured on a calm-dark then
+            # loud-bright signal, the average was V=+0.00 A=+0.14 while the middle
+            # frame read V=+0.03 A=+0.54, and the exported "RGBW algoritmik" column
+            # of Bab 4 Tabel 4.6 is defined per track, alongside average V/A. Feed
+            # the averages back through the same ColorEngine so the palette is the
+            # colour of the reported mood. When there is no analysable audio, fall
+            # back to the neutral centre the engine would produce anyway.
+            if has_tonal_content:
+                representative = extractor.color_engine.process_frame(
+                    EmotionCoordinate(valence=avg_v, arousal=avg_a),
+                    rms_energy=avg_rms,
+                    master_dimmer=1.0,
+                )
+                palette = {
+                    "R": representative.red,
+                    "G": representative.green,
+                    "B": representative.blue,
+                    "W": representative.white,
+                }
+            else:
+                palette = {"R": 0, "G": 0, "B": 0, "W": 0}
 
             duration_sec = len(signal) / float(extractor.sample_rate)
             bpm_est = extractor.estimate_tempo_bpm(signal)
