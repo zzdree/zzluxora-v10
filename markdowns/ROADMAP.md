@@ -18,6 +18,7 @@
 │  FASE 5: Pengujian Software-in-the-Loop (SITL QLC+)        [TERUJI]   │
 │  FASE 6: Pengujian Lapangan (ESP32 + PAR LED) & Packaging  [SIAP]     │
 │  FASE 7: Impeccable Design System & FOH Elevation          [SELESAI]  │
+│  FASE 8: Audit Defect Menyeluruh (18 defect, 129 test)     [SELESAI]  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -128,9 +129,52 @@
 - [x] Perform: `[GO+]` 48px commanding + hitung mundur crossfade live (`set_crossfade_progress` / `reset_crossfade_progress`).
 
 **Fase 5 — Verifikasi:**
-- [x] 41 unit test baru (total **65/65 lulus**), audit anti-slop 0 em-dash/en-dash/emoji/inline-hex, CLI Art-Net exit 0.
+- [x] 41 unit test baru (saat itu total **65/65 lulus**), audit anti-slop 0 em-dash/en-dash/emoji/inline-hex, CLI Art-Net exit 0.
+- [x] Diperluas menjadi **129 test** setelah audit menyeluruh (lihat FASE 8 di bawah).
 
 **Ditunda atas pilihan owner:** *Live Cue Ribbon* (swatch RGBW + pan/tilt per cue) — belum dibuat.
+
+---
+
+### 🔍 FASE 8: Audit Defect Menyeluruh (STATUS: TUNTAS, 16 Okt 2026)
+
+Audit adversarial atas seluruh permukaan aplikasi. Setiap temuan direproduksi lebih dulu, lalu ditutup uji regresi. **18 defect diperbaiki**, suite 65 menjadi **129 test**.
+
+**Kritis (data/klaim salah):**
+- [x] Audio **diam** dan berkas 0-sampel dilaporkan `"C Major (Praise character)"` + `Q3_DEEP_WORSHIP`. Alat penelitian mengarang bukti; kini tonality digerbangi energi kroma dan kuadran menjadi `Idle`.
+- [x] Alamat awal DMX rusak saat simpan (rumus modulo-8): fixture di DMX 18 tertulis 17, **9 dari 15 posisi**. Kini 0 dari 15.
+- [x] Visualizer 3D: pada pitch bawaan tepat 0 radian, lantai panggung, beam cone, dan floor pool menjadi poligon berluas nol alias tidak terlihat.
+- [x] Tombol FLASH: melepas tombol memadamkan panggung dan mengunci kanal warna.
+- [x] `ArtNetSender.blackout()` melempar OSError pada socket tertutup.
+
+**Analisis dan hasil:**
+- [x] Field hasil yang kosong tampil sebagai angka karangan (`1850 Hz`, `0.500`, `R:255 G:255`); kini `- (not measured)` dan Export hanya aktif bila lengkap.
+- [x] Metrik tekstur dilaporkan pada skala mentah (flux 0-258, MFCC 24-48) padahal dilabeli indeks; kini 0-1.
+- [x] Metrik lagu sebelumnya tetap tampil setelah analisis ulang gagal.
+- [x] Kuadran Q2_INTENSE_REVERENCE diberi cue Praise; kini punya set Reverence sendiri.
+
+**Fixture Editor:**
+- [x] Mengubah jumlah kanal menghapus seluruh label dan tipe yang sudah diketik.
+- [x] Save menghilangkan `id`/`model`/`type`, menulis ulang berkas resmi ke skema salah.
+- [x] Widget sel bocor tanpa batas (24 menjadi 264).
+- [x] Berkas rusak atau 0-kanal dimuat sebagai fixture hidup; kini ditolak dengan alasan.
+- [x] Write non-atomik dan nama berkas tidak divalidasi.
+- [x] Tidak melacak perubahan belum disimpan (editor reuse bisa menulis ulang berkas yang tak pernah dibuka).
+
+**Visualizer dan shell:**
+- [x] Seleksi 2D dan 3D tidak sinkron; geser slider menggeser fixture yang tidak dipilih.
+- [x] Geser grup menumpuk seluruh anggota di satu titik alih-alih mempertahankan jarak.
+- [x] Timer haze 30 FPS terus berjalan setelah jendela ditutup.
+- [x] Hit-test 3D berhenti pada kecocokan pertama; fixture bertumpuk tak dapat dipilih.
+- [x] Slider di panggung kosong menyimpan pivot dan menggeser permanen patch berikutnya.
+- [x] BLACKOUT tidak memadamkan 256 fader kanal dan sempat mengirim frame basi ke rig.
+- [x] Semua pintasan konsol mati saat jendela popup non-modal terbuka.
+- [x] Lencana Art-Net menyatakan TRANSMITTING tanpa dasar; kini OUTPUT STREAMING.
+- [x] Path proyek hardcoded di lima tempat sehingga gagal di luar `$HOME/ANDREAS`.
+- [x] Tombol kontrol FPS tidak terhubung ke apa pun.
+
+**Infrastruktur uji:**
+- [x] `tools/_autodialog_guard.py` dan `tools/run_tests_guarded.py` menjalankan seluruh suite tanpa memunculkan dialog di layar operator.
 
 ---
 
