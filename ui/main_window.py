@@ -835,6 +835,17 @@ class MainWindow(QMainWindow if HAS_QT else object):
                 event.ignore()
                 return
         self.stream_timer.stop()
+        # Fold the blackout state into this window, not only the wire. Sending
+        # blackout() darkens the rig, but the window's dmx_buffer and the mixer
+        # faders kept the last look. Shutdown can be aborted (a child window that
+        # refuses to close makes this event ignored), and then PLAY would resend
+        # the stale buffer and the faders would contradict the dark stage. Mirror
+        # the BLACKOUT path so the surface, the buffer, and the wire agree.
+        self.tab_mixer.apply_blackout()
+        for i in range(512):
+            self.dmx_buffer[i] = 0
+        if self.is_transmitting:
+            self.artnet_sender.send_raw(self.dmx_buffer)
         self.artnet_sender.blackout()
         self.artnet_sender.close()
         event.accept()
