@@ -60,10 +60,16 @@ class MixerTab(QWidget if HAS_QT else object):
 
         # 1. Master Fader Column (Fixed, Anchored on Far Left)
         master_frame = QFrame()
+        # Neutral frame. The column used to carry a 2px amber outline plus amber
+        # heading text, which broke the project's own rule that a coloured
+        # element is a solid block, never an outline, and spent the accent on
+        # chrome instead of meaning. The amber now appears only where it says
+        # something: on the master's own value readout, below, marking the one
+        # fader that scales every other.
         master_frame.setStyleSheet(f"""
             QFrame {{
                 background-color: {Theme.BG_SURFACE};
-                border: 2px solid {Theme.ACCENT_AMBER};
+                border: 1px solid {Theme.BORDER_SUBTLE};
                 border-radius: 6px;
                 padding: 4px;
             }}
@@ -73,7 +79,8 @@ class MixerTab(QWidget if HAS_QT else object):
 
         lbl_m = QLabel("GRAND MASTER")
         lbl_m.setAlignment(Qt.AlignCenter)
-        lbl_m.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {Theme.ACCENT_AMBER};")
+        lbl_m.setStyleSheet(
+            f"font-size: 10px; font-weight: 800; color: {Theme.TEXT_SECONDARY};")
         master_layout.addWidget(lbl_m)
 
         self.master_fader = TactileFader(channel_id=0, label="MASTER", initial_value=255, is_master=True, parent=master_frame)
@@ -189,7 +196,6 @@ class MixerTab(QWidget if HAS_QT else object):
                     QPushButton {{
                         background-color: {Theme.BG_ELEVATED};
                         border: 1px solid {Theme.ACCENT_CYAN};
-                        border-bottom: 2px solid {Theme.ACCENT_CYAN};
                         border-radius: 4px;
                         color: {Theme.TEXT_PRIMARY};
                         font-size: 10px;

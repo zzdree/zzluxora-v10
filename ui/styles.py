@@ -201,8 +201,9 @@ QPushButton.ProgramTabBtn:hover {{
 
 QPushButton.ProgramTabBtn:checked {{
     color: {Theme.TEXT_PRIMARY};
-    border-bottom: 3px solid {Theme.ACCENT_AMBER};
-    background-color: {Theme.BG_ELEVATED};
+    border-bottom: 3px solid transparent;
+    background-color: {Theme.SURFACE_HOVER};
+    border-radius: 4px;
 }}
 
 /* Telemetry: Art-Net Badge */
@@ -355,8 +356,7 @@ QListWidget::item {{
 }}
 
 QListWidget::item:selected {{
-    background-color: {Theme.BG_ELEVATED};
-    border-left: 3px solid {Theme.ACCENT_CYAN};
+    background-color: {Theme.SURFACE_HOVER};
     color: {Theme.TEXT_PRIMARY};
 }}
 

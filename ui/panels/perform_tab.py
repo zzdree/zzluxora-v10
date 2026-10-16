@@ -81,7 +81,6 @@ class PerformTab(QWidget if HAS_QT else object):
             }}
             QListWidget::item:selected {{
                 background-color: {Theme.BG_ELEVATED};
-                border-left: 3px solid {Theme.ACCENT_CYAN};
                 color: {Theme.TEXT_PRIMARY};
             }}
         """)

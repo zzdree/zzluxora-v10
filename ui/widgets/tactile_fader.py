@@ -197,7 +197,12 @@ class TactileFader(QWidget if HAS_QT else object):
         painter.fillRect(0, 0, w, h, QColor(Theme.BG_ROOT))
 
         # 2. Header Label (Top)
-        painter.setPen(QColor(Theme.ACCENT_AMBER if self.is_master else (Theme.ACCENT_CYAN if self.fixture_tag else Theme.TEXT_SECONDARY)))
+        # The header states which fader this is: a channel number, a fixture tag,
+        # or MASTER. That is a label, not a status, so it stays neutral. The
+        # master is told apart by its taller column and its own value readout
+        # below, which is where the amber carries meaning; painting the word
+        # "MASTER" amber as well duplicated the signal with decoration.
+        painter.setPen(QColor(Theme.TEXT_SECONDARY))
         if self.is_master:
             painter.setFont(QFont("Inter", 8, QFont.Bold))
             header_str = "MASTER"
