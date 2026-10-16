@@ -367,6 +367,13 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
     # STAGE CONTROLS: BLACKOUT & PLAY/STOP
     def _on_blackout_clicked(self) -> None:
+        # A live crossfade keeps writing the dmx_buffer on every tick, so a
+        # blackout that only zeroes the buffer was undone ~23 ms later by the
+        # next tick and the stage lit back up. Cancel the fade first.
+        if self._crossfade_timer.isActive():
+            self._crossfade_timer.stop()
+        if hasattr(self, 'tab_perform'):
+            self.tab_perform.reset_crossfade_progress()
         self.tab_mixer.apply_blackout()
         for i in range(512):
             self.dmx_buffer[i] = 0
@@ -396,7 +403,11 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.btn_artnet_badge.setProperty("connected", "true")
             self.btn_artnet_badge.style().polish(self.btn_artnet_badge)
 
-            # Transmit immediately on play and start continuous streaming
+            # Transmit immediately on play and start continuous streaming.
+            # Derive the frame from the faders first: RESET DMX zeroes the
+            # faders silently, so the dmx_buffer still held the previous look
+            # and pressing PLAY re-lit the stage with it.
+            self._rebuild_dmx_from_faders()
             self.artnet_sender.send_raw(self.dmx_buffer)
             self.stream_timer.start()
         else:
@@ -411,6 +422,20 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.btn_artnet_badge.style().polish(self.btn_artnet_badge)
 
             self.stream_timer.stop()
+
+    def _rebuild_dmx_from_faders(self) -> None:
+        """Recompute the whole DMX frame from the current fader positions.
+
+        The mixer uses silent setters for bulk changes (RESET DMX, blackout,
+        loading a project) so it does not emit one Art-Net packet per channel.
+        The price is that dmx_buffer does not follow those faders by itself;
+        anything that transmits the buffer after a bulk change must rebuild it
+        first, or the rig gets the pre-change look.
+        """
+        master_scale = self.tab_mixer.master_fader.value / 255.0
+        for ch in range(1, 257):
+            raw_value = self.tab_mixer.faders[ch].value
+            self.dmx_buffer[ch - 1] = int(round(raw_value * master_scale))
 
     def _stream_artnet_packet(self) -> None:
         if self.is_transmitting:
@@ -596,6 +621,22 @@ class MainWindow(QMainWindow if HAS_QT else object):
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
+            # Gate the payload before any state is touched. ProjectIO owns the
+            # schema rules; without this check the console adopted any JSON at
+            # all (a QLC+ file, a hand-edited one whose target_ip was the string
+            # "not-an-ip") and then sent Art-Net to an invalid destination,
+            # having already replaced the operator's current patch.
+            problem = ProjectIO.validate_payload(data)
+            if problem is not None:
+                if notify:
+                    QMessageBox.critical(
+                        self,
+                        "Open Error",
+                        f"'{Path(path).name}' was not loaded because {problem}.\n\n"
+                        "The current project was left unchanged.",
+                    )
+                return
+
             self.current_project_path = path
             self._update_title_bar()
 
@@ -727,8 +768,23 @@ class MainWindow(QMainWindow if HAS_QT else object):
                 "cues": [button.cue_data for button in self.tab_page.executor_buttons],
                 "faders": faders,
             }
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+            # Atomic write, matching ProjectIO.save_project. The previous inline
+            # open(path, "w") truncated the showfile before writing, so a failure
+            # mid-serialization turned the operator's saved show into a corrupt
+            # fragment (measured: a 1973-byte project became 51 unusable bytes).
+            temporary = f"{path}.{os.getpid()}.tmp"
+            try:
+                with open(temporary, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(temporary, path)
+            except OSError:
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    pass
+                raise
 
             self.current_project_path = path
             self._update_title_bar()

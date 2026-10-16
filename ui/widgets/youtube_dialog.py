@@ -112,7 +112,6 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         self.dep_lbl = QLabel("")
         self.dep_lbl.setWordWrap(True)
         layout.addWidget(self.dep_lbl)
-        self._refresh_dependency_line()
 
         # Status message label
         self.status_lbl = QLabel("Ready to download.")
@@ -124,7 +123,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         btn_layout.addStretch()
 
         self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.clicked.connect(self.close)
+        self.btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
         self.btn_download = QPushButton("Download & Extract Audio")
@@ -133,6 +132,11 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         btn_layout.addWidget(self.btn_download)
 
         layout.addLayout(btn_layout)
+
+        # Must run after btn_download exists: _refresh_dependency_line() enables
+        # or disables that button, and calling it earlier raised AttributeError
+        # on every open of the dialog.
+        self._refresh_dependency_line()
 
     def _refresh_dependency_line(self) -> None:
         """Show whether the required components are present, before any attempt."""
@@ -211,6 +215,10 @@ class YouTubeDialog(QDialog if HAS_QT else object):
             "Audio Extracted",
             f"Audio successfully extracted and saved to:\n{Path(file_path).name}\n\nLoaded into Analyze tab.",
         )
+        # Release the finished thread before accept() closes the modal loop;
+        # after accept() returns, the local reference in AnalyzeTab is gone and
+        # the dialog may be collected at any moment.
+        self._stop_worker()
         self.accept()
 
     def _on_failed(self, error_msg: str) -> None:
@@ -220,3 +228,35 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         self.progress_bar.setValue(0)
         self.status_lbl.setText("Import failed. See the message for the reason.")
         QMessageBox.critical(self, "Import Failed", error_msg)
+
+    def reject(self) -> None:
+        """Cancel and close, never destroying a worker that is still running.
+
+        The dialog is opened with exec() from a local reference, so once it
+        returns the dialog can be garbage collected. If a download is still in
+        flight at that moment the QThread is destroyed while running, which Qt
+        treats as a fatal error. Ask the thread to stop and wait for it here.
+
+        close() is used instead of super().reject() on purpose. reject() routes
+        to QDialog.done(), which manipulates the modal event loop; calling it on
+        a dialog that was never exec()'d aborts the process under the offscreen
+        platform plugin, which is exactly how the test suite drives this widget.
+        close() stops the worker and dismisses the window without touching a
+        modal loop that may not be running.
+        """
+        self._stop_worker()
+        self.close()
+
+    def _stop_worker(self) -> None:
+        """Request interruption and wait, so the thread is never destroyed live."""
+        worker = self.worker
+        if worker is None:
+            return
+        if worker.isRunning():
+            worker.requestInterruption()
+            if not worker.wait(5000):
+                # The worker refuses to stop; leave it parented to the dialog
+                # rather than freeing memory a live thread may still touch.
+                worker.setParent(self)
+                return
+        self._release_worker()

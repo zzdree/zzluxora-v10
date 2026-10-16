@@ -566,6 +566,81 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_blackout_cancels_a_running_crossfade(self):
+        """BLACKOUT must also stop a live crossfade, not just zero the buffer.
+
+        Regression: _on_blackout_clicked zeroed dmx_buffer but left the
+        crossfade timer running. _on_crossfade_tick calls _apply_dmx_buffer
+        every 23 ms, which overwrites the zeroed buffer with interpolated
+        values and transmits them, so the stage lit back up shortly after the
+        operator pressed BLACKOUT.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        # Put a fade in flight toward a bright look.
+        win._apply_dmx_buffer(bytearray([255] + [0] * 511))
+        win._fade_start = bytearray([255] + [0] * 511)
+        win._fade_target = bytearray([255, 200] + [0] * 510)
+        win._fade_duration = 2.0
+        win._fade_elapsed = 0.0
+        win._crossfade_timer.start()
+        self.assertTrue(win._crossfade_timer.isActive(), "precondition: a fade is running")
+
+        win._on_blackout_clicked()
+
+        self.assertFalse(
+            win._crossfade_timer.isActive(),
+            "blackout must stop the crossfade, or the next tick re-lights the stage",
+        )
+        self.assertEqual(
+            [value for value in win.dmx_buffer if value != 0], [],
+            "the buffer must stay dark after the blackout",
+        )
+
+        win.close()
+
+    def test_reset_dmx_then_play_does_not_relight_the_old_look(self):
+        """RESET DMX must not leave a stale look available for PLAY to send.
+
+        Regression: the mixer's RESET DMX uses silent setters so it does not
+        emit one Art-Net packet per channel. That also meant the shell never
+        learned the faders had moved, so dmx_buffer still held the previous
+        look; pressing PLAY transmitted it and the stage lit up again with the
+        old cue.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        for ch in (1, 2, 17, 33):
+            win.tab_mixer.set_channel_value(ch, 220, silent=True)
+        win._rebuild_dmx_from_faders()
+        self.assertTrue(any(v != 0 for v in win.dmx_buffer), "precondition: a look is lit")
+
+        win.tab_mixer._reset_dmx_channels()
+        # This is the trap: faders read zero while the buffer is still lit.
+        self.assertEqual(win.tab_mixer.faders[1].value, 0)
+        self.assertTrue(
+            any(v != 0 for v in win.dmx_buffer),
+            "precondition: reset left the buffer stale (the defect's raw material)",
+        )
+
+        captured = []
+        win.artnet_sender._transmit = lambda packet: captured.append(packet)
+        win._on_play_stop_toggled()
+
+        self.assertEqual(
+            [value for value in win.dmx_buffer if value != 0], [],
+            "PLAY after RESET DMX must send a dark frame, not the previous look",
+        )
+        self.assertTrue(captured, "PLAY should transmit a frame")
+        payload = captured[0][18:18 + 512]
+        self.assertEqual([v for v in payload if v != 0], [], "the first PLAY frame must be dark")
+
+        win.close()
+
     def test_global_shortcuts_survive_popups_and_cover_documented_keys(self):
         """Console shortcuts must work while a floating window has focus.
 

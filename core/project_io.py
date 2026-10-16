@@ -61,16 +61,76 @@ class ProjectIO:
 
     @classmethod
     def save_project(cls, data: Dict[str, Any], file_path: str) -> bool:
-        """Saves project dictionary to a .zlx file."""
+        """Saves project dictionary to a .zlx file.
+
+        The write is atomic. Opening the destination directly with mode "w"
+        truncates it before a single byte is written, so a failure part way
+        through json.dump (a non-serializable value, a full disk) leaves the
+        operator with a destroyed showfile instead of an unsaved one. Writing
+        to a temporary file in the same directory and then os.replace()-ing it
+        into place means the destination is either the old file or the new one,
+        never a truncated hybrid.
+        """
         if not file_path.endswith(cls.FILE_EXTENSION):
             file_path += cls.FILE_EXTENSION
 
+        directory = os.path.dirname(os.path.abspath(file_path))
+        temporary = f"{file_path}.{os.getpid()}.tmp"
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
+            with open(temporary, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary, file_path)
             return True
         except (OSError, TypeError, ValueError):
+            try:
+                os.unlink(temporary)
+            except OSError:
+                pass
             return False
+
+    @classmethod
+    def validate_payload(cls, data: Any) -> Optional[str]:
+        """Return None when data is a loadable project, otherwise the reason.
+
+        A .zlx file is a JSON object carrying the ZZLUXORA app marker and the
+        field types the loader dereferences. Loading without this gate accepts
+        any JSON at all, including a QLC+ file or a hand-edited one whose
+        target_ip is the string "not-an-ip"; the console then adopts it and
+        sends Art-Net to an invalid destination.
+        """
+        if not isinstance(data, dict):
+            return "the file does not contain a JSON object"
+        if data.get("app") != cls.APP_ID:
+            return f"the file is not a ZZLUXORA project (app marker missing or not {cls.APP_ID!r})"
+        if not isinstance(data.get("patches", []), list):
+            return "the 'patches' entry is not a list"
+        if not isinstance(data.get("songs", []), list):
+            return "the 'songs' entry is not a list"
+        if not isinstance(data.get("cues", []), list):
+            return "the 'cues' entry is not a list"
+        if not isinstance(data.get("faders", {}), dict):
+            return "the 'faders' entry is not an object"
+        host = data.get("target_ip", "127.0.0.1")
+        if not isinstance(host, str) or not cls._is_ipv4(host):
+            return f"the 'target_ip' entry is not a valid IPv4 address ({host!r})"
+        for key in ("port", "universe", "master_dimmer"):
+            if key in data and not isinstance(data[key], int):
+                return f"the {key!r} entry is not an integer"
+        return None
+
+    @staticmethod
+    def _is_ipv4(value: str) -> bool:
+        parts = value.split(".")
+        if len(parts) != 4:
+            return False
+        for part in parts:
+            if not part.isdigit():
+                return False
+            if not 0 <= int(part) <= 255:
+                return False
+        return True
 
     @classmethod
     def load_project(cls, file_path: str) -> Optional[Dict[str, Any]]:
@@ -84,9 +144,9 @@ class ProjectIO:
         except (OSError, ValueError):
             return None
 
-        if isinstance(data, dict) and data.get("app") == cls.APP_ID:
-            return data
-        return None
+        if cls.validate_payload(data) is not None:
+            return None
+        return data
 
     @classmethod
     def iter_patches(cls, data: Dict[str, Any]) -> List[Dict[str, Any]]:

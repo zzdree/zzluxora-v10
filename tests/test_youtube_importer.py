@@ -123,3 +123,85 @@ class TestFfmpegResolution(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestYouTubeDialogLifecycle(unittest.TestCase):
+    """The dialog must open, and must never destroy a live worker thread.
+
+    Three regressions are covered. First, _refresh_dependency_line() was called
+    during _init_ui() before btn_download existed, so every open raised
+    AttributeError. Second, the dialog is opened with exec() from a local
+    reference, so it could be garbage collected while a download was still in
+    flight, destroying a running QThread. Third, _on_finished accepted the
+    dialog without releasing the worker.
+    """
+
+    _qapp = None
+
+    @classmethod
+    def _application(cls):
+        """Create the dialog host and KEEP a reference to it.
+
+        Two traps live here. First, QApplication([]) resolves to the "minimal"
+        platform plugin in a headless runner and constructing a QDialog there
+        aborts the process, so "offscreen" is pinned explicitly. Second, if the
+        only reference to the QApplication is a local inside the test method it
+        is collected as soon as that method returns, and letting the application
+        object die while widgets still exist aborts the process. Holding it on
+        the class mirrors ui/components' suite, which keeps the same reference
+        alive for the whole run.
+        """
+        from ui.qt_compat import HAS_QT, QApplication
+        if not HAS_QT:
+            raise unittest.SkipTest("Qt bindings are not installed")
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(["-platform", "offscreen"])
+        cls._qapp = app
+        return app
+
+    def test_dialog_opens_and_dependency_line_reads(self):
+        self._application()
+        from ui.widgets.youtube_dialog import YouTubeDialog
+        dialog = YouTubeDialog()
+        try:
+            self.assertTrue(hasattr(dialog, "btn_download"))
+            self.assertTrue(dialog.dep_lbl.text())
+        finally:
+            dialog.reject()
+
+    def test_reject_stops_a_running_worker_before_the_dialog_goes(self):
+        self._application()
+        import time
+        from pathlib import Path
+        from ui.widgets.youtube_dialog import YouTubeDialog, YouTubeDownloaderWorker
+
+        class SlowWorker(YouTubeDownloaderWorker):
+            def run(self):
+                for _ in range(400):
+                    if self.isInterruptionRequested():
+                        return
+                    time.sleep(0.01)
+
+        dialog = YouTubeDialog()
+        worker = SlowWorker("https://www.youtube.com/watch?v=abc12345678", Path("/tmp"))
+        worker.start()
+        time.sleep(0.2)
+        self.assertTrue(worker.isRunning(), "precondition: the worker is alive")
+        dialog.worker = worker
+
+        dialog.reject()
+
+        self.assertFalse(worker.isRunning(), "reject must not leave a live thread behind")
+        self.assertIsNone(dialog.worker)
+
+    def test_stop_worker_is_safe_when_no_worker_exists(self):
+        self._application()
+        from ui.widgets.youtube_dialog import YouTubeDialog
+        dialog = YouTubeDialog()
+        try:
+            self.assertIsNone(dialog.worker)
+            dialog._stop_worker()
+            self.assertIsNone(dialog.worker)
+        finally:
+            dialog.reject()

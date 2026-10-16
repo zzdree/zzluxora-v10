@@ -1,4 +1,5 @@
 import os
+import json
 import tempfile
 import unittest
 from core.project_io import ProjectIO
@@ -135,3 +136,102 @@ class TestProjectIO(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestProjectSaveIsAtomic(unittest.TestCase):
+    """A failed save must leave the previous showfile intact.
+
+    Regression: save_project opened the destination with mode "w", which
+    truncates before the first byte is written, then let json.dump write in
+    stages (measured: 1945 separate write() calls). When serialization failed
+    part way through, the operator's saved showfile was replaced by a truncated
+    fragment - a healthy 1973-byte project became 51 unusable bytes.
+    """
+
+    class _Unserializable:
+        def __repr__(self):
+            return "<unserializable>"
+
+    def test_failed_save_preserves_previous_file_byte_for_byte(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = os.path.join(tmpdir, "show.zlx")
+            self.assertTrue(ProjectIO.save_project(ProjectIO.create_default_project(), target))
+            with open(target, "rb") as handle:
+                before = handle.read()
+            self.assertGreater(len(before), 0)
+
+            broken = ProjectIO.create_default_project()
+            broken["patches"] = [{"bad": self._Unserializable()}]
+
+            self.assertFalse(ProjectIO.save_project(broken, target))
+            with open(target, "rb") as handle:
+                self.assertEqual(handle.read(), before, "the previous showfile must survive a failed save")
+            self.assertIsNotNone(ProjectIO.load_project(target))
+
+    def test_failed_save_leaves_no_temporary_behind(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = os.path.join(tmpdir, "show.zlx")
+            broken = ProjectIO.create_default_project()
+            broken["patches"] = [{"bad": self._Unserializable()}]
+            ProjectIO.save_project(broken, target)
+
+            leftovers = [name for name in os.listdir(tmpdir) if name.endswith(".tmp")]
+            self.assertEqual(leftovers, [], f"temporary files were left behind: {leftovers}")
+
+    def test_successful_save_leaves_no_temporary_behind(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = os.path.join(tmpdir, "show.zlx")
+            self.assertTrue(ProjectIO.save_project(ProjectIO.create_default_project(), target))
+            leftovers = [name for name in os.listdir(tmpdir) if name.endswith(".tmp")]
+            self.assertEqual(leftovers, [])
+
+
+class TestProjectPayloadGate(unittest.TestCase):
+    """A .zlx file must be validated before the console adopts it.
+
+    Regression: main_window called json.load and used the result directly, so
+    any JSON at all was accepted - a QLC+ file, or one whose target_ip was the
+    string "not-an-ip" - and the console then sent Art-Net to that address.
+    """
+
+    def test_accepts_a_valid_project(self):
+        self.assertIsNone(ProjectIO.validate_payload(ProjectIO.create_default_project()))
+
+    def test_rejects_non_object_payload(self):
+        self.assertIsNotNone(ProjectIO.validate_payload([1, 2, 3]))
+        self.assertIsNotNone(ProjectIO.validate_payload("a string"))
+
+    def test_rejects_foreign_app_marker(self):
+        self.assertIsNotNone(ProjectIO.validate_payload({"app": "QLC+", "target_ip": "127.0.0.1"}))
+
+    def test_rejects_missing_app_marker(self):
+        self.assertIsNotNone(ProjectIO.validate_payload({"target_ip": "127.0.0.1"}))
+
+    def test_rejects_hostile_or_malformed_target_ip(self):
+        for bad in ("not-an-ip", "192.168.4.999", "192.168.4", "1.2.3.4.5", "", "12.34.56.78x"):
+            with self.subTest(target_ip=bad):
+                data = ProjectIO.create_default_project()
+                data["target_ip"] = bad
+                self.assertIsNotNone(ProjectIO.validate_payload(data), bad)
+
+    def test_accepts_valid_ipv4_addresses(self):
+        for good in ("127.0.0.1", "192.168.4.1", "192.168.1.255", "0.0.0.0"):
+            with self.subTest(target_ip=good):
+                data = ProjectIO.create_default_project()
+                data["target_ip"] = good
+                self.assertIsNone(ProjectIO.validate_payload(data), good)
+
+    def test_rejects_wrong_container_types(self):
+        cases = {"patches": {}, "songs": {}, "cues": {}, "faders": []}
+        for key, value in cases.items():
+            with self.subTest(field=key):
+                data = ProjectIO.create_default_project()
+                data[key] = value
+                self.assertIsNotNone(ProjectIO.validate_payload(data), key)
+
+    def test_load_project_rejects_a_foreign_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = os.path.join(tmpdir, "foreign.zlx")
+            with open(target, "w", encoding="utf-8") as handle:
+                json.dump({"app": "QLC+", "target_ip": "not-an-ip"}, handle)
+            self.assertIsNone(ProjectIO.load_project(target))
