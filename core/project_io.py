@@ -110,6 +110,13 @@ class ProjectIO:
             return "the 'songs' entry is not a list"
         if not isinstance(data.get("cues", []), list):
             return "the 'cues' entry is not a list"
+        # Each cue is dereferenced with .get() by PageTab.load_cues, so a list
+        # holding a non-object entry crashes the load with an AttributeError
+        # ('int' object has no attribute 'get'). The type gate stopped at the
+        # container, not the items, so a hand-edited showfile reached the UI.
+        for entry in data.get("cues", []):
+            if not isinstance(entry, dict):
+                return "the 'cues' entry contains an item that is not an object"
         if not isinstance(data.get("faders", {}), dict):
             return "the 'faders' entry is not an object"
         host = data.get("target_ip", "127.0.0.1")

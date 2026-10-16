@@ -570,6 +570,38 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_closing_the_window_blackouts_the_surface_and_the_buffer(self):
+        """Shutdown must darken the mixer and the DMX buffer, not only the wire.
+
+        Regression: closeEvent called artnet_sender.blackout() and stopped there.
+        The rig went dark, but the window's dmx_buffer and every channel fader
+        kept the last look. Shutdown can be aborted (a child window that refuses
+        to close makes the close event ignored), and then PLAY resends the stale
+        buffer while the faders still read as lit - the surface contradicting the
+        output, which is exactly the class of defect BLACKOUT had.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        win.dmx_buffer[0] = 200
+        win.dmx_buffer[2] = 100
+        win.tab_mixer.faders[1].value = 200
+
+        # Drive the real close event rather than calling win.close(), so the
+        # shutdown path is exercised without tearing the window down mid-test.
+        import PyQt6.QtGui as _QtGui
+        event = _QtGui.QCloseEvent()
+        win.closeEvent(event)
+
+        self.assertEqual([win.dmx_buffer[i] for i in range(3)], [0, 0, 0],
+                         "the buffer must be zeroed so a later PLAY cannot resend a stale look")
+        self.assertEqual(win.tab_mixer.faders[1].value, 0,
+                         "the fader must read dark, matching the rig")
+        self.assertEqual(win.tab_mixer.master_fader.value, 0)
+
+        event.accept()
+
     def test_blackout_cancels_a_running_crossfade(self):
         """BLACKOUT must also stop a live crossfade, not just zero the buffer.
 
@@ -1090,6 +1122,56 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual(len(page.executor_buttons), 3)
         win.close()
 
+    def test_page_load_cues_skips_non_object_entries(self):
+        """A cue list with a stray int must not crash the executor page.
+
+        ExecutorButton reads cue fields with .get(), so passing an int raised
+        AttributeError: 'int' object has no attribute 'get'. The project loader
+        now rejects such files, but load_cues is also reachable directly, so it
+        keeps its own guard and still loads the entries that are objects.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        page = win.tab_page
+
+        page.load_cues([42])
+        self.assertEqual(len(page.executor_buttons), 0)
+
+        page.load_cues([{"label": "A"}, 42, {"label": "B"}])
+        self.assertEqual(len(page.executor_buttons), 2,
+                         "the object entries must still load")
+        win.close()
+
+    def test_replacing_the_page_releases_a_held_flash(self):
+        """A flash still held when the page is replaced must not leave the stage lit.
+
+        Regression: a flash sends active=True on press and active=False on
+        release, and the release restores the pre-flash look. Replacing the page
+        (CLEAR PAGE, or a fresh GENERATE EXECUTORS) destroyed the button without
+        the release ever firing, so the stage stayed lit with no executor left to
+        turn it off. Measured: after press wire[:3] = 255,255,255 and it stayed
+        that way once the page was replaced.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        for offset in range(8):
+            win.tab_address.grid_area.boxes[1 + offset].set_patched("dimmer", "DIM", "KUMA")
+
+        win.tab_page.load_cues([{"label": "FLASH", "type": "flash",
+                                 "color": {"R": 255, "G": 0, "B": 0, "W": 0}, "dimmer": 255}])
+        win.tab_page.executor_buttons[0]._on_flash_pressed()
+        self.assertEqual(win.dmx_buffer[0], 255, "the flash must light the stage")
+
+        win.tab_page.load_cues([{"label": "OTHER", "type": "scene",
+                                 "color": {"R": 0, "G": 0, "B": 255, "W": 0}, "dimmer": 100}])
+        self.assertNotEqual(win.dmx_buffer[0], 255,
+                            "replacing the page must release the held flash")
+        win.close()
+
     def test_fader_heights_stay_compact_and_master_stays_dominant(self):
         """Channel faders must not balloon past the documented height.
 
@@ -1579,6 +1661,34 @@ class TestUIModules(unittest.TestCase):
         lib.select(0)
         self.assertEqual(shown_title(), "lagu_A",
                          "the card must follow the selection, not stay on the old song")
+
+        win.close()
+
+    def test_selecting_an_unanalysed_song_clears_the_metrics_card(self):
+        """A song with no analysis must clear the card, not keep the old numbers."""
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        lib = win.song_library
+        lib.add_path("/tmp/analysed.wav", select=False)
+        lib.add_path("/tmp/pending.wav", select=False)
+        lib.set_analysis(0, {
+            "title": "analysed", "frames_count": 500, "fps_rate": 43.07,
+            "valence": 0.3, "arousal": 0.2, "rms": 0.1, "spectral_centroid": 1500.0,
+            "chroma_key": "C Major", "dominant_pitch": "C", "mfcc_density": 0.5,
+            "spectral_flux": 0.4, "quadrant": "Q1", "bpm": 100.0, "duration_sec": 12.0,
+            "palette": {"R": 10, "G": 20, "B": 30, "W": 0},
+        })
+
+        result = win.tab_result
+        lib.select(0)
+        self.assertEqual(result.table.item(0, 1).text(), "analysed")
+
+        lib.select(1)
+        self.assertEqual(result.table.item(0, 1).text(), "No analysis yet")
+        self.assertFalse(result.btn_export.isEnabled())
+        self.assertIsNone(result.current_analysis)
 
         win.close()
 

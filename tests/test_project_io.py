@@ -225,6 +225,26 @@ class TestProjectPayloadGate(unittest.TestCase):
                 data[key] = value
                 self.assertIsNotNone(ProjectIO.validate_payload(data), key)
 
+    def test_rejects_cues_holding_non_object_items(self):
+        """A cue list of ints must be refused, not loaded into the UI.
+
+        PageTab.load_cues dereferences each entry with .get(), so an entry that
+        is not an object raised AttributeError ('int' object has no attribute
+        'get') on load. The gate only checked that 'cues' was a list, not what it
+        held, so a hand-edited showfile crashed the console.
+        """
+        for bad in ([42], ["a cue"], [None], [{"label": "ok"}, 42]):
+            with self.subTest(cues=bad):
+                data = ProjectIO.create_default_project()
+                data["cues"] = bad
+                self.assertIsNotNone(ProjectIO.validate_payload(data), bad)
+
+        for good in ([], [{}], [{"label": "L"}], [{"label": "L", "type": "flash"}]):
+            with self.subTest(cues=good):
+                data = ProjectIO.create_default_project()
+                data["cues"] = good
+                self.assertIsNone(ProjectIO.validate_payload(data), good)
+
     def test_load_project_rejects_a_foreign_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             target = os.path.join(tmpdir, "foreign.zlx")

@@ -128,9 +128,16 @@ class PageTab(QWidget if HAS_QT else object):
         this, every GENERATE EXECUTORS run appended another copy, so pressing it
         three times left three identical sets of executor buttons stacked on the
         grid.
+
+        Non-object entries are skipped rather than passed to ExecutorButton,
+        which dereferences .get() and would raise on an int or a string. The
+        project loader now rejects such files, but this method is also reachable
+        directly, so it stays defensive on its own.
         """
         self._clear_executors()
         for cue in cues:
+            if not isinstance(cue, dict):
+                continue
             btn = ExecutorButton(cue, self.grid_container)
             btn.cue_triggered.connect(self._on_cue_triggered)
             self.executor_buttons.append(btn)
@@ -141,6 +148,18 @@ class PageTab(QWidget if HAS_QT else object):
             self.grid_layout.addWidget(btn, row, col)
 
     def _clear_executors(self) -> None:
+        # Release any flash that is still held before destroying its button.
+        # A flash is momentary: pressed sends active=True and the release sends
+        # active=False, which restores the look that was running. When the page
+        # is replaced (CLEAR PAGE, or a new GENERATE EXECUTORS) while the flash is
+        # still down, the release never arrives, so the stage stayed lit with no
+        # executor left to turn it off. Emit the release here so the console
+        # restores the pre-flash look, matching what lifting the button does.
+        for btn in self.executor_buttons:
+            if getattr(btn, "is_flash", False) and getattr(btn, "is_active", False):
+                btn.is_active = False
+                self.cue_activated.emit({**btn.cue_data, "active": False})
+                break
         for btn in self.executor_buttons:
             self.grid_layout.removeWidget(btn)
             btn.deleteLater()
