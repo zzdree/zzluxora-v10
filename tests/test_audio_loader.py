@@ -45,6 +45,56 @@ class TestAudioLoader(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 AudioLoader().load_audio(path)
 
+    def test_decode_failure_reports_the_actual_cause(self):
+        """A broken file must not be blamed on a missing soundfile.
+
+        The loader used to swallow any exception from the soundfile branch with
+        a bare ``except Exception: pass`` and then say "please install
+        soundfile or convert to PCM WAV". That message was wrong whenever
+        soundfile was installed and the real problem was the file itself, so the
+        operator was sent looking for the wrong fault.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "broken.wav")
+            with open(path, "wb") as source:
+                source.write(b"this is not audio at all" * 100)
+
+            with self.assertRaises(RuntimeError) as caught:
+                AudioLoader().load_audio(path)
+
+            message = str(caught.exception)
+            self.assertIn("Cannot decode audio file", message)
+            self.assertNotIn("install soundfile", message.lower())
+
+    def test_permission_error_is_not_swallowed(self):
+        """An unreadable file is an I/O fault, not a decode fallback."""
+        if os.geteuid() == 0:
+            self.skipTest("root bypasses POSIX permission bits")
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "locked.wav")
+            with wave.open(path, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(22050)
+                wav_file.writeframes(b"\x00\x00" * 512)
+
+            os.chmod(path, 0o000)
+            try:
+                with self.assertRaises(PermissionError):
+                    AudioLoader().load_audio(path)
+            finally:
+                os.chmod(path, 0o644)
+
+    def test_directory_named_wav_is_not_swallowed(self):
+        """A directory is not audio; the error must surface, not be hidden."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "folder.wav")
+            os.makedirs(path)
+
+            with self.assertRaises((IsADirectoryError, PermissionError)):
+                AudioLoader().load_audio(path)
+
 
 if __name__ == "__main__":
     unittest.main()

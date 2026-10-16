@@ -84,36 +84,71 @@ class AudioLoader:
 
     def load_audio(self, file_path: str) -> Tuple[np.ndarray, int]:
         """
-        Attempts to load an audio file using available decoders:
-        1. soundfile (if installed) - covers .wav, .flac, .ogg
-        2. native wave parser - fallback for standard PCM .wav files
+        Loads an audio file using the first available decoder that succeeds:
+        1. soundfile (if installed) - covers .wav, .flac, .ogg, and any container
+           it recognises regardless of extension
+        2. native wave parser - PCM .wav only
 
         librosa is intentionally not used; the DSP/MIR engine is pure NumPy.
+
+        The soundfile branch only falls through to the native parser when the
+        file is one soundfile cannot decode. Real I/O failures (missing file,
+        permission denied, path is a directory) and resource exhaustion are
+        re-raised as-is, because swallowing them turned a readable diagnosis
+        into a misleading "please install soundfile" message even when
+        soundfile was present and the actual cause was a broken file.
         """
         ext = os.path.splitext(file_path)[1].lower()
 
-        # Try soundfile
+        soundfile_failure: Optional[Exception] = None
         try:
             import soundfile as sf
-            data, sr = sf.read(file_path, dtype="float32")
-            if data.ndim > 1:
-                data = np.mean(data, axis=1)
-            if sr != self.target_sample_rate:
-                target_length = int(len(data) * self.target_sample_rate / sr)
-                data = np.interp(
-                    np.linspace(0, len(data), target_length, endpoint=False),
-                    np.arange(len(data)),
-                    data
-                ).astype(np.float32)
-            return data, self.target_sample_rate
-        except Exception:
-            pass
+        except ImportError:
+            sf = None
 
-        # Try native wave if WAV
+        if sf is not None:
+            try:
+                data, sr = sf.read(file_path, dtype="float32")
+                if data.ndim > 1:
+                    data = np.mean(data, axis=1)
+                if sr != self.target_sample_rate:
+                    target_length = int(len(data) * self.target_sample_rate / sr)
+                    data = np.interp(
+                        np.linspace(0, len(data), target_length, endpoint=False),
+                        np.arange(len(data)),
+                        data,
+                    ).astype(np.float32)
+                return data, self.target_sample_rate
+            except (OSError, RuntimeError, ValueError) as exc:
+                # soundfile reports an undecodable container as a LibsndfileError
+                # (a RuntimeError subclass) or ValueError; keep that so the native
+                # parser can still try a .wav. Any other exception class is a real
+                # fault and must not be hidden.
+                soundfile_failure = exc
+            except MemoryError:
+                raise
+
         if ext == ".wav":
-            return self.load_wav_native(file_path)
+            try:
+                return self.load_wav_native(file_path)
+            except (wave.Error, EOFError):
+                if soundfile_failure is not None:
+                    raise RuntimeError(
+                        f"Cannot decode audio file {file_path}. "
+                        f"soundfile reported: {soundfile_failure}"
+                    ) from soundfile_failure
+                raise
 
-        raise RuntimeError(f"Cannot decode audio file {file_path}. Please install soundfile or convert to PCM WAV.")
+        if soundfile_failure is not None:
+            raise RuntimeError(
+                f"Cannot decode audio file {file_path}. "
+                f"soundfile reported: {soundfile_failure}"
+            ) from soundfile_failure
+
+        raise RuntimeError(
+            f"Cannot decode audio file {file_path}. "
+            f"Please install soundfile or convert to PCM WAV."
+        )
 
     @staticmethod
     def generate_synthetic_praise_beat(duration_sec: float = 4.0, sample_rate: int = 22050, bpm: float = 130.0) -> np.ndarray:
