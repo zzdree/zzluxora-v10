@@ -7,12 +7,12 @@ Dokumen ini untuk agent yang melanjutkan pekerjaan ZZLUXORA. Baca ini dulu sebel
 
 ---
 
-## 0. BACA INI DULU — 3 HAL DALAM 30 DETIK
+## 0. BACA INI DULU: 3 HAL DALAM 30 DETIK
 
 1. **Jangan menambah test dengan `cat >>`.** Itu menaruh test setelah blok
    `if __name__ == "__main__"` sehingga `unittest` tidak mengumpulkannya dan
    suite tetap melaporkan lulus. Tujuh belas test pernah lolos seperti itu.
-   Selengkapnya di **§2c** — ini jebakan paling menyesatkan di repo ini.
+   Selengkapnya di **§2c**: ini jebakan paling menyesatkan di repo ini.
 2. **Ubah UI tanpa melihat = menebak.** Pakai
    `QT_QPA_PLATFORM=offscreen PYTHONPATH=$PWD/tools python3 tools/shoot_ui.py`
    lalu **baca PNG-nya**. Empat kali dalam sesi terakhir kesimpulan dari kesan
@@ -26,11 +26,11 @@ Dokumen ini untuk agent yang melanjutkan pekerjaan ZZLUXORA. Baca ini dulu sebel
 
 | | |
 |---|---|
-| Software `zzdree/zzluxora-v10` | HEAD **`bb9cc33`**, working tree **bersih**, sinkron `origin/main` |
-| Naskah `zzdree/script` | HEAD **`669a34d`**, bersih, sinkron (koreksi naskah §2b + feedback v5) |
-| Test suite | **163 lulus** (136 unittest + 27 pytest), HEAD `17b09c9`, exit 0 · jumlah wajib diperiksa, lihat §2c |
-| Anti-slop | **171 berkas, 0 error, 0 warning** |
-| Audit | FASE 8 (18 defect) + audit adversarial 16 Okt (7 defect), lihat §2 dan §2b |
+| Software `zzdree/zzluxora-v10` | HEAD **`30b1037`**, working tree **bersih**, sinkron `origin/main` |
+| Naskah `zzdree/script` | HEAD **`9febd7b`**, bersih, sinkron (koreksi naskah §2b + feedback v4 §11-14) |
+| Test suite | **177 lulus** (149 unittest + 30 pytest), exit 0 · jumlah wajib diperiksa, lihat §2c |
+| Anti-slop | **173 berkas, 0 error, 0 warning** |
+| Audit | FASE 8 (18 defect) + audit adversarial 16 Okt (7 defect) + audit mendalam 17 Okt (9 defect), lihat §2, §2b, §2d |
 
 ### Perintah wajib
 
@@ -145,7 +145,7 @@ menunggu pemilihan lagu final; nilainya akan ikut mesin Pearson saat diisi.
 
 ---
 
-## 2c. ⚠️ JEBAKAN SUITE TEST — BACA INI SEBELUM MENULIS TEST
+## 2c. ⚠️ JEBAKAN SUITE TEST: BACA INI SEBELUM MENULIS TEST
 
 **Tujuh belas test pernah "lulus" tanpa pernah dijalankan.** Penyebabnya cara
 menambahkannya: `cat >> tests/berkas_test.py` menaruh test di **akhir berkas**,
@@ -187,6 +187,76 @@ gerbang skema `.zlx`, standar nama fixture, dan lifecycle dialog YouTube.
 *Pelajarannya umum dan berlaku selamanya: "lulus" bukan bukti bila test-nya tidak
 dikumpulkan.*
 
+## 2d. Audit Mendalam 17 Okt 2026 (area yang BELUM diaudit)
+
+Audit workflow multi-agen pada permukaan yang belum tersentuh FASE 8 maupun audit
+16 Okt: `page_tab`, alur data Result/Analyze, `song_library`, serialisasi
+`models`, sisa mixer/preview, dan kebenaran analisis audio. Setiap temuan diuji
+dua lensa (refutasi + reproduksi) dan dinyatakan kukuh hanya bila keduanya gagal
+membantah.
+
+**Delapan defect diperbaiki** (suite 163 → **177 test**):
+
+1. **`core/audio_loader.py`**: `except Exception: pass` menelan `PermissionError`,
+   `IsADirectoryError`, dan kegagalan decode lain dari jalur `soundfile`, lalu
+   menasihatkan *"please install soundfile"* padahal soundfile **ada** dan
+   penyebabnya berkas/jalur. Kini hanya `OSError`/`RuntimeError`/`ValueError`
+   (kontainer tak terbaca) yang jatuh ke parser native; `MemoryError` dilempar;
+   pesan sejati disertakan. Commit `8bfc49f`.
+2. **`core/song_library.py::remove()`**: seleksi melompat ke lagu lain saat
+   menghapus lagu **di depan** indeks terpilih (terukur: pilih `lagu_B`, hapus
+   `lagu_A` → tampil `lagu_C`). Kini `_selected` digeser sejumlah indeks yang
+   dibuang di bawahnya.
+3. **`core/song_library.py::move()`**: `_selected = target` membuat urut-ulang
+   **mencuri seleksi** ke lagu yang digeser (terukur: pilih `c.wav`, geser `a.wav`
+   +1 → tampil `a.wav`). Kini identitas `SongEntry` yang dilacak.
+4. **`core/song_library.py::add_analysis()`**: menempel analisis ke entri yang
+   sudah terpilih tidak menyiarkan seleksi (karena `select()` early-return pada
+   indeks sama), sehingga tab lain tak me-refresh.
+5. **`ui/panels/result_tab.py::_on_library_selection()`**: hanya memindah
+   sorotan; `setCurrentRow` berjalan dengan sinyal diblokir sehingga metrik tak
+   pernah dimuat ulang. Kini memuat hasil lagu terpilih.
+6. **`ui/panels/analyze_tab.py`**: palet diambil dari `frames[len//2]` (satu
+   frame tengah) padahal V/A yang dilaporkan adalah **rata-rata**; naskah Bab 4
+   Tabel 4.6 menyejajarkan "Rata-rata V/A | RGBW algoritmik" per lagu. Kini palet
+   diturunkan dari `ColorEngine.process_frame(avg_v, avg_a, avg_rms)`. Determinisme
+   **terjaga** (dua run identik bit-for-bit), jadi uji pengulangan Tabel 4.4 aman.
+7. **`ui/main_window.py::closeEvent()`**: memanggil `artnet_sender.blackout()`
+   saja, jadi wire gelap tetapi `dmx_buffer` dan seluruh fader mixer tetap berisi
+   look lama (terukur: `dmx_buffer[:3]=[200,150,100]`, fader[1]=200 bertahan).
+   Bahaya: shutdown bisa dibatalkan (`event.ignore()`), lalu PLAY mengirim buffer
+   basi sambil fader tampil menyala. Kini mencerminkan jalur BLACKOUT penuh.
+8. **`ui/panels/page_tab.py`**: dua hal: (a) `load_cues`/`_clear_executors`
+   menghancurkan tombol FLASH yang masih ditekan tanpa mengirim pelepasan, sehingga
+   panggung **tetap menyala** setelah ganti halaman (terukur `wire[:3]` tetap
+   `[255,255,255]`); kini melepas flash sebelum menghapus. (b) `.zlx` dengan
+   `cues=[42]` membuat `load_cues` melempar `AttributeError` saat muat; kini
+   `validate_payload` menolak item cue non-dict dan `load_cues` melewatinya.
+9. **`ui/panels/result_tab.py::_on_song_row_selected()`**: tanpa `else`, memilih
+   lagu **belum dianalisis** menyisakan metrik lagu sebelumnya dan Export tetap
+   aktif. Kini `_show_no_analysis()` membersihkan kartu seperti keadaan awal.
+
+**Dua pembersihan minor:** sinyal mati `MixerTab.blackout_triggered` dihapus;
+nama factory `create_alien_al36`/`create_kumastb_stl47` diselaraskan ke standar
+§2 (`Alien-AL36`, `Kumastb-STL47` + id tanpa `_8ch`).
+
+### ⚠️ JANGAN audit ulang (REFUTED lewat pengukuran)
+
+- **Label drawer Visualizer (`FIXTURE POSITION` dll) TIDAK menggambar kotak
+  gelap.** Dugaan dari jebakan QLabel/`background` global terbukti salah: sampel
+  piksel sudut = `#242830` (= `BG_SURFACE`, benar), bukan `#1e2024` (= `BG_ROOT`).
+  QFrame induk ber-style membuat Qt memperlakukan label dengan benar.
+- **`_get_target_dmx_for_cue` memilih cabang berdasarkan PATCH PRESENCE**
+  (`if patched_boxes:`), **bukan** `cue_info["type"]`. Klaim "cue tanpa `type`
+  jatuh ke fallback 4x8ch" salah paham kode.
+- **Flash yang ditekan saat jendela ditutup**: Qt memang mengirim sinyal
+  `released`; diuji dengan event mouse nyata (`QTest.mousePress`), bukan emit
+  sinyal langsung.
+
+**Pelajaran diulang:** dari tujuh temuan kandidat `PAGE-*`, tiga gugur saat
+diuji. Verifikasi adversarial menyelamatkan repo dari perbaikan atas bug yang
+tidak ada. **Ukur dulu, jangan menebak** (§4).
+
 ## 3. Yang BELUM Dikerjakan
 
 ### UI: sisa dari feedback v4 §11-14 (`script/notes/feedback_v4.md`)
@@ -205,7 +275,7 @@ Dua butir dari feedback 16 Okt **belum** tuntas:
 
 ### Butuh hardware (FASE 6)
 - Uji lapangan ESP32 + 4 unit PAR LED Alien AL36 di GIA Deliksari (DMX 1/17/33/49).
-- Ukur laju DMX fisik. Firmware sudah diperbaiki ke penjadwalan absolut `esp_timer` (`DMX_PERIOD_US=23220`), tetapi **belum ada pengukuran nyata** — sebelumnya `vTaskDelay(22)` relatif menghasilkan ~22 fps, bukan 44.
+- Ukur laju DMX fisik. Firmware sudah diperbaiki ke penjadwalan absolut `esp_timer` (`DMX_PERIOD_US=23220`), tetapi **belum ada pengukuran nyata**: sebelumnya `vTaskDelay(22)` relatif menghasilkan ~22 fps, bukan 44.
 - Ukur latensi end-to-end dan packet loss. Rencana: `script/markdowns/script_fase6_execution.md`.
 - Build installer Windows 11 di Acer Swift 3 (PyInstaller + Inno Setup).
 - **Firmware `artnet_dmx_final.ino` belum pernah dikompilasi.** Toolchain Arduino
@@ -246,7 +316,7 @@ jangan asumsikan salah satu bentuk.
 ### Python: `__len__` membuat objek kosong bernilai falsy
 `SongLibrary` mendefinisikan `__len__`, sehingga `bool(SongLibrary()) is False`
 saat kosong. Akibatnya pola `song_library or SongLibrary()` **membuang** library
-yang diberikan pemanggil dan membuat yang baru — pernah membuat tiga tab tidak
+yang diberikan pemanggil dan membuat yang baru: pernah membuat tiga tab tidak
 sinkron selama satu sesi penuh. **Untuk parameter default bertipe itu, selalu
 pakai `x if x is not None else Default()`**, jangan `x or Default()`.
 
@@ -272,7 +342,7 @@ dipanggil **eksplisit** setelah repaint. Lihat `PerformTab._refresh_playlist_vie
 
 ### Ukur dulu, jangan menebak
 **Lima kali** kesimpulan dari kesan visual terbukti salah di sesi-sesi terakhir.
-Contoh terbaru: keluhan "tab berwarna-warni" — sampel piksel membuktikan teks tab
+Contoh terbaru: keluhan "tab berwarna-warni": sampel piksel membuktikan teks tab
 sudah netral (`#cbd5e1`); yang berwarna adalah aksen. Teknik yang bekerja:
 `w.grab().save()` lalu hitung piksel, hitung kontras dari token, sampel area teks
 dengan `PIL` + `Counter`, dan `tools/shoot_ui.py` untuk menangkap setiap tab.
@@ -286,8 +356,8 @@ terbunuh bila available RAM < 1 GB.
 ## 5. Memori
 
 ### Lokasi catatan
-- **Memori Claude** (otomatis): `~/.claude/projects/-home-zzdree-ANDREAS/memory/` — 22 berkas, indeks di `MEMORY.md`.
-- **Memlog** (SQLite, **pengganti hindsight**): `~/ANDREAS/zzluxora_v10/memory/memlog.db` — lihat `list --limit 1` untuk jumlah terkini.
+- **Memori Claude** (otomatis): `~/.claude/projects/-home-zzdree-ANDREAS/memory/`: 22 berkas, indeks di `MEMORY.md`.
+- **Memlog** (SQLite, **pengganti hindsight**): `~/ANDREAS/zzluxora_v10/memory/memlog.db`: lihat `list --limit 1` untuk jumlah terkini.
 
 ```bash
 cd ~/ANDREAS/zzluxora_v10
@@ -366,5 +436,5 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
 
 **Jangan** mengaudit ulang area yang sudah tuntas: FASE 8 (18 defect) dan audit
 adversarial 16 Okt (7 defect) sudah direproduksi dan dikunci uji regresi.
-**Jangan** mempercayai klaim di naskah atau memori tanpa memeriksa kodenya —
+**Jangan** mempercayai klaim di naskah atau memori tanpa memeriksa kodenya: 
 beberapa sudah terbukti keliru dan tercatat di §4.
