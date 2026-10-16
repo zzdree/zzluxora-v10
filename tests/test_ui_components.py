@@ -641,6 +641,75 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_white_folds_back_when_fixture_has_no_white_channel(self):
+        """A fixture without a white emitter must not lose the extracted W.
+
+        ColorEngine decomposes RGB into physical RGBW by pulling W = min(R,G,B)
+        out of the colour. Alien AL36 has no white channel, so main_window had
+        nowhere to write w_val and dropped it, costing most of the intended
+        light: a mellow-worship palette (67,38,0,178) reached the fixture as
+        R+G+B = 105 instead of 639, and a pure-white cue (0,0,0,255) became
+        (0,0,0) - the fixture went dark. W must be folded back into R/G/B when no
+        patched channel can accept it.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        channel_types = ("Dimmer", "Red", "Green", "Blue", "Empty", "Program", "Speed", "Empty")
+        for offset, ctype in enumerate(channel_types):
+            win.tab_address.grid_area.boxes[1 + offset].set_patched(ctype, ctype.upper()[:3], "Alien AL36")
+        win._on_patch_changed()
+        fixtures = win.tab_address.get_patched_fixtures()
+        self.assertTrue(fixtures, "precondition: a fixture is patched")
+        self.assertFalse(
+            any("white" in c["type"].lower() for c in fixtures[0]["channels"]),
+            "precondition: this fixture has no white channel",
+        )
+
+        # Mellow palette: W carries most of the light.
+        buf = win._get_target_dmx_for_cue(
+            {"color": {"R": 67, "G": 38, "B": 0, "W": 178}, "dimmer": 255, "active": True}
+        )
+        r, g, b = buf[1], buf[2], buf[3]
+        self.assertEqual((r, g, b), (245, 216, 178))
+        self.assertGreater(r + g + b, 600, "the extracted white must come back as RGB intensity")
+
+        # Boundary: pure white used to black the fixture out entirely.
+        buf = win._get_target_dmx_for_cue(
+            {"color": {"R": 0, "G": 0, "B": 0, "W": 255}, "dimmer": 255, "active": True}
+        )
+        self.assertEqual((buf[1], buf[2], buf[3]), (255, 255, 255),
+                         "a pure white cue must not black out an RGB fixture")
+
+        win.close()
+
+    def test_white_stays_on_its_own_channel_when_the_fixture_has_one(self):
+        """Folding W into RGB must not happen when a white emitter exists.
+
+        Regression guard for the fold above: on an RGBW fixture the white must
+        stay in the white channel and R/G/B must keep the decomposed values, or
+        the fixture would wash out.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+        win = MainWindow()
+
+        channel_types = ("Dimmer", "Red", "Green", "Blue", "White", "Empty", "Empty", "Empty")
+        for offset, ctype in enumerate(channel_types):
+            win.tab_address.grid_area.boxes[1 + offset].set_patched(ctype, ctype.upper()[:3], "Kumastb STL47")
+        win._on_patch_changed()
+
+        buf = win._get_target_dmx_for_cue(
+            {"color": {"R": 67, "G": 38, "B": 0, "W": 178}, "dimmer": 255, "active": True}
+        )
+        self.assertEqual(buf[1], 67, "red must keep its decomposed value")
+        self.assertEqual(buf[2], 38, "green must keep its decomposed value")
+        self.assertEqual(buf[3], 0, "blue must keep its decomposed value")
+        self.assertEqual(buf[4], 178, "white must stay on the white channel")
+
+        win.close()
+
     def test_global_shortcuts_survive_popups_and_cover_documented_keys(self):
         """Console shortcuts must work while a floating window has focus.
 

@@ -497,7 +497,18 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self._switch_workspace(4)  # Switch to Page tab
 
     def _get_target_dmx_for_cue(self, cue_info: dict) -> bytearray:
-        """Calculate the 512-channel DMX target buffer for a given cue based on patched fixtures."""
+        """Calculate the 512-channel DMX target buffer for a given cue based on patched fixtures.
+
+        The palette arriving here is already physically decomposed: ColorEngine
+        pulled W = min(R, G, B) out of the colour into its own component, so R/G/B
+        no longer carry it. A fixture without a white emitter therefore has
+        nowhere to put W, and dropping it silently costs most of the available
+        light - measured at 22 to 78 percent of the intended RGB intensity across
+        the benchmark tracks, and total blackout for a pure white cue
+        (255,255,255) -> (0,0,0). When no patched channel can accept W, fold it
+        back into R/G/B so the requested colour is reproduced at full brightness
+        instead of going dark.
+        """
         target = bytearray(512)
         palette = cue_info.get("color", {})
         intensity = max(0, min(255, int(cue_info.get("dimmer", 255)))) if cue_info.get("active", True) else 0
@@ -509,6 +520,15 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
         patched_boxes = [box for box in self.tab_address.grid_area.boxes.values() if box.is_patched]
         if patched_boxes:
+            # Additive white is a display-space property: only relevant when a
+            # white channel exists. Otherwise recombine before writing channels.
+            has_white_channel = any("white" in box.channel_type.lower() for box in patched_boxes)
+            if not has_white_channel and w_val:
+                r_val = min(255, r_val + w_val)
+                g_val = min(255, g_val + w_val)
+                b_val = min(255, b_val + w_val)
+                w_val = 0
+
             for box in patched_boxes:
                 ch = box.channel_num
                 ctype = box.channel_type.lower()

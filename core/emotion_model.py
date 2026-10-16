@@ -43,39 +43,65 @@ class EmotionModel:
         """
         Computes tonal mode polarity from a 12-dimensional Chroma vector.
         Returns a score in [-1.0, +1.0] where +1.0 is strongly Major, -1.0 is strongly Minor.
+
+        The correlation is Pearson, not cosine, and that distinction decides
+        whether the score means anything. Cosine leaves the Krumhansl profiles
+        0.9495 alike because both are non-negative with a similar mean, so the
+        contrast between them collapses: a chroma vector set EXACTLY to the
+        major profile scored +0.0373, and an exhaustive sweep of the reachable
+        space found a maximum of only 0.1782. Subtracting each vector's mean
+        first drops the profile correlation to 0.5121, which is what makes
+        "close to the major profile" actually score near +1.
         """
         if chroma_vector is None or len(chroma_vector) != 12:
             return 0.0
 
-        c = np.array(chroma_vector, dtype=np.float32)
-        norm = np.linalg.norm(c)
-        if norm < 1e-6:
+        try:
+            c = np.asarray(chroma_vector, dtype=np.float64)
+        except (TypeError, ValueError):
+            # A malformed vector must read as "no tonal content", not crash the
+            # analysis worker that is streaming frames through this method.
             return 0.0
-        c = c / norm
+        if not np.all(np.isfinite(c)):
+            return 0.0
+
+        # Centre both operands: Pearson correlation is the cosine of the
+        # mean-removed vectors.
+        c_centered = c - c.mean()
+        norm = float(np.linalg.norm(c_centered))
+        if norm < 1e-9:
+            return 0.0
+        c_centered = c_centered / norm
+
+        major_centered = self.MAJOR_PROFILE.astype(np.float64)
+        minor_centered = self.MINOR_PROFILE.astype(np.float64)
+        major_centered = (major_centered - major_centered.mean()) / np.linalg.norm(
+            major_centered - major_centered.mean()
+        )
+        minor_centered = (minor_centered - minor_centered.mean()) / np.linalg.norm(
+            minor_centered - minor_centered.mean()
+        )
 
         # Correlate with all 12 transpositions of Major and Minor profiles
         max_major_corr = -1.0
         max_minor_corr = -1.0
-
-        major_norm = self.MAJOR_PROFILE / np.linalg.norm(self.MAJOR_PROFILE)
-        minor_norm = self.MINOR_PROFILE / np.linalg.norm(self.MINOR_PROFILE)
-
         for shift in range(12):
-            shifted_c = np.roll(c, -shift)
-            corr_maj = float(np.dot(shifted_c, major_norm))
-            corr_min = float(np.dot(shifted_c, minor_norm))
+            shifted = np.roll(c_centered, -shift)
+            corr_maj = float(np.dot(shifted, major_centered))
+            corr_min = float(np.dot(shifted, minor_centered))
             if corr_maj > max_major_corr:
                 max_major_corr = corr_maj
             if corr_min > max_minor_corr:
                 max_minor_corr = corr_min
 
-        denom = max_major_corr + max_minor_corr
+        denom = abs(max_major_corr) + abs(max_minor_corr)
         if denom < 1e-6:
             return 0.0
 
-        # Contrast score scaled to [-1.0, +1.0]
+        # Pearson correlations run over [-1, 1], so the difference is already
+        # doubled relative to the old cosine ratio; no extra factor of two.
         mode_polarity = (max_major_corr - max_minor_corr) / denom
-        return max(-1.0, min(1.0, mode_polarity * 2.0))
+        return max(-1.0, min(1.0, mode_polarity))
 
     def evaluate_frame(self,
                        rms_norm: float,
