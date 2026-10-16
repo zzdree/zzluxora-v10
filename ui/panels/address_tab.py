@@ -337,6 +337,12 @@ class FixtureListPanel(QWidget if HAS_QT else object):
         layout.addLayout(bar)
 
         self.list_widget = QListWidget()
+        self.list_widget.setDragEnabled(True)
+        # Qt6 nests this enum inside DragDropMode; Qt5 exposes it flat.
+        drag_only = getattr(QListWidget, "DragOnly", None)
+        if drag_only is None:
+            drag_only = getattr(getattr(QListWidget, "DragDropMode", None), "DragOnly", 1)
+        self.list_widget.setDragDropMode(drag_only)
         # Qt6 moved enums inside the enum class, so ExtendedSelection is reached
         # through SelectionMode. Fall back to the flat Qt5 form when present.
         mode = getattr(QListWidget, "ExtendedSelection", None)
@@ -411,6 +417,38 @@ class FixtureListPanel(QWidget if HAS_QT else object):
 
     def selected_start_channels(self) -> list[int]:
         return [item.data(Qt.UserRole) for item in self.list_widget.selectedItems()]
+
+    def mimeData(self, items):
+        """Describe a dragged fixture so the grid can patch or move it.
+
+        The payload carries the full channel list, not just a name, so the grid
+        reproduces the fixture's own channel types instead of guessing eight
+        generic ones. It also carries move_source_channels: the fixture is being
+        relocated, and the grid must not count its current channels as an
+        obstacle to its new position, nor leave them lit after the move.
+        """
+        if not items:
+            return None
+        start = items[0].data(Qt.UserRole)
+        fixture = next(
+            (row for row in self._rows if row.get("start_channel") == start), None)
+        if fixture is None:
+            return None
+
+        channels = [
+            {"type": c.get("type", "empty"), "label": c.get("label", "")}
+            for c in fixture.get("channels", [])
+        ]
+        payload = {
+            "name": fixture.get("name", "Fixture"),
+            "channels": channels,
+            "move_source_channels": [c["channel"] for c in fixture.get("channels", [])],
+        }
+        mime = QMimeData()
+        encoded = json.dumps(payload).encode("utf-8")
+        mime.setData("application/x-zzluxora-fixture", encoded)
+        mime.setText(json.dumps(payload))
+        return mime
 
     def _on_remove_clicked(self) -> None:
         starts = self.selected_start_channels()
@@ -690,6 +728,20 @@ class AddressTab(QWidget if HAS_QT else object):
             self.record_undo()
         fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
 
+        # A drag from the fixture panel carries the source channels. They are
+        # released only after the new position is confirmed free, so a refused
+        # move leaves the fixture exactly where it was instead of deleting it.
+        # Channels shared by both spans are skipped, or the release would wipe
+        # cells the new patch is about to write.
+        if moving_from:
+            new_span = set(range(start_channel, last_channel + 1))
+            for ch in moving_from:
+                if ch in new_span:
+                    continue
+                source = self.grid_area.boxes.get(ch)
+                if source is not None:
+                    source.set_unpatched()
+
         for idx, ch_info in enumerate(channels):
             target_ch = start_channel + idx
             box = self.grid_area.boxes.get(target_ch)
@@ -776,7 +828,7 @@ class AddressTab(QWidget if HAS_QT else object):
             self,
             "Patch Preset",
             "Which fixture layout should be patched?",
-            ["4x Alien AL36 (GIA stage)", "1x Kumastb STL47 (bench test)"],
+            ["4x Alien-AL36 (GIA stage)", "1x Kumastb-STL47 (bench test)"],
             0,
             False,
         )
@@ -788,7 +840,7 @@ class AddressTab(QWidget if HAS_QT else object):
             self._on_patch_kuma_bench()
 
     def _on_patch_alien_gia(self) -> None:
-        """Auto-patch four Alien AL36 (8CH RGB) fixtures at DMX001, DMX017, DMX033, DMX049."""
+        """Auto-patch four Alien-AL36 fixtures at DMX001, DMX017, DMX033, DMX049."""
         self.record_undo()
         for box in self.grid_area.boxes.values():
             box.set_unpatched()
@@ -806,7 +858,7 @@ class AddressTab(QWidget if HAS_QT else object):
         start_addresses = [1, 17, 33, 49]
         for fixture_idx, start_ch in enumerate(start_addresses):
             fixture_data = {
-                "name": f"Alien AL36 #{fixture_idx + 1} (8CH)",
+                "name": f"Alien-AL36 #{fixture_idx + 1}",
                 "channels": alien_channels,
             }
             self._on_fixture_dropped(start_ch, fixture_data, record_undo=False, notify=False)
@@ -815,7 +867,7 @@ class AddressTab(QWidget if HAS_QT else object):
         self.patch_changed.emit()
 
     def _on_patch_kuma_bench(self) -> None:
-        """Auto-patch one Kumastb STL47 (8CH RGBW) fixture at DMX001."""
+        """Auto-patch one Kumastb-STL47 fixture at DMX001."""
         self.record_undo()
         for box in self.grid_area.boxes.values():
             box.set_unpatched()
@@ -831,7 +883,7 @@ class AddressTab(QWidget if HAS_QT else object):
             {"type": "speed", "label": "Speed"},
         ]
         fixture_data = {
-            "name": "Kumastb STL47 (8CH RGBW)",
+            "name": "Kumastb-STL47",
             "channels": kuma_channels,
         }
         self._on_fixture_dropped(1, fixture_data, record_undo=False, notify=False)
@@ -840,5 +892,5 @@ class AddressTab(QWidget if HAS_QT else object):
         self.patch_changed.emit()
 
     def _on_auto_patch_default(self) -> None:
-        """Legacy compatibility method pointing to Alien AL36 4x GIA setup."""
+        """Legacy compatibility method pointing to the Alien-AL36 4x GIA setup."""
         self._on_patch_alien_gia()

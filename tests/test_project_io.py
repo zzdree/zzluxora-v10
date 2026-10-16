@@ -63,7 +63,7 @@ class TestProjectIO(unittest.TestCase):
                     # contiguous runs rather than a modulo-8 derivation.
                     get_patched_fixtures=lambda: [
                         {
-                            "name": "Alien AL36 #1 (8CH)",
+                            "name": "Alien-AL36 #1",
                             "start_channel": 1,
                             "channels": [
                                 {"channel": 1 + i, "type": "red", "label": "RED"}

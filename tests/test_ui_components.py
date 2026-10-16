@@ -710,6 +710,82 @@ class TestUIModules(unittest.TestCase):
 
         win.close()
 
+    def test_moving_a_fixture_releases_the_source_only_on_success(self):
+        """A move must never lose the fixture when the destination is occupied.
+
+        The fixture panel drags a payload carrying move_source_channels. If the
+        source were released before the destination is checked, a refused drop
+        would delete the fixture outright - the worst possible outcome, because
+        the operator sees the block vanish and has to re-patch it by hand.
+        """
+        self._application()
+        from unittest.mock import patch as mock_patch
+        from ui.main_window import MainWindow
+        import json as _json
+
+        win = MainWindow()
+        tab = win.tab_address
+        fixture = {"name": "Alien AL36",
+                   "channels": [{"type": t, "label": t.upper()[:3]} for t in
+                                 ("dimmer", "red", "green", "blue", "empty",
+                                  "program", "speed", "empty")]}
+        tab._on_fixture_dropped(1, fixture, notify=False)
+        tab._on_fixture_dropped(17, fixture, notify=False)
+        tab.patch_changed.emit()
+
+        panel = tab.fixture_panel
+        panel.list_widget.item(0).setSelected(True)
+        payload = _json.loads(bytes(
+            panel.mimeData(panel.list_widget.selectedItems())
+            .data("application/x-zzluxora-fixture")).decode())
+        self.assertEqual(payload["move_source_channels"], list(range(1, 9)))
+        self.assertEqual(len(payload["channels"]), 8)
+
+        # Moving into free space releases the old channels and takes the new.
+        with mock_patch("ui.panels.address_tab.QMessageBox.warning"):
+            self.assertTrue(tab._on_fixture_dropped(100, payload, notify=False))
+        occupied = tab._occupied_channels()
+        self.assertFalse([c for c in occupied if c <= 8],
+                         "the source channels must be released after a successful move")
+        self.assertTrue(all(c in occupied for c in range(100, 108)))
+
+        # Moving onto an occupied range is refused and must change nothing.
+        clash = dict(payload, move_source_channels=list(range(17, 25)))
+        before = sorted(tab._occupied_channels())
+        with mock_patch("ui.panels.address_tab.QMessageBox.warning") as warned:
+            self.assertFalse(tab._on_fixture_dropped(103, clash, notify=False))
+            self.assertTrue(warned.called)
+        self.assertEqual(sorted(tab._occupied_channels()), before,
+                         "a refused move must leave every fixture where it was")
+        self.assertTrue(all(c in tab._occupied_channels() for c in range(17, 25)))
+
+        win.close()
+
+    def test_fixture_panel_lists_numbered_fixtures_with_addresses(self):
+        """The panel is the register of what is patched, ordered by address."""
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        tab = win.tab_address
+        fixture = {"name": "Alien AL36",
+                   "channels": [{"type": "red", "label": "RED"}] * 8}
+        self.assertFalse(tab.fixture_panel.list_widget.isVisible(),
+                         "the list is replaced by an empty note when nothing is patched")
+
+        # Patched out of order on purpose: the list must sort by address.
+        for ch in (33, 1):
+            tab._on_fixture_dropped(ch, fixture, notify=False)
+        tab.patch_changed.emit()
+
+        self.assertEqual(tab.fixture_panel.list_widget.count(), 2)
+        first = tab.fixture_panel.list_widget.item(0).text()
+        self.assertIn("[1]", first)
+        self.assertIn("DMX 1-8", first)
+        self.assertIn("DMX 33-40", tab.fixture_panel.list_widget.item(1).text())
+
+        win.close()
+
     def test_global_shortcuts_survive_popups_and_cover_documented_keys(self):
         """Console shortcuts must work while a floating window has focus.
 

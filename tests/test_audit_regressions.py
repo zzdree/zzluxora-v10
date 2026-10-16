@@ -223,3 +223,82 @@ class TestProjectIoSchemaCompatibility(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFixtureNameStandard(unittest.TestCase):
+    """Fixture names must follow the v4 standard, in code and in showfiles.
+
+    feedback_v4.md section 2 fixes the official names as Alien-AL36 and
+    Kumastb-STL47 and says text like "8ch", "8ch rgb" or "rgbw" is removed so
+    the list reads clean. The quick-patch helpers and the shipped showfiles had
+    drifted to "Alien AL36 #1 (8CH)" and "Kumastb STL47 (8CH RGBW)", which broke
+    the standard in three places at once and went unnoticed because nothing
+    checked the names themselves.
+    """
+
+    OFFICIAL = {"Alien-AL36", "Kumastb-STL47"}
+    BANNED = ("(8CH", "(8ch", "RGBW)", "rgbw)", " 8CH")
+
+    def test_official_fixture_profiles_use_the_standard_names(self):
+        from pathlib import Path
+        import json
+        fixtures = Path(__file__).resolve().parent.parent / "fixtures"
+        names = set()
+        for path in fixtures.glob("*.zfx"):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            names.add(data.get("name"))
+        self.assertEqual(self.OFFICIAL - names, set(),
+                         f"official profiles must exist with the standard names, found {names}")
+
+    def test_quick_patch_writes_standard_names_without_text_qualifiers(self):
+        from ui.main_window import MainWindow
+        app = self._application() if hasattr(self, "_application") else None
+        from ui.qt_compat import HAS_QT, QApplication
+        if not HAS_QT:
+            self.skipTest("Qt bindings are not installed")
+        app = QApplication.instance() or QApplication(["-platform", "offscreen"])
+
+        win = MainWindow()
+        try:
+            win.tab_address._on_patch_alien_gia()
+            names = {f["name"] for f in win.tab_address.get_patched_fixtures()}
+            self.assertTrue(names, "the GIA preset must patch fixtures")
+            for name in names:
+                with self.subTest(name=name):
+                    self.assertTrue(name.startswith("Alien-AL36"),
+                                    f"expected the standard Alien-AL36 prefix, got {name!r}")
+                    for bad in self.BANNED:
+                        self.assertNotIn(bad, name,
+                                         f"{name!r} still carries the banned qualifier {bad!r}")
+
+            win.tab_address._on_patch_kuma_bench()
+            kuma = {f["name"] for f in win.tab_address.get_patched_fixtures()}
+            self.assertIn("Kumastb-STL47", kuma)
+        finally:
+            win.close()
+
+    def test_shipped_showfiles_do_not_carry_banned_qualifiers(self):
+        """Only the OFFICIAL fixtures are governed by the naming standard.
+
+        feedback_v4.md section 2 fixes the names of Alien-AL36 and Kumastb-STL47.
+        The demo showfile patches a generic "PAR LED", which has no .zfx profile
+        and is not covered by that rule, so its descriptive name is left alone -
+        an earlier version of this test failed it and was wrong to.
+        """
+        from pathlib import Path
+        import json
+        showfiles = Path(__file__).resolve().parent.parent / "showfiles"
+        for path in showfiles.glob("*.zlx"):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for patch in data.get("patches", []):
+                name = patch.get("model") or patch.get("name") or ""
+                if not isinstance(name, str) or not name:
+                    continue
+                # Skip anything that is not an official fixture.
+                if name.split(" #")[0] not in self.OFFICIAL:
+                    continue
+                with self.subTest(showfile=path.name, name=name):
+                    for bad in self.BANNED:
+                        self.assertNotIn(bad, name,
+                                         f"{path.name}: {name!r} carries the banned "
+                                         f"qualifier {bad!r}")
