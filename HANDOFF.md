@@ -28,7 +28,7 @@ Dokumen ini untuk agent yang melanjutkan pekerjaan ZZLUXORA. Baca ini dulu sebel
 |---|---|
 | Software `zzdree/zzluxora-v10` | HEAD **`bb9cc33`**, working tree **bersih**, sinkron `origin/main` |
 | Naskah `zzdree/script` | HEAD **`669a34d`**, bersih, sinkron (koreksi naskah §2b + feedback v5) |
-| Test suite | **163 test** (136 unittest + 27 pytest); jumlah wajib diperiksa, lihat §2c |
+| Test suite | **163 lulus** (136 unittest + 27 pytest), HEAD `17b09c9`, exit 0 · jumlah wajib diperiksa, lihat §2c |
 | Anti-slop | **171 berkas, 0 error, 0 warning** |
 | Audit | FASE 8 (18 defect) + audit adversarial 16 Okt (7 defect), lihat §2 dan §2b |
 
