@@ -31,3 +31,4 @@ logs/
 output/
 temp/
 *.zlx.bak
+memory/*.db
