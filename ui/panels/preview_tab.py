@@ -20,9 +20,7 @@ from ui.qt_compat import (
 from ui.styles import Theme, CONSOLE_QSS
 
 
-# -----------------------------------------------------------------------------
 # 1. 2D STAGE CANVAS (FRONT VIEW WITH CENTER-ALIGNED VERTICAL & HORIZONTAL LAYOUT)
-# -----------------------------------------------------------------------------
 class Stage2DCanvas(QFrame if HAS_QT else object):
     """Front-view 2D Stage Canvas with RGBW beam projection, halos, floor bounce, and click selection."""
     fixture_selected = Signal(int)       # Primary selected fixture ID
@@ -257,7 +255,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
             painter.drawText(
                 QRectF(0, h / 2 - 20, w, 40),
                 Qt.AlignCenter,
-                "Stage Ready • Patch fixtures in Address tab to visualize lighting"
+                "Stage Ready | Patch fixtures in Address tab to visualize lighting"
             )
             painter.end()
             return
@@ -348,9 +346,7 @@ class Stage2DCanvas(QFrame if HAS_QT else object):
         painter.end()
 
 
-# -----------------------------------------------------------------------------
 # 2. 3D STAGE CANVAS (INVERTED ORBIT, ZOOM LIMITS, PAN MOVE, FRONT EYE-LEVEL DEFAULT)
-# -----------------------------------------------------------------------------
 class Stage3DCanvas(QFrame if HAS_QT else object):
     """
     True Perspective 3D Stage Visualizer.
@@ -612,9 +608,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
 
         self.update()
 
-    # -------------------------------------------------------------------------
     # MOUSE CONTROLS: LEFT (INVERTED ORBIT & SELECT), MIDDLE (NONE), WHEEL (ZOOM), RIGHT (PAN)
-    # -------------------------------------------------------------------------
     def mousePressEvent(self, event) -> None:
         self.press_pos = event.position().toPoint()
         self.last_mouse_pos = event.position().toPoint()
@@ -925,9 +919,7 @@ class Stage3DCanvas(QFrame if HAS_QT else object):
         painter.end()
 
 
-# -----------------------------------------------------------------------------
 # 3. STANDALONE STAGE VISUALIZER WINDOW (2D & 3D WITH TOP TABS & HAMBURGER DRAWER)
-# -----------------------------------------------------------------------------
 class StageVisualizerWindow(QWidget if HAS_QT else object):
     """
     Standalone Floating Window for Stage Lighting Visualization.
@@ -1407,9 +1399,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
         if hasattr(self, 'canvas_3d'):
             self.canvas_3d.update_dmx_frame(channels)
 
-    # -----------------------------------------------------------------
     # WINDOW LIFECYCLE
-    # -----------------------------------------------------------------
     def hideEvent(self, event) -> None:
         """Stop the haze animation while the window is not visible.
 

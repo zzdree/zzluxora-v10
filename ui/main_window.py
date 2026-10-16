@@ -164,9 +164,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
-        # -------------------------------------------------------------
         # LEVEL 2: PROGRAM VIEW BAR (Horizontal Workspace Tabs & Status)
-        # -------------------------------------------------------------
         program_bar_frame = QFrame()
         program_bar_frame.setObjectName("ProgramBarFrame")
         pbar_layout = QHBoxLayout(program_bar_frame)
@@ -211,9 +209,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
 
         root_layout.addWidget(program_bar_frame)
 
-        # -------------------------------------------------------------
         # WORKSPACE AREA (QStackedWidget)
-        # -------------------------------------------------------------
         self.stack = QStackedWidget()
         self.stack.setStyleSheet(f"background-color: {Theme.BG_ROOT};")
 
@@ -297,9 +293,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         else:
             self.setWindowTitle(f"ZZLUXORA [{self.current_project_path}]")
 
-    # -----------------------------------------------------------------
     # MENU POP-UP ACTIONS (WINDOWED INDEPENDENT TOOLS)
-    # -----------------------------------------------------------------
     def _on_open_fixture_list(self) -> None:
         if self.win_fixture_list is None:
             self.win_fixture_list = FixtureListWindow(parent=self)
@@ -371,9 +365,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.win_about.raise_()
         self.win_about.activateWindow()
 
-    # -----------------------------------------------------------------
     # STAGE CONTROLS: BLACKOUT & PLAY/STOP
-    # -----------------------------------------------------------------
     def _on_blackout_clicked(self) -> None:
         self.tab_mixer.apply_blackout()
         for i in range(512):
@@ -466,9 +458,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             self.win_visualizer.sync_fixtures(fixtures)
             self.win_visualizer.update_dmx(self.dmx_buffer)
 
-    # -----------------------------------------------------------------
     # WORKFLOW INTEGRATION ACROSS TABS
-    # -----------------------------------------------------------------
     def _on_analysis_ready(self, res: dict) -> None:
         self.tab_result.load_analysis_result(res)
         self._switch_workspace(2)  # Switch to Result tab
@@ -600,9 +590,7 @@ class MainWindow(QMainWindow if HAS_QT else object):
             if hasattr(self, 'tab_perform'):
                 self.tab_perform.set_crossfade_progress(1.0, self._fade_duration, self._fade_duration)
 
-    # -----------------------------------------------------------------
     # FILE MANAGEMENT (.zlx)
-    # -----------------------------------------------------------------
     def load_project_file(self, path: str, notify: bool = True) -> None:
         try:
             with open(path, "r", encoding="utf-8") as f:

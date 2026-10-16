@@ -207,9 +207,7 @@ class PerformTab(QWidget if HAS_QT else object):
         splitter.setSizes([320, 680])
         main_layout.addWidget(splitter, 1)
 
-    # -----------------------------------------------------------------
     # PLAYLIST & SONG SECTION GENERATION
-    # -----------------------------------------------------------------
     def add_analyzed_song(self, song_data: dict) -> None:
         """Receives exported song from ResultTab and appends to live playlist."""
         self.playlist.append(song_data)
@@ -491,9 +489,7 @@ class PerformTab(QWidget if HAS_QT else object):
 
         self.lbl_cue_status.setText(f"READY: {song.get('title', 'Song')} ({len(cues)} Section Cues)")
 
-    # -----------------------------------------------------------------
     # CUE PLAYBACK & MASTER GO+ ENGINE
-    # -----------------------------------------------------------------
     def _trigger_cue_at_row(self, row: int) -> None:
         if not (0 <= row < len(self.current_song_cues)):
             return
@@ -597,9 +593,7 @@ class PerformTab(QWidget if HAS_QT else object):
             "fade_time": 2.5,
         })
 
-    # -----------------------------------------------------------------
     # PLAYLIST REORDERING & EXPORT TO PAGE
-    # -----------------------------------------------------------------
     def _on_move_up(self) -> None:
         row = self.playlist_widget.currentRow()
         if row > 0:

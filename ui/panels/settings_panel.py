@@ -120,6 +120,24 @@ class SettingsDialog(QDialog if HAS_QT else object):
 
         main_layout.addWidget(grp_target)
 
+        # Protocol reference. The operator needs the wire parameters in one
+        # place when patching a node or comparing against a console: the port to
+        # open, the packet opcode, and which universe is being addressed.
+        grp_protocol = QGroupBox("Protocol Reference")
+        grp_protocol.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
+        proto_layout = QVBoxLayout(grp_protocol)
+        proto_layout.setSpacing(4)
+        for line in (
+            "Packet format: ArtDmx (OpCode 0x5000), 530 bytes",
+            "Transport: UDP port 6454",
+            "Universe 0 (Net 0, Sub-Net 0) | 512 channels per packet",
+            "Analysis rate is independent of the DMX output rate set here",
+        ):
+            lbl = QLabel(line)
+            lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px;")
+            proto_layout.addWidget(lbl)
+        main_layout.addWidget(grp_protocol)
+
         # Scanned Interfaces Table
         grp_adapters = QGroupBox("Scanned Interfaces")
         grp_adapters.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")

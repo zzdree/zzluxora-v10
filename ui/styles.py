@@ -7,9 +7,7 @@ from __future__ import annotations
 
 
 class Theme:
-    # -------------------------------------------------------------------------
     # 1. Surface & Chassis Ramp (Matte Obsidian Metal)
-    # -------------------------------------------------------------------------
     BG_ROOT = "#1e2024"                 # Root window background (Deep Charcoal Grey)
     BG_SURFACE = "#242830"              # Panels, cards, and tab containers
     BG_ELEVATED = "#2d323c"             # Headers, dialogs, floating windows
@@ -25,18 +23,14 @@ class Theme:
     BG_FADER_CAP = SURFACE_CAP
     BG_INPUT = SURFACE_INPUT
 
-    # -------------------------------------------------------------------------
     # 2. Borders & Dividers
-    # -------------------------------------------------------------------------
     BORDER_SUBTLE = "#333844"           # Subtle divider lines & container outlines
     BORDER_STRONG = "#4a5264"           # Active / focused borders
     BORDER_HIGHLIGHT = "#06b6d4"        # Focus neon cyan outline
     BLACKOUT_SURFACE = "#000000"        # Blackout control surface, true zero-output state
     CONTROL_DISABLED_BG = "#1a1c22"     # Disabled Qt control surface
 
-    # -------------------------------------------------------------------------
     # 3. Accents & Functional Colors (The 10% Accent Rule)
-    # -------------------------------------------------------------------------
     ACCENT_AMBER = "#f59e0b"            # grandMA Amber Gold (Master Dimmer & active tab indicator)
     ACCENT_CYAN = "#06b6d4"             # Neon Cyan Glow (Channel rails, focus rings & telemetry)
     COLOR_SUCCESS = "#16a34a"           # Art-Net connected / live transmitting (Green)
@@ -60,17 +54,13 @@ class Theme:
     STATUS_ACTIVE_CUE_BG = "#243322"    # Table active cue row background
     STATUS_EXECUTOR_ACTIVE = "#1f2937"  # Active executor button background
 
-    # -------------------------------------------------------------------------
     # 4. Typography (High Contrast Glanceability for FOH)
-    # -------------------------------------------------------------------------
     TEXT_PRIMARY = "#ffffff"            # Pure Crisp White for maximum stage readability
     TEXT_SECONDARY = "#cbd5e1"          # Light grey for labels, subheadings, file paths
     TEXT_MUTED = "#94a3b8"              # Dim grey for placeholders & secondary indicators
     TEXT_CONTRAST_UNPATCHED = "#cbd5e1" # High-contrast unpatched channel numbers (glanceable at 90cm)
 
-    # -------------------------------------------------------------------------
     # 5. Hardware Drawing Tokens (Tactile Fader & Visualizer QPainter)
-    # -------------------------------------------------------------------------
     FADER_CAP_TOP = "#434a58"           # Cap top gradient highlight
     FADER_CAP_MID = "#353b47"           # Cap center body
     FADER_CAP_BOT = "#22262e"           # Cap bottom shadow
@@ -89,9 +79,7 @@ class Theme:
     FIXTURE_BODY = "#14171f"            # Cylindrical fixture chassis
     YOKE_IDLE = "#404654"               # Unselected yoke bracket
 
-    # -------------------------------------------------------------------------
     # 6. DMX Channel Semantic Colors (Grid & Mixer Sync)
-    # -------------------------------------------------------------------------
     CH_DIMMER = "#d97706"               # Amber Gold
     CH_RED = "#dc2626"                  # Pure Red
     CH_GREEN = "#16a34a"                # Vivid Green
