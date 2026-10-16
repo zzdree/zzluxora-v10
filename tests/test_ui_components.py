@@ -1195,7 +1195,9 @@ class TestUIModules(unittest.TestCase):
             # Ch 1: Dimmer
             self.assertTrue(win.tab_address.grid_area.boxes[start_ch].is_patched)
             self.assertEqual(win.tab_address.grid_area.boxes[start_ch].channel_type, "dimmer")
-            self.assertEqual(win.tab_address.grid_area.boxes[start_ch].fixture_name, f"Alien AL36 #{idx + 1} (8CH)")
+            self.assertEqual(win.tab_address.grid_area.boxes[start_ch].fixture_name,
+                             f"Alien-AL36 #{idx + 1}",
+                             "quick-patch must use the v4 standard name without text qualifiers")
             # Ch 5: Empty (Alien has no white)
             self.assertEqual(win.tab_address.grid_area.boxes[start_ch + 4].channel_type, "empty")
             # Ch 8: Emptz (Empty)
@@ -1214,7 +1216,8 @@ class TestUIModules(unittest.TestCase):
         win.tab_address._on_patch_kuma_bench()
         self.assertTrue(win.tab_address.grid_area.boxes[1].is_patched)
         self.assertEqual(win.tab_address.grid_area.boxes[1].channel_type, "dimmer")
-        self.assertEqual(win.tab_address.grid_area.boxes[1].fixture_name, "Kumastb STL47 (8CH RGBW)")
+        self.assertEqual(win.tab_address.grid_area.boxes[1].fixture_name, "Kumastb-STL47",
+                         "quick-patch must use the v4 standard name")
         # Ch 5: White (Kumastb has dedicated white)
         self.assertEqual(win.tab_address.grid_area.boxes[5].channel_type, "white")
         self.assertFalse(win.tab_address.grid_area.boxes[9].is_patched)
