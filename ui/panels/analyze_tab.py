@@ -248,14 +248,6 @@ class AnalyzeTab(QWidget if HAS_QT else object):
 
         # Top Section: Title & Controls
         top_bar = QHBoxLayout()
-        title_box = QVBoxLayout()
-        lbl_title = QLabel("AUDIO STFT & AFFECTIVE MOOD ANALYZER")
-        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Short-Time Fourier Transform (N=2048, H=512, 43 FPS) | MIR Acoustic Feature Extraction & Russell 2D Affective Model")
-        lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
-        title_box.addWidget(lbl_title)
-        title_box.addWidget(lbl_desc)
-        top_bar.addLayout(title_box)
 
         top_bar.addStretch()
 

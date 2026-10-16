@@ -93,14 +93,6 @@ class PageTab(QWidget if HAS_QT else object):
 
         # Header Title
         top_bar = QHBoxLayout()
-        title_box = QVBoxLayout()
-        title = QLabel("VIRTUAL PLAYBACK EXECUTORS (LIVE PAGE)")
-        title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        desc = QLabel("Live Stage Playback Executor Buttons (grandMA3 & QLC+ Style) | Instant Scene, Chase, & Strobe Triggers.")
-        desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px;")
-        title_box.addWidget(title)
-        title_box.addWidget(desc)
-        top_bar.addLayout(title_box)
 
         top_bar.addStretch()
 

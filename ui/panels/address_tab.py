@@ -10,7 +10,7 @@ import json
 from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QScrollArea, QFrame, QMessageBox, QDialog,
-    QSpinBox, QComboBox, Qt, Signal, QMimeData, QColor,
+    QSpinBox, QComboBox, QInputDialog, Qt, Signal, QMimeData, QColor,
     QDragEnterEvent, QDragMoveEvent, QDropEvent, QAction, QKeySequence
 )
 from ui.styles import Theme
@@ -298,45 +298,27 @@ class AddressTab(QWidget if HAS_QT else object):
         # Top Control Action Bar
         ctrl_bar = QHBoxLayout()
 
-        title_box = QVBoxLayout()
-        lbl_title = QLabel("DMX ADDRESS PATCH SHEET")
-        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY}; letter-spacing: 0.5px;")
-        lbl_desc = QLabel("256 DMX Channel Matrix (Max 24 Columns) | Drag & drop fixtures from Fixture Library to patch.")
-        lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
-        title_box.addWidget(lbl_title)
-        title_box.addWidget(lbl_desc)
-        ctrl_bar.addLayout(title_box)
-
         ctrl_bar.addStretch()
 
-        # Action Buttons (Clean Industrial Lighting Style)
-        self.btn_undo = QPushButton("UNDO (Ctrl+Z)")
-        self.btn_undo.clicked.connect(self.undo_patch)
-        self.btn_undo.setEnabled(False)
-        ctrl_bar.addWidget(self.btn_undo)
+        # Patch and clear are the only two actions worth a button here. Undo and
+        # redo were removed: Ctrl+Z / Ctrl+Y are bound globally, so dedicated
+        # buttons duplicated a shortcut every operator already has and spent the
+        # bar's width on nothing. The two auto-patch presets collapsed into one
+        # PATCH button that asks which layout to apply.
+        self.btn_patch = QPushButton("PATCH...")
+        self.btn_patch.setToolTip("Patch a preset fixture layout")
+        self.btn_patch.clicked.connect(self._on_patch_clicked)
+        ctrl_bar.addWidget(self.btn_patch)
 
-        self.btn_redo = QPushButton("REDO (Ctrl+Y)")
-        self.btn_redo.clicked.connect(self.redo_patch)
-        self.btn_redo.setEnabled(False)
-        ctrl_bar.addWidget(self.btn_redo)
-
-        self.btn_patch_alien = QPushButton("PATCH 4x ALIEN (GIA)")
-        self.btn_patch_alien.setToolTip("Auto-patch 4x Alien AL36 at DMX001, DMX017, DMX033, DMX049 (GIA Deliksari Stage)")
-        self.btn_patch_alien.setStyleSheet(f"font-weight: bold;")
-        self.btn_patch_alien.clicked.connect(self._on_patch_alien_gia)
-        ctrl_bar.addWidget(self.btn_patch_alien)
-
-        self.btn_patch_kuma = QPushButton("PATCH 1x KUMA (BENCH)")
-        self.btn_patch_kuma.setToolTip("Auto-patch 1x Kumastb STL47 at DMX001 (RGBW Bench Testing Unit)")
-        self.btn_patch_kuma.setStyleSheet(f"font-weight: bold;")
-        self.btn_patch_kuma.clicked.connect(self._on_patch_kuma_bench)
-        ctrl_bar.addWidget(self.btn_patch_kuma)
-
-        # Legacy alias for backward compatibility
-        self.btn_auto_patch = self.btn_patch_alien
+        # Backward-compatible aliases: existing tests and shortcuts refer to the
+        # former two-button layout.
+        self.btn_patch_alien = self.btn_patch
+        self.btn_patch_kuma = self.btn_patch
+        self.btn_auto_patch = self.btn_patch
 
         self.btn_clear = QPushButton("CLEAR PATCH")
-        self.btn_clear.setStyleSheet(f"color: {Theme.COLOR_DANGER}; border-color: {Theme.BORDER_STRONG};")
+        self.btn_clear.setToolTip("Remove every patched channel after confirmation")
+        self.btn_clear.setStyleSheet(f"color: {Theme.COLOR_DANGER};")
         self.btn_clear.clicked.connect(self._on_clear_patch_confirm)
         ctrl_bar.addWidget(self.btn_clear)
 
@@ -528,6 +510,28 @@ class AddressTab(QWidget if HAS_QT else object):
                 box.set_unpatched()
             self.update_fixture_brackets()
             self.patch_changed.emit()
+
+    def _on_patch_clicked(self) -> None:
+        """Ask which preset to patch, then apply it.
+
+        One button plus a chooser replaces two buttons that each committed a
+        specific layout. The chooser makes the choice explicit and leaves room
+        for further presets without widening the control bar.
+        """
+        pilihan, ok = QInputDialog.getItem(
+            self,
+            "Patch Preset",
+            "Which fixture layout should be patched?",
+            ["4x Alien AL36 (GIA stage)", "1x Kumastb STL47 (bench test)"],
+            0,
+            False,
+        )
+        if not ok:
+            return
+        if pilihan.startswith("4x"):
+            self._on_patch_alien_gia()
+        else:
+            self._on_patch_kuma_bench()
 
     def _on_patch_alien_gia(self) -> None:
         """Auto-patch four Alien AL36 (8CH RGB) fixtures at DMX001, DMX017, DMX033, DMX049."""

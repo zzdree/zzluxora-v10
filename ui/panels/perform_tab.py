@@ -36,14 +36,6 @@ class PerformTab(QWidget if HAS_QT else object):
 
         # Top Control Bar
         top_bar = QHBoxLayout()
-        title_box = QVBoxLayout()
-        lbl_title = QLabel("LIVE STAGE SHOW CONTROLLER & PERFORMANCE")
-        lbl_title.setStyleSheet(f"font-size: 14px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Live Stage Show Playlist Management | Section Cues, [GO+] Crossfader, & Fade Transitions")
-        lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
-        title_box.addWidget(lbl_title)
-        title_box.addWidget(lbl_desc)
-        top_bar.addLayout(title_box)
 
         top_bar.addStretch()
 

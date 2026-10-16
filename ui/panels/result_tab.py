@@ -34,14 +34,6 @@ class ResultTab(QWidget if HAS_QT else object):
 
         # Header Title
         top_bar = QHBoxLayout()
-        title_box = QVBoxLayout()
-        lbl_title = QLabel("AFFECTIVE ANALYSIS & AUDIO METRICS")
-        lbl_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Theme.TEXT_PRIMARY};")
-        lbl_desc = QLabel("Music Signal Computation Results | Russell 2D Affective Plane & Stage Mood Recommendation")
-        lbl_desc.setStyleSheet(f"font-size: 11px; color: {Theme.TEXT_SECONDARY};")
-        title_box.addWidget(lbl_title)
-        title_box.addWidget(lbl_desc)
-        top_bar.addLayout(title_box)
 
         top_bar.addStretch()
 
