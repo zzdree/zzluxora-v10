@@ -11,10 +11,10 @@ Dokumen ini untuk agent yang melanjutkan pekerjaan ZZLUXORA. Baca ini dulu sebel
 
 | | |
 |---|---|
-| Software `zzdree/zzluxora-v10` | HEAD **`340ff27`**, working tree **bersih**, sinkron `origin/main` |
-| Naskah `zzdree/script` | HEAD **`d5478a7`**, bersih, sinkron |
-| Test suite | **129 lulus** (105 unittest + 24 pytest) |
-| Anti-slop | **159 berkas, 0 error, 0 warning** |
+| Software `zzdree/zzluxora-v10` | HEAD **`bc2846b`**, satu berkas pra-perbaikan belum di-commit (lihat §2b), sinkron `origin/main` |
+| Naskah `zzdree/script` | HEAD **`0027d3d`**, bersih, sinkron |
+| Test suite | **145 lulus** (121 unittest + 24 pytest) |
+| Anti-slop | **167 berkas, 0 error, 0 warning** |
 | Audit | FASE 8 tuntas: 18 defect diperbaiki |
 
 ### Perintah wajib
@@ -52,6 +52,47 @@ python3 scripts/memlog.py search "kata kunci"
 Rincian lengkap: `markdowns/ROADMAP.md` bagian **FASE 8**.
 
 ---
+
+## 2b. Audit Adversarial 16 Okt 2026 (di luar FASE 8)
+
+Audit 14 agen lintas kode, firmware, dan naskah. Setiap temuan diuji dua lensa
+(refutasi + reproduksi) dan dinyatakan kukuh hanya bila keduanya gagal membantah.
+**Lima defect diperbaiki dan dikomit di `bc2846b`** (suite 129 -> 145 test):
+
+1. `save_project` memotong berkas tujuan lebih dulu lalu menulis bertahap, sehingga
+   kegagalan di tengah menghancurkan showfile (1973 byte menjadi 51 byte rusak).
+   Kini atomik (temp + fsync + `os.replace`); jalur GUI disamakan.
+2. `.zlx` dimuat tanpa gerbang skema, sehingga berkas QLC+ atau `target_ip`
+   `"not-an-ip"` diterima dan Art-Net dikirim ke alamat tak valid. Kini lewat
+   `ProjectIO.validate_payload()`.
+3. BLACKOUT tidak menghentikan crossfade; panggung menyala kembali 23 ms kemudian.
+4. RESET DMX lalu PLAY mengirim look lama (fader nol, buffer masih terisi).
+5. Worker QThread YouTubeDialog bocor dan bisa dimusnahkan saat masih berjalan.
+
+Dua bug tambahan ditemukan saat memperbaiki di atas: `_refresh_dependency_line()`
+dipanggil sebelum `btn_download` dibuat (dialog YouTube melempar `AttributeError`
+setiap dibuka), dan `QDialog.reject()` mematikan proses di bawah plugin offscreen.
+
+### 🔥 DUA TEMUAN BELUM DIPUTUSKAN (menunggu owner)
+
+**A. Skala `Mode_score` salah (dampak ke naskah Bab 4).**
+`compute_mode_ratio` memakai cosine (`np.dot` vektor ternormalisasi), bukan korelasi
+Pearson seperti yang ditulis `script_math_model.md` Eq.(12) dan `script_chapter_02.md`.
+Akibatnya kedua profil Krumhansl 0,9495 serupa dan skor terkurung di ±0,1782 — jauh
+dari skala ±1 yang dijanjikan naskah. Bobot terbesar Valence (0,50) praktis lumpuh.
+
+Perbaikan Pearson sudah ditulis tetapi **belum dikomit** (`core/emotion_model.py`
+tetap termodifikasi di working tree) karena mengubahnya menggeser angka Bab 4 yang
+sudah tertulis (RMS `354,536054`, korelasi `+0,992`/`-0,946` pada Tabel 4.4–4.6).
+Tiga pilihan: **(A)** terapkan Pearson + regenerasi angka Bab 4, **(B)** koreksi
+naskah agar cocok kode, **(C)** tunda ke FASE 6 bersama pembimbing.
+
+**B. Kanal putih terbuang ke fixture RGB.**
+`ColorEngine` mengekstrak `W = min(R,G,B)`, tetapi `Alien-AL36.zfx` tidak punya kanal
+white, sehingga `main_window.py:499` tidak pernah menulis `w_val`. Intensitas R+G+B
+yang tersisa hanya **22–78%** pada 10 berkas uji (kasus batas: putih murni
+`(255,255,255)` menjadi `(0,0,0)` alias padam). Justru konten mellow — sasaran utama
+skripsi — yang kehilangan paling banyak. Belum ditangani.
 
 ## 3. Yang BELUM Dikerjakan
 
@@ -145,7 +186,7 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
 ## 7. Langkah Pertama yang Disarankan
 
 1. Baca dokumen ini, lalu `markdowns/ROADMAP.md` bagian FASE 8 dan `markdowns/MEMORY.md`.
-2. Verifikasi keadaan: `PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py` (harus 129 lulus).
+2. Verifikasi keadaan: `PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py` (harus 145 lulus).
 3. Cari konteks relevan: `python3 scripts/memlog.py search "<topik>"`.
 4. Tanya owner mau lanjut ke mana. Pilihan yang tersedia: **(a)** kerjakan naskah Bab 4/5 dan keputusan audio, **(b)** siapkan FASE 6 saat hardware tersedia, **(c)** test manual aplikasi lalu perbaiki temuan yang muncul.
 
