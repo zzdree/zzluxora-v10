@@ -4,6 +4,19 @@ Panduan arsitektur, instruksi pengembangan, dan konteks operasional untuk **ZZLU
 
 ---
 
+## MULAI DARI SINI (WAJIB DIBACA)
+
+**Baca `HANDOFF.md` di akar repo lebih dulu.** Dokumen itu memuat status terkini, apa yang sudah selesai (jangan dikerjakan ulang), apa yang belum, jebakan Qt yang harus diketahui, preferensi desain owner, dan lokasi memori.
+
+Perintah wajib:
+```bash
+PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py   # 129 test, tanpa popup
+node scripts/check-anti-slop.js --summary                 # 159 berkas
+python3 scripts/memlog.py search "kata kunci"              # memori agen
+```
+
+---
+
 ## 📌 1. Ikhtisar & Identitas Proyek
 
 - **Nama Aplikasi:** **ZZLUXORA** (v10.0.0 Flagship Next-Gen)
