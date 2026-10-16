@@ -472,9 +472,13 @@ class TestUIModules(unittest.TestCase):
         kuma_prof = FixtureProfile.create_kumastb_stl47()
         self.assertEqual(kuma_prof.manufacturer, "Kumastb")
         self.assertEqual(kuma_prof.channel_count, 8)
+        self.assertEqual(kuma_prof.name, "Kumastb-STL47",
+                         "factory name must match the section 2 standard and fixtures/Kumastb-STL47.zfx")
         alien_prof = FixtureProfile.create_alien_al36()
         self.assertEqual(alien_prof.manufacturer, "Alien")
         self.assertEqual(alien_prof.channel_count, 8)
+        self.assertEqual(alien_prof.name, "Alien-AL36",
+                         "factory name must match the section 2 standard and fixtures/Alien-AL36.zfx")
 
     def test_headless_main_window_instantiation(self):
         self._application()
@@ -1430,6 +1434,154 @@ class TestUIModules(unittest.TestCase):
         self.assertEqual(len(lib), 2)
 
         win.close()
+
+    def test_removing_a_song_above_the_selection_keeps_the_same_track_selected(self):
+        """Selection follows the song, not the slot.
+
+        Regression: remove() clamped the selected index with min(), so deleting a
+        song whose index was below the selection left the slot number unchanged -
+        and the slot now held a different track. Measured: selecting lagu_B then
+        removing lagu_A made the Result tab describe lagu_C, a song the operator
+        never picked.
+        """
+        from core.song_library import SongLibrary
+
+        lib = SongLibrary()
+        lib.add_path("/tmp/lagu_A.wav", select=False)
+        lib.add_path("/tmp/lagu_B.wav", select=False)
+        lib.add_path("/tmp/lagu_C.wav", select=False)
+
+        lib.select(1)
+        selected_before = lib.selected()
+        self.assertEqual(selected_before.name, "lagu_B.wav")
+
+        lib.remove([0])
+
+        self.assertIs(lib.selected(), selected_before,
+                      "the same song object must stay selected after removing a song above it")
+        self.assertEqual(lib.selected().name, "lagu_B.wav")
+        self.assertEqual(lib.selected_index, 0)
+
+    def test_removing_the_selected_song_moves_on_one_slot(self):
+        """Deleting the selected song keeps the slot, clamped into range."""
+        from core.song_library import SongLibrary
+
+        lib = SongLibrary()
+        for name in ("a", "b", "c"):
+            lib.add_path(f"/tmp/{name}.wav", select=False)
+
+        lib.select(1)
+        lib.remove([1])
+
+        self.assertEqual([song.name for song in lib.songs], ["a.wav", "c.wav"])
+        self.assertEqual(lib.selected_index, 1)
+        self.assertEqual(lib.selected().name, "c.wav")
+
+        lib2 = SongLibrary()
+        for name in ("a", "b", "c"):
+            lib2.add_path(f"/tmp/{name}.wav", select=False)
+        lib2.select(2)
+        lib2.remove([2])
+        self.assertEqual(lib2.selected_index, 1)
+        self.assertEqual(lib2.selected().name, "b.wav")
+
+    def test_reordering_keeps_the_selected_song_selected(self):
+        """Moving another song must not steal the selection.
+
+        Regression: move() set _selected = target, the destination slot of the
+        song being dragged, so reordering the playlist always jumped the Result
+        tab to that song. Measured: selecting c.wav and moving a.wav by +1 made
+        the report read a.wav.
+        """
+        from core.song_library import SongLibrary
+
+        lib = SongLibrary()
+        for name in ("a", "b", "c"):
+            lib.add_path(f"/tmp/{name}.wav", select=False)
+
+        lib.select(2)
+        selected_before = lib.selected()
+        self.assertEqual(selected_before.name, "c.wav")
+
+        lib.move(0, +1)
+
+        self.assertIs(lib.selected(), selected_before,
+                      "the selected song must survive a reorder of other entries")
+        self.assertEqual(lib.selected().name, "c.wav")
+
+        # And a long move that displaces the selected song keeps it selected too.
+        lib.select(2)
+        selected_before = lib.selected()
+        lib.move(0, +2)
+        self.assertIs(lib.selected(), selected_before)
+        self.assertEqual(lib.selected().name, "c.wav")
+
+    def test_reusing_an_entry_still_announces_the_selection(self):
+        """add_analysis must broadcast the selection even when the index is unchanged.
+
+        select() short-circuits on an identical index, so attaching a fresh
+        analysis to the already-selected entry updated the entry but stayed
+        silent. The Result tab refreshes its detail pane on this callback, so it
+        kept showing the previous numbers after an export landed on the song
+        already on screen.
+        """
+        from core.song_library import SongLibrary
+
+        lib = SongLibrary()
+        lib.add_path("/tmp/a.wav", select=True)
+
+        seen: list[int] = []
+        lib.on_selection_changed(lambda index: seen.append(index))
+
+        index = lib.add_analysis({"title": "a", "bpm": 100.0})
+
+        self.assertEqual(index, 0)
+        self.assertEqual(seen, [0], "the selection must be re-announced on reuse")
+
+    def test_result_tab_loads_metrics_of_the_selected_song(self):
+        """Switching songs in the shared list must refresh the metrics card.
+
+        Regression: _on_library_selection only moved the highlight. Its
+        setCurrentRow is run with signals blocked, so currentRowChanged never
+        fired and the card kept the previous song's numbers. Selecting a song
+        with no analysis showed the old song's metrics instead of the placeholder;
+        measured by selecting lagu_B then lagu_A, the table still read lagu_B.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        lib = win.song_library
+        lib.add_path("/tmp/lagu_A.wav", select=False)
+        lib.add_path("/tmp/lagu_B.wav", select=False)
+
+        def analysis(title: str, bpm: float) -> dict:
+            return {
+                "title": title, "frames_count": 500, "fps_rate": 43.07,
+                "valence": 0.3, "arousal": 0.2, "rms": 0.1,
+                "spectral_centroid": 1500.0, "chroma_key": "C Major",
+                "dominant_pitch": "C", "mfcc_density": 0.5,
+                "spectral_flux": 0.4, "quadrant": "Q1", "bpm": bpm,
+                "duration_sec": 12.0, "palette": {"R": 255, "G": 180, "B": 50, "W": 0},
+            }
+
+        lib.set_analysis(0, analysis("lagu_A", 100.0))
+        lib.set_analysis(1, analysis("lagu_B", 120.0))
+
+        result = win.tab_result
+
+        def shown_title() -> str:
+            item = result.table.item(0, 1)
+            return item.text() if item else ""
+
+        lib.select(1)
+        self.assertEqual(shown_title(), "lagu_B")
+        lib.select(0)
+        self.assertEqual(shown_title(), "lagu_A",
+                         "the card must follow the selection, not stay on the old song")
+
+        win.close()
+
 
 if __name__ == "__main__":
     unittest.main()

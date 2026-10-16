@@ -164,12 +164,21 @@ class ResultTab(QWidget if HAS_QT else object):
             self.load_analysis_result(dict(entry.analysis or {}))
 
     def _on_library_selection(self, index: int) -> None:
-        """Follow a selection made in another tab."""
+        """Follow a selection made in another tab.
+
+        Moving the highlight is not enough: the widget's currentRowChanged is
+        blocked while repainting, so the metrics card was never refreshed and
+        kept describing whatever song was on screen before. Selecting lagu_A
+        after lagu_B used to leave lagu_B's numbers in the table, and a song
+        with no analysis showed the previous song's metrics instead of the
+        "No analysis yet" placeholder. Load the selected song's own result.
+        """
         widget = getattr(self, "song_list_widget", None)
         if widget is not None and widget.currentRow() != index:
             widget.blockSignals(True)
             widget.setCurrentRow(index)
             widget.blockSignals(False)
+        self._on_song_row_selected(index)
 
     def load_analysis_result(self, res: dict) -> None:
         """Loads and visualizes analysis data from AnalyzeTab."""

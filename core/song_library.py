@@ -195,8 +195,14 @@ class SongLibrary:
                 # appear twice, so the operator saw their own track duplicated.
                 self._songs[index].analysis = analysis
                 if select:
-                    self.select(index)
+                    self._selected = index
                 self._broadcast_changed()
+                # Announce the selection every time, because at least one viewer
+                # (the Result tab) refreshes its detail pane on this callback.
+                # select() short-circuits when the index is unchanged, so reusing
+                # the already-selected entry used to update the entry and look
+                # like nothing happened.
+                self._broadcast_selection()
                 return index
         self._songs.append(SongEntry(path="", analysis=analysis))
         index = len(self._songs) - 1
@@ -218,25 +224,60 @@ class SongLibrary:
             self.set_analysis(index, analysis)
 
     def remove(self, indices: list[int]) -> None:
-        """Remove songs by index. Invalid indices are ignored."""
+        """Remove songs by index. Invalid indices are ignored.
+
+        The selection follows the song, not the slot. Removing a song above the
+        selected one used to leave ``_selected`` pointing at the same slot, which
+        now holds a different track, so the Result tab silently described a song
+        the operator never chose (measured: selecting lagu_B and removing lagu_A
+        made the report read lagu_C). Count how many removed indices sit below
+        the selection and shift it down by that many; if the selected song itself
+        was removed, keep the slot but clamp it into range.
+        """
         valid = sorted({i for i in indices if 0 <= i < len(self._songs)}, reverse=True)
         if not valid:
             return
+
+        removed_below = sum(1 for i in valid if i < self._selected)
+        selection_removed = self._selected in valid
+
         for index in valid:
             del self._songs[index]
-        self._selected = min(self._selected, len(self._songs) - 1)
+
+        if selection_removed or self._selected < 0:
+            self._selected = min(self._selected, len(self._songs) - 1)
+        else:
+            self._selected = max(0, min(self._selected - removed_below, len(self._songs) - 1))
+
         self._broadcast_changed()
         self._broadcast_selection()
 
     def move(self, index: int, delta: int) -> int:
-        """Move one song by delta positions. Returns its new index."""
+        """Move one song by delta positions. Returns its new index.
+
+        The selection follows the song, not the slot. ``_selected = target``
+        moved the highlight to whichever song was dragged, so reordering the
+        list always jumped the Result tab to that song even when a different
+        track was selected (measured: selecting c.wav and moving a.wav by +1 made
+        the report read a.wav). Carry the selected song's identity through the
+        swap instead.
+        """
         target = index + delta
         if not (0 <= index < len(self._songs)):
             return index
         if not (0 <= target < len(self._songs)):
             return index
+
+        selected_song = self._songs[self._selected] if 0 <= self._selected < len(self._songs) else None
+
         self._songs[index], self._songs[target] = self._songs[target], self._songs[index]
-        self._selected = target
+
+        if selected_song is not None:
+            self._selected = next(
+                (i for i, song in enumerate(self._songs) if song is selected_song),
+                self._selected,
+            )
+
         self._broadcast_changed()
         self._broadcast_selection()
         return target
