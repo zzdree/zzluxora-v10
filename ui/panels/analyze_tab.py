@@ -17,6 +17,7 @@ from ui.qt_compat import (
     QPainter, QColor, QPen, QBrush, QFont
 )
 from ui.styles import Theme
+from core.song_library import SongLibrary
 from ui.widgets.youtube_dialog import YouTubeDialog
 from core.audio_loader import AudioLoader
 from core.feature_extractor import FeatureExtractor
@@ -233,12 +234,19 @@ class AnalyzeTab(QWidget if HAS_QT else object):
     """
     analysis_ready = Signal(dict)
 
-    def __init__(self, project_state=None, parent: QWidget | None = None):
+    def __init__(self, project_state=None, parent: QWidget | None = None,
+                 song_library=None):
         if not HAS_QT: return
         super().__init__(parent)
         self.project_state = project_state
         self.worker: AudioAnalysisWorker | None = None
-        self.loaded_songs: list[str] = []
+        # The shared song list. When the main window supplies one, this tab reads
+        # and writes that single list so Analyze, Result and Perform agree; when
+        # it does not (tests constructing the tab alone), the tab keeps its own
+        # so behaviour stays identical for a single-tab caller.
+        self.song_library = song_library if song_library is not None else SongLibrary()
+        self.song_library.on_changed(self._refresh_song_list)
+        self.song_library.on_selection_changed(self._on_library_selection)
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -298,6 +306,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         self.song_list_widget.currentRowChanged.connect(self._on_song_selected)
         left_layout.addWidget(self.song_list_widget)
         splitter.addWidget(left_box)
+        self._refresh_song_list()
 
         # Right Container: Analysis Visualization & Status
         right_box = QGroupBox("DSP Engine & Russell 2D Affective Plane")
@@ -358,35 +367,68 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         dlg.audio_imported.connect(self._add_audio_path)
         dlg.exec()
 
+    def _refresh_song_list(self) -> None:
+        """Repaint this tab's list from the shared library.
+
+        Rebuilt wholesale rather than patched row by row: the library can add,
+        remove and reorder in one action, and a row-by-row update would have to
+        reproduce all three to stay in step.
+        """
+        widget = getattr(self, "song_list_widget", None)
+        if widget is None:
+            return
+        widget.blockSignals(True)
+        widget.clear()
+        for entry in self.song_library.songs:
+            widget.addItem(f"{entry.name}\n     {entry.summary()}")
+        widget.setCurrentRow(self.song_library.selected_index)
+        widget.blockSignals(False)
+
+    def _on_library_selection(self, index: int) -> None:
+        """Follow a selection made in another tab."""
+        widget = getattr(self, "song_list_widget", None)
+        if widget is None:
+            return
+        if widget.currentRow() != index:
+            widget.blockSignals(True)
+            widget.setCurrentRow(index)
+            widget.blockSignals(False)
+        has_sel = 0 <= index < len(self.song_library)
+        self.btn_analyze.setEnabled(has_sel)
+        self.btn_remove.setEnabled(has_sel)
+
     def _add_audio_path(self, path_str: str) -> None:
-        self.loaded_songs.append(path_str)
-        self.song_list_widget.addItem(f"{Path(path_str).name}")
-        self.song_list_widget.setCurrentRow(len(self.loaded_songs) - 1)
+        """Add a track to the shared list, which repaints every tab's view."""
+        self.song_library.add_path(path_str)
         self.btn_analyze.setEnabled(True)
         self.btn_remove.setEnabled(True)
         self.lbl_dsp_status.setText(f"Track ready: {Path(path_str).name}")
 
     def _on_song_selected(self, row: int) -> None:
-        has_sel = row >= 0 and row < len(self.loaded_songs)
+        """Mirror the list widget's selection into the shared library."""
+        self.song_library.select(row)
+        has_sel = row >= 0 and row < len(self.song_library)
         self.btn_analyze.setEnabled(has_sel)
         self.btn_remove.setEnabled(has_sel)
 
     def _on_remove_song(self) -> None:
         row = self.song_list_widget.currentRow()
-        if 0 <= row < len(self.loaded_songs):
-            self.loaded_songs.pop(row)
-            self.song_list_widget.takeItem(row)
-            self.btn_analyze.setEnabled(len(self.loaded_songs) > 0)
-            self.btn_remove.setEnabled(len(self.loaded_songs) > 0)
+        if 0 <= row < len(self.song_library):
+            self.song_library.remove([row])
+            remaining = len(self.song_library) > 0
+            self.btn_analyze.setEnabled(remaining)
+            self.btn_remove.setEnabled(remaining)
 
     def _on_start_analysis(self) -> None:
         if self.worker is not None and self.worker.isRunning():
             return
         row = self.song_list_widget.currentRow()
-        if not (0 <= row < len(self.loaded_songs)):
+        if not (0 <= row < len(self.song_library)):
             return
 
-        target_file = self.loaded_songs[row]
+        entry = self.song_library.songs[row]
+        target_file = entry.path
+        self._analysis_target_path = entry.path
         self.btn_analyze.setEnabled(False)
         self.btn_load_file.setEnabled(False)
         self.btn_import_yt.setEnabled(False)

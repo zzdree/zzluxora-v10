@@ -1,6 +1,6 @@
 """
 address_tab.py | DMX Address Grid and Patch Sheet
-Implements a 24-column horizontal grid for 256 DMX channels with drag-and-drop patching,
+Implements a 24-column horizontal grid for 512 DMX channels with drag-and-drop patching,
 channel type color-coding, confirmation modal on clear, and Undo/Redo support.
 """
 
@@ -10,14 +10,15 @@ import json
 from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QScrollArea, QFrame, QMessageBox, QDialog,
-    QSpinBox, QComboBox, QInputDialog, Qt, Signal, QMimeData, QColor,
+    QSpinBox, QComboBox, QInputDialog, QListWidget, QListWidgetItem,
+    Qt, Signal, QMimeData, QColor,
     QDragEnterEvent, QDragMoveEvent, QDropEvent, QAction, QKeySequence
 )
 from ui.styles import Theme
 
 
 class DMXChannelBox(QFrame if HAS_QT else object):
-    """Visual widget representing one DMX channel (1-256) in the 24-column grid."""
+    """Visual widget representing one DMX channel (1-512) in the 24-column grid."""
     def __init__(self, channel_num: int, parent: QWidget | None = None):
         if not HAS_QT: return
         super().__init__(parent)
@@ -27,6 +28,7 @@ class DMXChannelBox(QFrame if HAS_QT else object):
         self.channel_label = ""
         self.fixture_name = ""
         self.is_drag_hover = False
+        self.is_panel_selected = False
         self.boundary_type = ""  # "start", "mid", "end", "single", ""
 
         self.setFixedSize(46, 46)
@@ -128,6 +130,12 @@ class DMXChannelBox(QFrame if HAS_QT else object):
 
         if self.is_drag_hover:
             box_style = f"background-color: {Theme.BG_ELEVATED}; border: 2px solid {Theme.ACCENT_CYAN}; border-radius: 4px;"
+        elif self.is_panel_selected:
+            # Selection from the fixture panel is drawn as a white frame over
+            # whatever the cell already shows, so the channel's own colour and
+            # meaning survive while the operator sees which fixture is picked.
+            border_base = f"border: 2px solid {Theme.TEXT_PRIMARY};"
+            box_style = f"background-color: {bg}; {border_base} border-radius: 4px;"
         elif self.is_patched:
             border_base = f"border: 1px solid {Theme.BORDER_HIGHLIGHT};"
             if self.boundary_type == "start":
@@ -181,9 +189,9 @@ class AddressGridArea(QWidget if HAS_QT else object):
         self.grid_layout.setContentsMargins(12, 12, 12, 12)
         self.grid_layout.setSpacing(5)
 
-        # 256 channels in max 24 columns
+        # 512 channels (one full universe) in max 24 columns
         COLS = 24
-        for ch in range(1, 257):
+        for ch in range(1, 513):
             box = DMXChannelBox(ch, self)
             self.boxes[ch] = box
             row = (ch - 1) // COLS
@@ -275,9 +283,144 @@ class AddressGridArea(QWidget if HAS_QT else object):
             event.ignore()
 
 
+class FixtureListPanel(QWidget if HAS_QT else object):
+    """The register of patched fixtures, and the source for drag-and-drop.
+
+    Layout follows QLC+'s FixtureBrowserDelegate: one row per fixture at a fixed
+    row height, label on the left, a 1px divider underneath, no decoration. The
+    address is derived from the grid rather than stored, so the panel cannot
+    drift out of step with the patch.
+    """
+
+    fixture_selected = Signal(list)   # channels of the selected fixture(s)
+    remove_requested = Signal(list)   # start channels to remove
+    add_requested = Signal()          # the operator pressed +
+
+    PANEL_WIDTH = 210
+
+    def __init__(self, parent=None):
+        if not HAS_QT:
+            return
+        super().__init__(parent)
+        self.setFixedWidth(self.PANEL_WIDTH)
+        self._rows: list[dict] = []
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        bar = QHBoxLayout()
+        bar.setContentsMargins(8, 0, 0, 0)
+        bar.setSpacing(6)
+        lbl = QLabel("FIXTURES")
+        lbl.setStyleSheet(
+            f"font-size: 11px; font-weight: 800; letter-spacing: 0.6px; "
+            f"color: {Theme.TEXT_SECONDARY};")
+        bar.addWidget(lbl)
+        bar.addStretch()
+
+        self.btn_add = QPushButton("+")
+        self.btn_add.setFixedSize(26, 22)
+        self.btn_add.setToolTip("Patch a preset fixture layout")
+        self.btn_add.clicked.connect(self.add_requested.emit)
+        bar.addWidget(self.btn_add)
+
+        self.btn_remove = QPushButton("-")
+        self.btn_remove.setFixedSize(26, 22)
+        self.btn_remove.setToolTip("Remove the selected fixture(s)")
+        self.btn_remove.setEnabled(False)
+        self.btn_remove.clicked.connect(self._on_remove_clicked)
+        bar.addWidget(self.btn_remove)
+
+        layout.addLayout(bar)
+
+        self.list_widget = QListWidget()
+        # Qt6 moved enums inside the enum class, so ExtendedSelection is reached
+        # through SelectionMode. Fall back to the flat Qt5 form when present.
+        mode = getattr(QListWidget, "ExtendedSelection", None)
+        if mode is None:
+            selection_mode = getattr(QListWidget, "SelectionMode", None)
+            mode = getattr(selection_mode, "ExtendedSelection", 3)
+        self.list_widget.setSelectionMode(mode)
+        self.list_widget.setUniformItemSizes(True)
+        self.list_widget.itemSelectionChanged.connect(self._on_selection_changed)
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.SURFACE_INPUT};
+                border: 1px solid {Theme.BORDER_SUBTLE};
+                border-radius: 4px;
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 6px 8px;
+                border-bottom: 1px solid {Theme.BORDER_SUBTLE};
+                color: {Theme.TEXT_PRIMARY};
+                font-size: 12px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.BG_ELEVATED};
+                color: {Theme.TEXT_PRIMARY};
+            }}
+        """)
+        layout.addWidget(self.list_widget, 1)
+
+        self.empty_label = QLabel("No fixtures patched.")
+        self.empty_label.setAlignment(Qt.AlignCenter)
+        self.empty_label.setWordWrap(True)
+        self.empty_label.setStyleSheet(
+            f"color: {Theme.TEXT_MUTED}; font-size: 11px; padding: 12px;")
+        layout.addWidget(self.empty_label)
+
+    def refresh_from_grid(self) -> None:
+        """Rebuild the list from the AddressTab patch state."""
+        tab = self.parent()
+        fixtures = tab.get_patched_fixtures() if hasattr(tab, "get_patched_fixtures") else []
+        # Order by starting address so the numbering matches the grid reading
+        # order and stays stable while the operator patches.
+        fixtures = sorted(fixtures, key=lambda f: f.get("start_channel", 0))
+        self._rows = fixtures
+
+        self.list_widget.blockSignals(True)
+        self.list_widget.clear()
+        for index, fixture in enumerate(fixtures, 1):
+            start = fixture.get("start_channel", 0)
+            count = len(fixture.get("channels", []))
+            end = start + count - 1 if count else start
+            span = f"DMX {start}" if count <= 1 else f"DMX {start}-{end}"
+            item = QListWidgetItem(f"[{index}] {fixture.get('name', 'Fixture')}\n     {span}")
+            item.setData(Qt.UserRole, start)
+            self.list_widget.addItem(item)
+        self.list_widget.blockSignals(False)
+
+        has_rows = bool(fixtures)
+        self.list_widget.setVisible(has_rows)
+        self.empty_label.setVisible(not has_rows)
+        self.btn_remove.setEnabled(False)
+        self.fixture_selected.emit([])
+
+    def _on_selection_changed(self) -> None:
+        starts = self.selected_start_channels()
+        self.btn_remove.setEnabled(bool(starts))
+        channels: list[int] = []
+        for row in self._rows:
+            if row.get("start_channel") in starts:
+                channels.extend(c["channel"] for c in row.get("channels", []))
+        self.fixture_selected.emit(channels)
+
+    def selected_start_channels(self) -> list[int]:
+        return [item.data(Qt.UserRole) for item in self.list_widget.selectedItems()]
+
+    def _on_remove_clicked(self) -> None:
+        starts = self.selected_start_channels()
+        if starts:
+            self.remove_requested.emit(starts)
+
+
 class AddressTab(QWidget if HAS_QT else object):
     """
-    Address Tab: 256 DMX channels displayed in max 24 columns.
+    Address Tab: 512 DMX channels displayed in max 24 columns.
     Features Drag & Drop fixture patching, Clear All with confirmation, and Undo/Redo.
     """
     patch_changed = Signal()
@@ -338,7 +481,24 @@ class AddressTab(QWidget if HAS_QT else object):
         self.grid_area = AddressGridArea(self)
         self.grid_area.fixture_dropped.connect(self._on_fixture_dropped)
         self.scroll_area.setWidget(self.grid_area)
-        main_layout.addWidget(self.scroll_area, 1)
+
+        # Fixture panel on the left, grid on the right. The panel is the source
+        # for drag-and-drop and the register of what is patched; without it the
+        # only way to know what a block of coloured cells represents was to read
+        # the cells themselves.
+        self.fixture_panel = FixtureListPanel(self)
+        self.fixture_panel.fixture_selected.connect(self._on_fixture_selected)
+        self.fixture_panel.remove_requested.connect(self._on_remove_fixtures)
+        self.fixture_panel.add_requested.connect(self._on_patch_clicked)
+
+        body_split = QHBoxLayout()
+        body_split.setSpacing(12)
+        body_split.addWidget(self.fixture_panel, 0)
+        body_split.addWidget(self.scroll_area, 1)
+        main_layout.addLayout(body_split, 1)
+
+        self.patch_changed.connect(self.fixture_panel.refresh_from_grid)
+        self.fixture_panel.refresh_from_grid()
 
     def _snapshot_state(self) -> dict:
         """Captures current patch state for Undo/Redo."""
@@ -359,26 +519,30 @@ class AddressTab(QWidget if HAS_QT else object):
         self.patch_changed.emit()
 
     def record_undo(self) -> None:
+        """Snapshot the patch before a change.
+
+        The undo/redo stacks are kept because Ctrl+Z and Ctrl+Y drive them from
+        the global shortcut handler. The buttons that used to enable or disable
+        themselves from these two methods are gone: they only mirrored state the
+        shortcut handler already owns, and a stack depth check belongs there, not
+        in a button that no longer exists.
+        """
         self.undo_stack.append(self._snapshot_state())
         self.redo_stack.clear()
-        self.btn_undo.setEnabled(True)
-        self.btn_redo.setEnabled(False)
 
     def undo_patch(self) -> None:
-        if not self.undo_stack: return
+        if not self.undo_stack:
+            return
         self.redo_stack.append(self._snapshot_state())
         snap = self.undo_stack.pop()
         self._restore_snapshot(snap)
-        self.btn_undo.setEnabled(len(self.undo_stack) > 0)
-        self.btn_redo.setEnabled(True)
 
     def redo_patch(self) -> None:
-        if not self.redo_stack: return
+        if not self.redo_stack:
+            return
         self.undo_stack.append(self._snapshot_state())
         snap = self.redo_stack.pop()
         self._restore_snapshot(snap)
-        self.btn_undo.setEnabled(True)
-        self.btn_redo.setEnabled(len(self.redo_stack) > 0)
 
     def update_fixture_brackets(self) -> None:
         """Computes and assigns fixture enclosure boundary markers across DMX boxes."""
@@ -408,33 +572,87 @@ class AddressTab(QWidget if HAS_QT else object):
         for box in self.grid_area.boxes.values():
             box.update_style()
 
+    def _on_fixture_selected(self, channels: list[int]) -> None:
+        """Highlight the channels of the fixtures selected in the panel."""
+        selected = set(channels)
+        for ch, box in self.grid_area.boxes.items():
+            want = ch in selected
+            if box.is_panel_selected != want:
+                box.is_panel_selected = want
+                box.update_style()
+
+    def _on_remove_fixtures(self, start_channels: list[int]) -> None:
+        """Remove the named fixtures after one confirmation.
+
+        One confirmation covers the whole selection: asking per fixture would
+        turn removing four fixtures into four dialogs.
+        """
+        starts = sorted(set(start_channels))
+        if not starts:
+            return
+
+        names = []
+        to_clear: list[int] = []
+        for row in self.get_patched_fixtures():
+            if row.get("start_channel") in starts:
+                names.append(row.get("name", "Fixture"))
+                to_clear.extend(c["channel"] for c in row.get("channels", []))
+        if not to_clear:
+            return
+
+        daftar = "\n".join(f"  - {n}" for n in names)
+        jawab = QMessageBox.question(
+            self,
+            "Remove Fixtures",
+            f"Remove {len(names)} fixture(s) from the patch?\n\n{daftar}\n\n"
+            f"Channels released: {len(to_clear)}.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if jawab != QMessageBox.Yes:
+            return
+
+        self.record_undo()
+        for ch in to_clear:
+            box = self.grid_area.boxes.get(ch)
+            if box:
+                box.set_unpatched()
+        self.update_fixture_brackets()
+        self.patch_changed.emit()
+
     def _on_fixture_dropped(self, start_channel: int, fixture_data: dict,
-                            record_undo: bool = True, notify: bool = True) -> None:
+                            record_undo: bool = True, notify: bool = True) -> bool:
         """Patch one fixture at a start channel.
 
         record_undo is False when a caller has already snapshotted the grid for
         a larger single user action (the quick-patch buttons), so one press is
         one undo step rather than one per fixture. notify is False for the same
         reason: emitting patch_changed per fixture made one quick-patch press
-        re-run the full 256-fader mixer resync four times, so the caller emits
+        re-run the full mixer resync four times, so the caller emits
         it once when the whole operation is done.
+
+        Returns True when the patch was applied and False when it was refused,
+        either because the range runs past the last channel or because the
+        target already holds another fixture. Callers that move an existing
+        fixture use the result to decide whether to release the old location.
         """
         channels = fixture_data.get("channels", [])
-        if not channels: return
+        if not channels:
+            return False
 
-        # Refuse a patch that would run past DMX 256 instead of silently keeping
+        # Refuse a patch that would run past the last channel instead of silently keeping
         # a truncated footprint. The truncation was previously persisted to the
         # .zlx file, so a 12-channel head dropped at 250 was saved as a
         # 7-channel fixture and the rig then drove the wrong DMX offsets.
         last_channel = start_channel + len(channels) - 1
-        if start_channel < 1 or last_channel > 256:
+        if start_channel < 1 or last_channel > 512:
             fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
             if start_channel < 1:
                 detail = f"start channel {start_channel} is below 1"
             else:
                 detail = (
                     f"channels {start_channel} to {last_channel} exceed the last "
-                    f"DMX channel (256); the fixture needs {len(channels)} channels"
+                    f"DMX channel (512); the fixture needs {len(channels)} channels"
                 )
             QMessageBox.warning(
                 self,
@@ -442,7 +660,30 @@ class AddressTab(QWidget if HAS_QT else object):
                 f"{fixture_name} was not patched: {detail}.\n\n"
                 "Choose a start channel that leaves room for the whole fixture.",
             )
-            return
+            return False
+
+        # Refuse a footprint that would overlap a fixture already sitting there.
+        # QLC+ does the same: it rejects the drop and tells the operator why,
+        # rather than letting two fixtures share channels and then driving the
+        # wrong offsets. The channels of the fixture being moved are excluded so
+        # it does not block its own destination. move_source_channels is read
+        # from the payload because the caller releases the old location only
+        # after this returns True.
+        moving_from = fixture_data.get("move_source_channels")
+        occupied = self._occupied_channels(exclude=set(moving_from or ()))
+        clash = sorted(set(range(start_channel, last_channel + 1)) & occupied)
+        if clash:
+            fixture_name = fixture_data.get("name") or fixture_data.get("model", "Fixture")
+            shown = ", ".join(str(ch) for ch in clash[:8])
+            lebih = f" (+{len(clash) - 8} more)" if len(clash) > 8 else ""
+            QMessageBox.warning(
+                self,
+                "Channels Already Patched",
+                f"{fixture_name} was not patched: channel(s) {shown}{lebih} "
+                "already belong to another fixture.\n\n"
+                "Choose a free range, or clear that fixture first.",
+            )
+            return False
 
         self.grid_area.clear_drag_hover()
         if record_undo:
@@ -460,12 +701,25 @@ class AddressTab(QWidget if HAS_QT else object):
         self.update_fixture_brackets()
         if notify:
             self.patch_changed.emit()
+        return True
+
+    def _occupied_channels(self, exclude: set[int] | None = None) -> set[int]:
+        """Channels that currently hold a patch, optionally ignoring some.
+
+        exclude carries the channels of the fixture being moved, so they do not
+        count as an obstacle to that same fixture's new position.
+        """
+        skip = exclude or set()
+        return {
+            ch for ch, box in self.grid_area.boxes.items()
+            if box.is_patched and ch not in skip
+        }
 
     def get_patched_fixtures(self) -> list[dict]:
         """Returns list of active patched fixture blocks from the address grid."""
         fixtures = []
         visited = set()
-        for ch in range(1, 257):
+        for ch in range(1, 513):
             if ch in visited:
                 continue
             box = self.grid_area.boxes.get(ch)
@@ -474,7 +728,7 @@ class AddressTab(QWidget if HAS_QT else object):
                 start_ch = ch
                 fixture_channels = []
                 cur = ch
-                while cur <= 256:
+                while cur <= 512:
                     cbox = self.grid_area.boxes.get(cur)
                     if cbox and cbox.is_patched and cbox.fixture_name == fname:
                         fixture_channels.append({

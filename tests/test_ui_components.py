@@ -952,11 +952,13 @@ class TestUIModules(unittest.TestCase):
         win.close()
 
     def test_patch_beyond_dmx_256_is_refused_not_truncated(self):
-        """A fixture that would run past DMX 256 must be refused, not truncated.
+        """A fixture that would run past the last DMX channel must be refused.
 
         The overflow was silently dropped and the truncated channel count was
         written to the .zlx file, so a 12-channel head at DMX 250 reloaded as a
-        7-channel fixture driving the wrong offsets.
+        7-channel fixture driving the wrong offsets. The boundary itself moved
+        from 256 to 512 when the grid grew to a full universe; the rule under
+        test - refuse rather than truncate - is unchanged.
         """
         self._application()
         from unittest.mock import patch as mock_patch
@@ -968,17 +970,23 @@ class TestUIModules(unittest.TestCase):
         fixture = {"name": "Head12", "channels": [{"type": "red", "label": "R"}] * 12}
 
         with mock_patch("ui.panels.address_tab.QMessageBox.warning") as warned:
-            tab._on_fixture_dropped(250, fixture)
+            # 12 channels from 506 run to 517, past the last channel (512).
+            tab._on_fixture_dropped(506, fixture)
             self.assertTrue(warned.called, "overflow must warn the operator")
             self.assertEqual(tab.get_patched_fixtures(), [],
                              "an out-of-range fixture must not be partially patched")
 
-            # A fixture that fits is still patched in full.
-            tab._on_fixture_dropped(100, fixture)
+            # 12 channels from 501 land exactly on 512 and must be accepted.
+            tab._on_fixture_dropped(501, fixture)
             fixtures = tab.get_patched_fixtures()
-            self.assertEqual(len(fixtures), 1)
-            self.assertEqual(fixtures[0]["start_channel"], 100)
+            self.assertEqual(len(fixtures), 1, "a fixture ending on 512 must patch in full")
+            self.assertEqual(fixtures[0]["start_channel"], 501)
             self.assertEqual(len(fixtures[0]["channels"]), 12)
+
+            # DMX 257 is no longer out of range: it is inside the universe.
+            tab._on_fixture_dropped(257, fixture)
+            self.assertEqual(len(tab.get_patched_fixtures()), 2,
+                             "channels above 256 are now valid and must be usable")
         win.close()
 
     def test_page_export_replaces_instead_of_stacking(self):

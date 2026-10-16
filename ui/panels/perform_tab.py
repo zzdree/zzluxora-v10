@@ -13,6 +13,7 @@ from ui.qt_compat import (
     Qt, Signal, QColor, QFont
 )
 from ui.styles import Theme
+from core.song_library import SongLibrary
 
 
 class PerformTab(QWidget if HAS_QT else object):
@@ -20,10 +21,14 @@ class PerformTab(QWidget if HAS_QT else object):
     export_to_page = Signal(list)  # Emits list of generated cues for PageTab
     cue_activated = Signal(dict)   # Emits active cue with color, dimmer, fade_time to MainWindow
 
-    def __init__(self, project_state=None, parent: QWidget | None = None):
+    def __init__(self, project_state=None, parent: QWidget | None = None,
+                 song_library=None):
         if not HAS_QT: return
         super().__init__(parent)
         self.project_state = project_state
+        self.song_library = song_library if song_library is not None else SongLibrary()
+        self.song_library.on_changed(self._refresh_playlist_view)
+        self.song_library.on_selection_changed(self._on_library_selection)
         self.playlist: list[dict] = []
         self.current_song_cues: list[dict] = []
         self.active_cue_index: int = -1
@@ -200,14 +205,47 @@ class PerformTab(QWidget if HAS_QT else object):
         main_layout.addWidget(splitter, 1)
 
     # PLAYLIST & SONG SECTION GENERATION
+    def _refresh_playlist_view(self) -> None:
+        """Repaint this tab's playlist from the shared song library.
+
+        Rebuilt wholesale rather than appended to, because the library can add,
+        remove and reorder in one action. Only songs that carry analysis are
+        listed here: Perform builds cues from analysis, so an unanalysed file has
+        nothing to schedule yet.
+        """
+        widget = getattr(self, "playlist_widget", None)
+        if widget is None:
+            return
+        entries = [entry for entry in self.song_library.songs if entry.is_analyzed]
+        self.playlist = [dict(entry.analysis or {}, file_path=entry.path) for entry in entries]
+
+        widget.blockSignals(True)
+        widget.clear()
+        for entry in entries:
+            widget.addItem(f"{entry.title} [{entry.summary()}]")
+        widget.setCurrentRow(self.song_library.selected_index)
+        widget.blockSignals(False)
+
+        # Rebuild the cue table explicitly. Signals were blocked while the list
+        # was repainted, so _on_song_selected never ran and the cues for the
+        # selected song would otherwise be left stale or empty.
+        self._on_song_selected(widget.currentRow())
+
+    def _on_library_selection(self, index: int) -> None:
+        """Follow a selection made in another tab."""
+        widget = getattr(self, "playlist_widget", None)
+        if widget is not None and widget.currentRow() != index:
+            widget.blockSignals(True)
+            widget.setCurrentRow(index)
+            widget.blockSignals(False)
+
     def add_analyzed_song(self, song_data: dict) -> None:
-        """Receives exported song from ResultTab and appends to live playlist."""
-        self.playlist.append(song_data)
-        title = song_data.get("title", "Untitled")
-        quad = song_data.get("quadrant", "General")
-        bpm = song_data.get("bpm", 120.0)
-        self.playlist_widget.addItem(f"{title} [{quad}, {bpm:.0f} BPM]")
-        self.playlist_widget.setCurrentRow(len(self.playlist) - 1)
+        """Receive a finished analysis from ResultTab and schedule it.
+
+        Routed through the shared library so the song also appears in Analyze
+        and Result; the refresh callback then repaints this tab's playlist.
+        """
+        self.song_library.add_analysis(song_data)
 
     def _on_song_selected(self, row: int) -> None:
         if not (0 <= row < len(self.playlist)):
@@ -587,28 +625,28 @@ class PerformTab(QWidget if HAS_QT else object):
 
     # PLAYLIST REORDERING & EXPORT TO PAGE
     def _on_move_up(self) -> None:
+        """Reorder in the shared library, so every tab sees the new order."""
         row = self.playlist_widget.currentRow()
         if row > 0:
-            song = self.playlist.pop(row)
-            self.playlist.insert(row - 1, song)
-            item = self.playlist_widget.takeItem(row)
-            self.playlist_widget.insertItem(row - 1, item)
+            self.song_library.move(row, -1)
+            self._refresh_playlist_view()
             self.playlist_widget.setCurrentRow(row - 1)
 
     def _on_move_down(self) -> None:
         row = self.playlist_widget.currentRow()
-        if 0 <= row < len(self.playlist) - 1:
-            song = self.playlist.pop(row)
-            self.playlist.insert(row + 1, song)
-            item = self.playlist_widget.takeItem(row)
-            self.playlist_widget.insertItem(row + 1, item)
+        if 0 <= row < len(self.song_library) - 1:
+            self.song_library.move(row, 1)
+            self._refresh_playlist_view()
             self.playlist_widget.setCurrentRow(row + 1)
 
     def _on_delete_song(self) -> None:
+        """Remove from the shared library, so the song leaves every tab."""
         row = self.playlist_widget.currentRow()
-        if 0 <= row < len(self.playlist):
-            self.playlist.pop(row)
-            self.playlist_widget.takeItem(row)
+        if 0 <= row < len(self.song_library):
+            self.song_library.remove([row])
+            if self.playlist_widget.count():
+                self.playlist_widget.setCurrentRow(
+                    min(row, self.playlist_widget.count() - 1))
 
     def _on_export_to_page(self) -> None:
         """Generates executor cues across all songs and pushes to PageTab."""

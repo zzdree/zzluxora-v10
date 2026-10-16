@@ -12,6 +12,7 @@ from ui.qt_compat import (
     Qt, Signal, QColor, QFont
 )
 from ui.styles import Theme
+from core.song_library import SongLibrary
 from ui.panels.analyze_tab import RussellPlaneWidget
 
 
@@ -20,10 +21,12 @@ class ResultTab(QWidget if HAS_QT else object):
     export_to_perform = Signal(dict)
     reanalyze_requested = Signal()
 
-    def __init__(self, project_state=None, parent: QWidget | None = None):
+    def __init__(self, project_state=None, parent: QWidget | None = None,
+                 song_library=None):
         if not HAS_QT: return
         super().__init__(parent)
         self.project_state = project_state
+        self.song_library = song_library if song_library is not None else SongLibrary()
         self.current_analysis: dict | None = None
         self._init_ui()
 

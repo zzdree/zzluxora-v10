@@ -36,6 +36,7 @@ from ui.panels.about_panel import AboutDialog
 from core.artnet_sender import ArtNetSender
 from core.models import ProjectState
 from core.project_io import ProjectIO
+from core.song_library import SongLibrary
 
 
 class MainWindow(QMainWindow if HAS_QT else object):
@@ -218,19 +219,24 @@ class MainWindow(QMainWindow if HAS_QT else object):
         self.tab_address.patch_changed.connect(self._on_patch_changed)
         self.stack.addWidget(self.tab_address)
 
+        # One song list shared by Analyze, Result and Perform. Each tab reads the
+        # same order and hears the same notifications, so adding, removing,
+        # selecting and reordering a song happens once and shows up everywhere.
+        self.song_library = SongLibrary()
+
         # 2. Analyze Tab
-        self.tab_analyze = AnalyzeTab(self.project_state, self)
+        self.tab_analyze = AnalyzeTab(self.project_state, self, song_library=self.song_library)
         self.tab_analyze.analysis_ready.connect(self._on_analysis_ready)
         self.stack.addWidget(self.tab_analyze)
 
         # 3. Result Tab
-        self.tab_result = ResultTab(self.project_state, self)
+        self.tab_result = ResultTab(self.project_state, self, song_library=self.song_library)
         self.tab_result.export_to_perform.connect(self._on_export_to_perform)
         self.tab_result.reanalyze_requested.connect(lambda: self._switch_workspace(1))
         self.stack.addWidget(self.tab_result)
 
         # 4. Perform Tab
-        self.tab_perform = PerformTab(self.project_state, self)
+        self.tab_perform = PerformTab(self.project_state, self, song_library=self.song_library)
         self.tab_perform.export_to_page.connect(self._on_export_to_page)
         self.tab_perform.cue_activated.connect(self._on_cue_activated)
         self.stack.addWidget(self.tab_perform)
