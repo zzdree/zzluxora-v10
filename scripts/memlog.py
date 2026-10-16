@@ -105,8 +105,69 @@ def cmd_add(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
     return 0
 
 
+def _fts_query(raw: str) -> str:
+    """Make a plain query searchable, without breaking real FTS5 syntax.
+
+    Two things forced this, both found by testing the queries an agent would
+    actually type, not the ones that look tidy:
+
+    1. A bare `foo bar` in FTS5 is a PHRASE, so it matches only where the words
+       are adjacent. Someone typing `timezone kalender` means "both terms", and
+       an empty result reads as "no such note" rather than "wrong syntax".
+    2. A hyphen is FTS5's NOT operator. `next-server` parses as `next NOT
+       server` and fails with `no such column: server`. So every note whose
+       title or tag used a hyphen (anti-slop, next-server, 6-Minggu) was
+       unfindable by the term most likely to be typed.
+
+    Each term is therefore quoted, which makes FTS5 treat it as literal text,
+    and bare terms are joined with AND. Explicit AND/OR/NOT and existing quoted
+    phrases pass through, so a caller who knows FTS5 keeps full control.
+    """
+    if not raw.strip():
+        return raw
+    if any(op in f' {raw.upper()} ' for op in (" AND ", " OR ", " NOT ")):
+        return raw
+
+    # Split on whitespace, but keep a quoted run together: a phrase the caller
+    # wrote on purpose must not be torn into separate AND-ed words.
+    parts: list[str] = []
+    for token in raw.split():
+        token = token.strip()
+        if not token:
+            continue
+        if token.endswith('*') and not token.startswith('"'):
+            parts.append(token)          # prefix search, syntax already correct
+        elif token.startswith('"'):
+            parts.append(token)          # opening quote; the loop below closes it
+        else:
+            parts.append(f'"{token}"')
+
+    # Re-join anything that opened a quote but was split across a space.
+    joined: list[str] = []
+    open_run: str | None = None
+    for part in parts:
+        if open_run is not None:
+            open_run += " " + part
+            if part.endswith('"'):
+                joined.append(open_run)
+                open_run = None
+            continue
+        if part.startswith('"') and not (len(part) > 1 and part.endswith('"')):
+            open_run = part
+            continue
+        joined.append(part)
+    if open_run is not None:
+        joined.append(open_run)
+    parts = joined
+
+    if not parts:
+        return raw
+    return " AND ".join(parts)
+
+
 def cmd_search(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
     # FTS5 syntax passes through unchanged: AND/OR/NOT, "phrases", prefix*.
+    # A bare multi-word query is joined with AND so it means "all of these".
     sql = (
         "SELECT n.id, n.bank, n.title, n.tags, n.updated_at, "
         "       snippet(notes_fts, 1, '[', ']', ' ... ', 12) AS excerpt, "
@@ -114,7 +175,7 @@ def cmd_search(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
         "FROM notes_fts JOIN notes n ON n.id = notes_fts.rowid "
         "WHERE notes_fts MATCH ?"
     )
-    params: list = [args.query]
+    params: list = [_fts_query(args.query)]
     if args.bank:
         sql += " AND n.bank = ?"
         params.append(args.bank)
