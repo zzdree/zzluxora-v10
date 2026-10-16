@@ -11,9 +11,9 @@ Dokumen ini untuk agent yang melanjutkan pekerjaan ZZLUXORA. Baca ini dulu sebel
 
 | | |
 |---|---|
-| Software `zzdree/zzluxora-v10` | HEAD **`bc2846b`**, satu berkas pra-perbaikan belum di-commit (lihat §2b), sinkron `origin/main` |
-| Naskah `zzdree/script` | HEAD **`0027d3d`**, bersih, sinkron |
-| Test suite | **145 lulus** (121 unittest + 24 pytest) |
+| Software `zzdree/zzluxora-v10` | HEAD **`d06469f`**, working tree **bersih**, sinkron `origin/main` |
+| Naskah `zzdree/script` | HEAD **`0027d3d`** plus koreksi naskah belum di-commit, lihat §2b |
+| Test suite | **151 lulus** (127 unittest + 24 pytest) |
 | Anti-slop | **167 berkas, 0 error, 0 warning** |
 | Audit | FASE 8 tuntas: 18 defect diperbaiki |
 
@@ -57,7 +57,9 @@ Rincian lengkap: `markdowns/ROADMAP.md` bagian **FASE 8**.
 
 Audit 14 agen lintas kode, firmware, dan naskah. Setiap temuan diuji dua lensa
 (refutasi + reproduksi) dan dinyatakan kukuh hanya bila keduanya gagal membantah.
-**Lima defect diperbaiki dan dikomit di `bc2846b`** (suite 129 -> 145 test):
+**Tujuh defect diperbaiki**, suite 129 -> 151 test, semuanya lulus:
+
+Komit `bc2846b` (lima defect pertama):
 
 1. `save_project` memotong berkas tujuan lebih dulu lalu menulis bertahap, sehingga
    kegagalan di tengah menghancurkan showfile (1973 byte menjadi 51 byte rusak).
@@ -73,26 +75,46 @@ Dua bug tambahan ditemukan saat memperbaiki di atas: `_refresh_dependency_line()
 dipanggil sebelum `btn_download` dibuat (dialog YouTube melempar `AttributeError`
 setiap dibuka), dan `QDialog.reject()` mematikan proses di bawah plugin offscreen.
 
-### 🔥 DUA TEMUAN BELUM DIPUTUSKAN (menunggu owner)
+Komit `d06469f` (dua defect terakhir, keduanya menyentuh kebenaran hasil):
 
-**A. Skala `Mode_score` salah (dampak ke naskah Bab 4).**
-`compute_mode_ratio` memakai cosine (`np.dot` vektor ternormalisasi), bukan korelasi
-Pearson seperti yang ditulis `script_math_model.md` Eq.(12) dan `script_chapter_02.md`.
-Akibatnya kedua profil Krumhansl 0,9495 serupa dan skor terkurung di ±0,1782 — jauh
-dari skala ±1 yang dijanjikan naskah. Bobot terbesar Valence (0,50) praktis lumpuh.
+6. **`Mode_score` memakai cosine, bukan Pearson** (`core/emotion_model.py`). Kedua
+   profil Krumhansl 0,9495 serupa di bawah cosine, sehingga skor terkurung di
+   ±0,1782 padahal naskah menjanjikan skala ±1; bobot terbesar Valence (0,50)
+   praktis lumpuh. Kini vektor dipusatkan sebelum dikorelasi (Pearson sejati):
+   skor untuk profil Mayor persis naik dari +0,0373 ke +0,2124, batas atas dari
+   0,1782 ke 0,6123, dan masukan rusak tidak lagi melempar `ValueError`.
+7. **Kanal putih terbuang ke fixture tanpa emitor putih** (`ui/main_window.py`).
+   Palet worship mellow `(67,38,0,178)` sampai ke Alien AL36 sebagai R+G+B = 105
+   alih-alih 639, dan cue putih murni menjadi `(0,0,0)` alias padam total. W kini
+   dilipat kembali ke R/G/B bila tak ada kanal yang dapat menerimanya.
 
-Perbaikan Pearson sudah ditulis tetapi **belum dikomit** (`core/emotion_model.py`
-tetap termodifikasi di working tree) karena mengubahnya menggeser angka Bab 4 yang
-sudah tertulis (RMS `354,536054`, korelasi `+0,992`/`-0,946` pada Tabel 4.4–4.6).
-Tiga pilihan: **(A)** terapkan Pearson + regenerasi angka Bab 4, **(B)** koreksi
-naskah agar cocok kode, **(C)** tunda ke FASE 6 bersama pembimbing.
+### ⚠️ KEPUTUSAN PEMBIMBING YANG MASIH DIBUTUHKAN (Keputusan 9)
 
-**B. Kanal putih terbuang ke fixture RGB.**
-`ColorEngine` mengekstrak `W = min(R,G,B)`, tetapi `Alien-AL36.zfx` tidak punya kanal
-white, sehingga `main_window.py:499` tidak pernah menulis `w_val`. Intensitas R+G+B
-yang tersisa hanya **22–78%** pada 10 berkas uji (kasus batas: putih murni
-`(255,255,255)` menjadi `(0,0,0)` alias padam). Justru konten mellow — sasaran utama
-skripsi — yang kehilangan paling banyak. Belum ditangani.
+Perbaikan #6 **tidak cukup** untuk menepati klaim naskah. Setelah diukur, akar
+masalahnya ternyata **normalisasi relatif per-lagu**, bukan bobot suku mode:
+
+- Setiap lagu selalu memuat frame dengan `SC_norm = 1,0` (miliknya sendiri),
+  sehingga rerata `SC_norm` pada sepuluh berkas uji adalah **0,66–0,84** dan skor
+  centroid selalu positif. Kontribusi centroid + MFCC terukur **+0,214 sampai
+  +0,352**.
+- Akibatnya **`V` positif untuk SEMUA lagu**, termasuk tiga lagu bermodus minor.
+- **Menaikkan bobot mode tidak menolong:** pada bobot 0,80 pun (diuji) tiga lagu
+  minor tetap `V > 0`, sebab suku mode hanya mampu ±0,61.
+
+Naskah sudah diberi catatan kejujuran di `script_math_model.md` Bagian [2] dan
+[3.2], serta Bab 2, dan Keputusan 9 (beserta Keputusan 10) sudah ditambahkan ke
+`script/markdowns/script_konsultasi_pembimbing.md`. **Yang belum diputuskan:**
+apakah normalisasi tetap relatif per-lagu (aman, naskah dibatasi pada perubahan
+relatif) atau diubah ke skala absolut (klaim antar-lagu benar-benar berlaku, tetapi
+**seluruh angka warna Bab 4 harus diregenerasi**). Ini keputusan metodologi Pak
+Mario, bukan keputusan implementasi.
+
+### Status angka Bab 4 setelah perbaikan #6
+
+Angka pada Tabel 4.5 dan RGBW frame pertama Tabel 4.4 sudah diselaraskan dengan
+mesin Pearson (RMS/centroid rata-rata **tidak berubah**, hanya dua koefisien
+bergeser berarti). Tabel 4.6 (`V`/`A` per lagu) **belum diisi** karena masih
+menunggu pemilihan lagu final; nilainya akan ikut mesin Pearson saat diisi.
 
 ## 3. Yang BELUM Dikerjakan
 
@@ -186,7 +208,7 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
 ## 7. Langkah Pertama yang Disarankan
 
 1. Baca dokumen ini, lalu `markdowns/ROADMAP.md` bagian FASE 8 dan `markdowns/MEMORY.md`.
-2. Verifikasi keadaan: `PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py` (harus 145 lulus).
+2. Verifikasi keadaan: `PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py` (harus 151 lulus).
 3. Cari konteks relevan: `python3 scripts/memlog.py search "<topik>"`.
 4. Tanya owner mau lanjut ke mana. Pilihan yang tersedia: **(a)** kerjakan naskah Bab 4/5 dan keputusan audio, **(b)** siapkan FASE 6 saat hardware tersedia, **(c)** test manual aplikasi lalu perbaiki temuan yang muncul.
 
