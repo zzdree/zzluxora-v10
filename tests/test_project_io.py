@@ -134,10 +134,6 @@ class TestProjectIO(unittest.TestCase):
             self.assertEqual(load_window.dmx_buffer[0], 151)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestProjectSaveIsAtomic(unittest.TestCase):
     """A failed save must leave the previous showfile intact.
 
@@ -235,3 +231,7 @@ class TestProjectPayloadGate(unittest.TestCase):
             with open(target, "w", encoding="utf-8") as handle:
                 json.dump({"app": "QLC+", "target_ip": "not-an-ip"}, handle)
             self.assertIsNone(ProjectIO.load_project(target))
+
+
+if __name__ == "__main__":
+    unittest.main()

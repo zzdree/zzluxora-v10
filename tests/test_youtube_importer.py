@@ -121,10 +121,6 @@ class TestFfmpegResolution(unittest.TestCase):
             self.assertIsNone(yt.resolve_ffmpeg())
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestYouTubeDialogLifecycle(unittest.TestCase):
     """The dialog must open, and must never destroy a live worker thread.
 
@@ -205,3 +201,7 @@ class TestYouTubeDialogLifecycle(unittest.TestCase):
             self.assertIsNone(dialog.worker)
         finally:
             dialog.reject()
+
+
+if __name__ == "__main__":
+    unittest.main()

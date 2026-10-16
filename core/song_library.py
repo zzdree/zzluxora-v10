@@ -154,6 +154,28 @@ class SongLibrary:
         self._broadcast_selection()
         return index
 
+    @staticmethod
+    def _matches_title(song: SongEntry, wanted: str) -> bool:
+        """True when a song is the same track as `wanted`, however it arrived.
+
+        A file-loaded entry has no analysis yet, so its title falls back to the
+        filename stem, while an exported entry carries the analysed title. Both
+        spellings are compared, case-insensitively, so "Bapa Yang Kekal" and
+        "Bapa_Yang_Kekal.wav" are recognised as one song.
+        """
+        candidates = {song.title.strip().lower()}
+        if song.path:
+            candidates.add(Path(song.path).stem.strip().lower())
+        if isinstance(song.analysis, dict):
+            analysed = song.analysis.get("title")
+            if isinstance(analysed, str) and analysed.strip():
+                candidates.add(analysed.strip().lower())
+        want = wanted.lower()
+        # Compare with separators flattened, so underscores and spaces match.
+        def normalise(text: str) -> str:
+            return " ".join(text.replace("_", " ").replace("-", " ").split())
+        return any(normalise(c) == normalise(want) for c in candidates)
+
     def add_analysis(self, analysis: dict[str, Any], select: bool = True) -> int:
         """Append a song that arrives as finished analysis rather than a file.
 
@@ -163,13 +185,19 @@ class SongLibrary:
         """
         title = analysis.get("title") if isinstance(analysis, dict) else None
         if isinstance(title, str) and title.strip():
+            wanted = title.strip()
             for index, song in enumerate(self._songs):
-                if song.is_analyzed and song.title == title.strip() and not song.path:
-                    self._songs[index].analysis = analysis
-                    if select:
-                        self.select(index)
-                    self._broadcast_changed()
-                    return index
+                if not self._matches_title(song, wanted):
+                    continue
+                # Attach the analysis to the entry that already exists, whether
+                # it arrived as a file or as an earlier export. Matching only
+                # file-less entries made a song that was loaded AND then exported
+                # appear twice, so the operator saw their own track duplicated.
+                self._songs[index].analysis = analysis
+                if select:
+                    self.select(index)
+                self._broadcast_changed()
+                return index
         self._songs.append(SongEntry(path="", analysis=analysis))
         index = len(self._songs) - 1
         if select:

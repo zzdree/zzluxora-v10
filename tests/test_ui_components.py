@@ -1396,5 +1396,37 @@ class TestUIModules(unittest.TestCase):
         win.close()
 
 
+    def test_exporting_a_loaded_song_does_not_list_it_twice(self):
+        """A song loaded as a file and then exported must stay ONE entry.
+
+        Regression: add_analysis only matched existing entries that had no file,
+        so a song that was loaded from disk and later exported to Perform gained
+        a second row - the operator saw their own track duplicated in every tab,
+        and deleting one left the other behind.
+        """
+        self._application()
+        from ui.main_window import MainWindow
+
+        win = MainWindow()
+        lib = win.song_library
+        lib.add_path("/tmp/Bapa_Yang_Kekal.wav")
+        lib.add_path("/tmp/Nyalakan_ApiMu.wav")
+        self.assertEqual(len(lib), 2)
+
+        # The same track arrives again as a finished analysis from Result.
+        index = lib.add_analysis({"title": "Bapa Yang Kekal",
+                                  "quadrant": "Q3_DEEP_WORSHIP", "bpm": 72.0})
+        self.assertEqual(len(lib), 2, "exporting must reuse the loaded entry, not add a row")
+        self.assertEqual(index, 0)
+        self.assertTrue(lib.songs[0].is_analyzed, "the analysis must land on the loaded entry")
+        self.assertEqual(lib.songs[0].path, "/tmp/Bapa_Yang_Kekal.wav",
+                         "the file must not be discarded when the analysis arrives")
+
+        # Exporting the same result again is idempotent.
+        self.assertEqual(lib.add_analysis({"title": "Bapa Yang Kekal", "bpm": 72.0}), 0)
+        self.assertEqual(len(lib), 2)
+
+        win.close()
+
 if __name__ == "__main__":
     unittest.main()

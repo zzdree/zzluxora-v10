@@ -221,10 +221,6 @@ class TestProjectIoSchemaCompatibility(unittest.TestCase):
             self.assertIsNone(ProjectIO.load_project(broken))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestFixtureNameStandard(unittest.TestCase):
     """Fixture names must follow the v4 standard, in code and in showfiles.
 
@@ -302,3 +298,7 @@ class TestFixtureNameStandard(unittest.TestCase):
                         self.assertNotIn(bad, name,
                                          f"{path.name}: {name!r} carries the banned "
                                          f"qualifier {bad!r}")
+
+
+if __name__ == "__main__":
+    unittest.main()

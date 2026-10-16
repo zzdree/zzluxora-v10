@@ -9,6 +9,7 @@ from __future__ import annotations
 from ui.qt_compat import (
     HAS_QT, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QGroupBox, QSplitter,
+    QListWidget,
     Qt, Signal, QColor, QFont
 )
 from ui.styles import Theme
@@ -27,6 +28,8 @@ class ResultTab(QWidget if HAS_QT else object):
         super().__init__(parent)
         self.project_state = project_state
         self.song_library = song_library if song_library is not None else SongLibrary()
+        self.song_library.on_changed(self._refresh_song_list)
+        self.song_library.on_selection_changed(self._on_library_selection)
         self.current_analysis: dict | None = None
         self._init_ui()
 
@@ -54,6 +57,35 @@ class ResultTab(QWidget if HAS_QT else object):
 
         # Content Splitter
         splitter = QSplitter(Qt.Horizontal)
+
+        # Songs first, then metrics, then the plane. The list is on the left
+        # because Result describes whichever song is selected, and a reading
+        # surface with no visible subject makes the operator hunt for what the
+        # numbers belong to. It mirrors the left panel in Analyze and Perform.
+        songs_box = QGroupBox("Songs")
+        songs_box.setStyleSheet(f"QGroupBox {{ font-weight: 700; color: {Theme.TEXT_PRIMARY}; }}")
+        songs_layout = QVBoxLayout(songs_box)
+        self.song_list_widget = QListWidget()
+        self.song_list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.SURFACE_INPUT};
+                border: 1px solid {Theme.BORDER_SUBTLE};
+                border-radius: 4px;
+                color: {Theme.TEXT_PRIMARY};
+            }}
+            QListWidget::item {{
+                padding: 6px 8px;
+                border-bottom: 1px solid {Theme.BORDER_SUBTLE};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.SURFACE_HOVER};
+                color: {Theme.TEXT_PRIMARY};
+            }}
+        """)
+        self.song_list_widget.currentRowChanged.connect(self._on_song_row_selected)
+        songs_layout.addWidget(self.song_list_widget)
+        songs_box.setMinimumWidth(190)
+        splitter.addWidget(songs_box)
 
         # Left: Metric Details Table
         left_box = QGroupBox("Acoustic Metrics & Song Characteristics")
@@ -108,6 +140,36 @@ class ResultTab(QWidget if HAS_QT else object):
         splitter.addWidget(right_box)
         splitter.setSizes([550, 450])
         main_layout.addWidget(splitter, 1)
+
+    def _refresh_song_list(self) -> None:
+        """Repaint the song list from the shared library."""
+        widget = getattr(self, "song_list_widget", None)
+        if widget is None:
+            return
+        widget.blockSignals(True)
+        widget.clear()
+        for entry in self.song_library.songs:
+            widget.addItem(f"{entry.name}\n     {entry.summary()}")
+        widget.setCurrentRow(self.song_library.selected_index)
+        widget.blockSignals(False)
+        # Show the selected song's metrics straight away; the table would
+        # otherwise keep describing a song the operator no longer has selected.
+        self._on_song_row_selected(widget.currentRow())
+
+    def _on_song_row_selected(self, row: int) -> None:
+        """Display the metrics of the song the operator picked in the list."""
+        self.song_library.select(row)
+        entry = self.song_library.songs[row] if 0 <= row < len(self.song_library) else None
+        if entry is not None and entry.is_analyzed:
+            self.load_analysis_result(dict(entry.analysis or {}))
+
+    def _on_library_selection(self, index: int) -> None:
+        """Follow a selection made in another tab."""
+        widget = getattr(self, "song_list_widget", None)
+        if widget is not None and widget.currentRow() != index:
+            widget.blockSignals(True)
+            widget.setCurrentRow(index)
+            widget.blockSignals(False)
 
     def load_analysis_result(self, res: dict) -> None:
         """Loads and visualizes analysis data from AnalyzeTab."""
