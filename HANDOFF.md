@@ -11,10 +11,10 @@ Dokumen ini untuk agent yang melanjutkan pekerjaan ZZLUXORA. Baca ini dulu sebel
 
 | | |
 |---|---|
-| Software `zzdree/zzluxora-v10` | HEAD **`d06469f`**, working tree **bersih**, sinkron `origin/main` |
+| Software `zzdree/zzluxora-v10` | HEAD **`153a972`**, working tree **bersih**, sinkron `origin/main` |
 | Naskah `zzdree/script` | HEAD **`0027d3d`** plus koreksi naskah belum di-commit, lihat §2b |
-| Test suite | **151 lulus** (127 unittest + 24 pytest) |
-| Anti-slop | **167 berkas, 0 error, 0 warning** |
+| Test suite | **163 test** (136 unittest + 27 pytest), semua dijalankan |
+| Anti-slop | **171 berkas, 0 error, 0 warning** |
 | Audit | FASE 8 tuntas: 18 defect diperbaiki |
 
 ### Perintah wajib
@@ -57,7 +57,7 @@ Rincian lengkap: `markdowns/ROADMAP.md` bagian **FASE 8**.
 
 Audit 14 agen lintas kode, firmware, dan naskah. Setiap temuan diuji dua lensa
 (refutasi + reproduksi) dan dinyatakan kukuh hanya bila keduanya gagal membantah.
-**Tujuh defect diperbaiki**, suite 129 -> 151 test, semuanya lulus:
+**Tujuh defect diperbaiki** (suite kini 163 test, lihat 2c untuk jebakan test):
 
 Komit `bc2846b` (lima defect pertama):
 
@@ -115,6 +115,50 @@ Angka pada Tabel 4.5 dan RGBW frame pertama Tabel 4.4 sudah diselaraskan dengan
 mesin Pearson (RMS/centroid rata-rata **tidak berubah**, hanya dua koefisien
 bergeser berarti). Tabel 4.6 (`V`/`A` per lagu) **belum diisi** karena masih
 menunggu pemilihan lagu final; nilainya akan ikut mesin Pearson saat diisi.
+
+---
+
+## 2c. ⚠️ JEBAKAN SUITE TEST — BACA INI SEBELUM MENULIS TEST
+
+**Tujuh belas test pernah "lulus" tanpa pernah dijalankan.** Penyebabnya cara
+menambahkannya: `cat >> tests/berkas_test.py` menaruh test di **akhir berkas**,
+dan setiap berkas test ini berakhir dengan
+
+```python
+if __name__ == "__main__":
+    unittest.main()
+```
+
+sehingga test baru mendarat **setelah** blok itu. Kodenya sah secara sintaks
+(berada di dalam `def`), jadi **tidak ada galat apa pun**, tetapi
+`unittest.TestLoader` hanya mengumpulkan metode **dari kelas**. Suite tetap
+melaporkan `OK`.
+
+Yang terdampak justru verifikasi perbaikan paling kritis: `save_project` atomik,
+gerbang skema `.zlx`, standar nama fixture, dan lifecycle dialog YouTube.
+
+### Aturan yang harus dipatuhi
+
+1. **Jangan pernah** menambah test dengan `cat >>`. Pakai `Edit` pada bagian
+   dalam kelas, atau tulis di **atas** blok `if __name__`.
+2. **`run_tests_guarded.py` memilih runner per berkas**: yang mengimpor `pytest`
+   dijalankan pytest, sisanya `unittest` discovery.
+3. **pytest MENGUMPULKAN** fungsi `test_` tingkat modul.
+   **unittest TIDAK.** Jadi fungsi tingkat modul hanya sah di berkas bergaya
+   pytest.
+4. `tests/test_suite_hygiene.py` menjaga ketiganya. Ia menolak test setelah blok
+   main, menolak fungsi tingkat modul pada berkas non-pytest, dan menolak
+   discovery yang menemukan < 100 test (tanda berkas gagal diimpor).
+5. **Verifikasi JUMLAH test yang dikumpulkan, bukan hanya status `OK`:**
+   ```bash
+   PYTHONPATH=$PWD/tools python3 -c "
+   import sys; sys.path.insert(0,'tools'); import _autodialog_guard
+   import unittest
+   print(unittest.TestLoader().discover('tests', pattern='test_*.py').countTestCases())"
+   ```
+
+*Pelajarannya umum dan berlaku selamanya: "lulus" bukan bukti bila test-nya tidak
+dikumpulkan.*
 
 ## 3. Yang BELUM Dikerjakan
 
