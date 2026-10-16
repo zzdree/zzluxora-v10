@@ -52,7 +52,7 @@ class MixerTab(QWidget if HAS_QT else object):
         top_bar.addWidget(self.btn_reset_all)
 
         self.btn_full_master = QPushButton("FULL MASTER")
-        self.btn_full_master.setStyleSheet(f"color: {Theme.ACCENT_AMBER}; border-color: {Theme.ACCENT_AMBER};")
+        self.btn_full_master.setStyleSheet(f"font-weight: 600;")
         self.btn_full_master.clicked.connect(lambda: self.set_channel_value(0, 255))
         top_bar.addWidget(self.btn_full_master)
 

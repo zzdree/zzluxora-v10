@@ -1360,7 +1360,7 @@ class StageVisualizerWindow(QWidget if HAS_QT else object):
 
     def _on_reset_camera_clicked(self) -> None:
         self.canvas_3d.reset_camera()
-        self.btn_reset_cam.setStyleSheet(f"background-color: {Theme.COLOR_SUCCESS}; border: none; border-radius: 4px; color: {Theme.COLOR_BLACK}; font-weight: bold; padding: 6px;")
+        self.btn_reset_cam.setStyleSheet(f"background-color: {Theme.BUTTON_NEUTRAL_BG}; border: 1px solid {Theme.BORDER_STRONG}; border-radius: 4px; color: {Theme.TEXT_PRIMARY}; font-weight: bold; padding: 6px;")
         QTimer.singleShot(350, self._restore_reset_cam_style)
 
     def _restore_reset_cam_style(self) -> None:

@@ -174,7 +174,7 @@ class SettingsDialog(QDialog if HAS_QT else object):
         btn_bar.addStretch()
 
         self.btn_rescan = QPushButton("Refresh")
-        self.btn_rescan.setStyleSheet(f"background-color: {Theme.BUTTON_REFRESH_BLUE}; color: {Theme.TEXT_PRIMARY}; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
+        self.btn_rescan.setStyleSheet(f"font-weight: bold;")
         self.btn_rescan.clicked.connect(self._scan_network_interfaces)
         btn_bar.addWidget(self.btn_rescan)
 

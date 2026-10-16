@@ -113,7 +113,7 @@ class FixtureListWindow(QWidget if HAS_QT else object):
         btn_bar.addStretch()
 
         self.btn_refresh = QPushButton("RELOAD")
-        self.btn_refresh.setStyleSheet(f"background-color: {Theme.COLOR_SUCCESS}; color: {Theme.BG_ROOT}; font-weight: bold; padding: 6px 14px; border-radius: 4px; border: none;")
+        self.btn_refresh.setStyleSheet(f"font-weight: bold;")
         self.btn_refresh.clicked.connect(self.reload_fixtures)
         btn_bar.addWidget(self.btn_refresh)
 

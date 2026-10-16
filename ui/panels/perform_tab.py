@@ -60,7 +60,7 @@ class PerformTab(QWidget if HAS_QT else object):
         top_bar.addWidget(self.btn_delete_song)
 
         self.btn_export_page = QPushButton("GENERATE EXECUTORS")
-        self.btn_export_page.setStyleSheet(f"background-color: {Theme.STATUS_SUCCESS_BG}; color: {Theme.COLOR_SUCCESS}; font-weight: 800;")
+        self.btn_export_page.setStyleSheet(f"font-weight: 800;")
         self.btn_export_page.clicked.connect(self._on_export_to_page)
         top_bar.addWidget(self.btn_export_page)
 

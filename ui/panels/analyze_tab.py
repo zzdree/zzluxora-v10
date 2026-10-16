@@ -264,7 +264,7 @@ class AnalyzeTab(QWidget if HAS_QT else object):
         top_bar.addWidget(self.btn_load_file)
 
         self.btn_import_yt = QPushButton("IMPORT YOUTUBE...")
-        self.btn_import_yt.setStyleSheet(f"background-color: {Theme.STATUS_INFO_BG}; border-color: {Theme.ACCENT_CYAN};")
+        self.btn_import_yt.setStyleSheet(f"font-weight: 600;")
         self.btn_import_yt.clicked.connect(self._on_open_youtube_dialog)
         top_bar.addWidget(self.btn_import_yt)
 

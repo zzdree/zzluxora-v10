@@ -128,7 +128,7 @@ class YouTubeDialog(QDialog if HAS_QT else object):
         btn_layout.addWidget(self.btn_cancel)
 
         self.btn_download = QPushButton("Download & Extract Audio")
-        self.btn_download.setStyleSheet(f"background-color: {Theme.STATUS_INFO_BG}; border-color: {Theme.ACCENT_CYAN};")
+        self.btn_download.setStyleSheet(f"font-weight: bold;")
         self.btn_download.clicked.connect(self._on_start_download)
         btn_layout.addWidget(self.btn_download)
 

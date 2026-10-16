@@ -143,14 +143,27 @@ class DMXChannelBox(QFrame if HAS_QT else object):
                 {box_style}
             }}
         """)
+        # The child labels must not paint their own background. The console
+        # stylesheet sets `QWidget { background-color: ... }`, which every QLabel
+        # inherits, so each label was drawing a dark rectangle over the cell fill
+        # and a patched channel read as a coloured outline instead of a solid
+        # block. Transparent labels let the channel colour fill the whole cell.
         if hasattr(self, 'lbl_num'):
             num_color = text_color if self.is_patched else Theme.TEXT_CONTRAST_UNPATCHED
-            self.lbl_num.setStyleSheet(f"font-size: 9px; color: {num_color}; font-weight: 700; font-family: monospace;")
+            self.lbl_num.setStyleSheet(
+                f"background: transparent; font-size: 9px; color: {num_color}; "
+                f"font-weight: 700; font-family: monospace;"
+            )
         if hasattr(self, 'lbl_type'):
             if self.is_patched:
-                self.lbl_type.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {text_color};")
+                self.lbl_type.setStyleSheet(
+                    f"background: transparent; font-size: 10px; font-weight: 800; color: {text_color};"
+                )
             else:
-                self.lbl_type.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {Theme.TEXT_MUTED};")
+                self.lbl_type.setStyleSheet(
+                    f"background: transparent; font-size: 10px; font-weight: 800; "
+                    f"color: {Theme.TEXT_MUTED};"
+                )
 
 
 class AddressGridArea(QWidget if HAS_QT else object):
@@ -309,13 +322,13 @@ class AddressTab(QWidget if HAS_QT else object):
 
         self.btn_patch_alien = QPushButton("PATCH 4x ALIEN (GIA)")
         self.btn_patch_alien.setToolTip("Auto-patch 4x Alien AL36 at DMX001, DMX017, DMX033, DMX049 (GIA Deliksari Stage)")
-        self.btn_patch_alien.setStyleSheet(f"border-color: {Theme.ACCENT_CYAN}; color: {Theme.TEXT_PRIMARY}; font-weight: bold;")
+        self.btn_patch_alien.setStyleSheet(f"font-weight: bold;")
         self.btn_patch_alien.clicked.connect(self._on_patch_alien_gia)
         ctrl_bar.addWidget(self.btn_patch_alien)
 
         self.btn_patch_kuma = QPushButton("PATCH 1x KUMA (BENCH)")
         self.btn_patch_kuma.setToolTip("Auto-patch 1x Kumastb STL47 at DMX001 (RGBW Bench Testing Unit)")
-        self.btn_patch_kuma.setStyleSheet(f"border-color: {Theme.ACCENT_AMBER}; color: {Theme.TEXT_PRIMARY}; font-weight: bold;")
+        self.btn_patch_kuma.setStyleSheet(f"font-weight: bold;")
         self.btn_patch_kuma.clicked.connect(self._on_patch_kuma_bench)
         ctrl_bar.addWidget(self.btn_patch_kuma)
 
