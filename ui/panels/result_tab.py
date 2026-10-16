@@ -157,11 +157,32 @@ class ResultTab(QWidget if HAS_QT else object):
         self._on_song_row_selected(widget.currentRow())
 
     def _on_song_row_selected(self, row: int) -> None:
-        """Display the metrics of the song the operator picked in the list."""
+        """Display the metrics of the song the operator picked in the list.
+
+        A song that has no analysis must clear the card, not leave the previous
+        song's numbers and an enabled Export behind. Only the analysed branch was
+        handled, so selecting an unanalysed track (or switching to a file that is
+        still queued) left the dashboard describing a song the operator no longer
+        had selected, and Export would send that stale result to Perform.
+        """
         self.song_library.select(row)
         entry = self.song_library.songs[row] if 0 <= row < len(self.song_library) else None
         if entry is not None and entry.is_analyzed:
             self.load_analysis_result(dict(entry.analysis or {}))
+        else:
+            self._show_no_analysis()
+
+    def _show_no_analysis(self) -> None:
+        """Clear the metrics card and disable Export for a song with no result."""
+        self.current_analysis = None
+        self.btn_export.setEnabled(False)
+        self.russell_plane.set_coordinates(0.0, 0.0, "Idle")
+        self.lbl_palette_desc.setText("<b>Recommended Stage Lighting Color:</b> not assigned.")
+        for row in range(self.table.rowCount()):
+            value_item = self.table.item(row, 1)
+            if value_item is None:
+                continue
+            value_item.setText("No analysis yet" if row == 0 else "-")
 
     def _on_library_selection(self, index: int) -> None:
         """Follow a selection made in another tab.
