@@ -41,11 +41,10 @@ cd ~/ANDREAS/zzluxora_v10
 PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py
 
 # PERIKSA JUMLAH test yang benar-benar dikumpulkan (bukan hanya status OK)
-PYTHONPATH=$PWD/tools python3 -c "
-import sys; sys.path.insert(0,'tools'); import _autodialog_guard
-import unittest
-print(unittest.TestLoader().discover('tests', pattern='test_*.py').countTestCases())"
-# 177 test unik. Kalau turun mendadak, ada berkas test gagal diimpor.
+QT_QPA_PLATFORM=offscreen PYTHONPATH=$PWD/tools python3 -m pytest tests/ --collect-only -q | tail -1
+# 177 tests collected. JANGAN menghitung dengan unittest discover: ia ikut
+# mengumpulkan berkas gaya-pytest dan melaporkan 149, angka yang menyesatkan.
+# Kalau turun mendadak, ada berkas test gagal diimpor.
 
 # anti-slop
 node scripts/check-anti-slop.js --summary
@@ -424,11 +423,8 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
 2. Verifikasi keadaan. **Periksa jumlah test, bukan hanya status `OK`:**
    ```bash
    PYTHONPATH=$PWD/tools python3 tools/run_tests_guarded.py
-   PYTHONPATH=$PWD/tools python3 -c "
-   import sys; sys.path.insert(0,'tools'); import _autodialog_guard
-   import unittest
-   print(unittest.TestLoader().discover('tests', pattern='test_*.py').countTestCases())"
-   # 177 test unik; periksa angkanya, jangan hanya status OK
+   QT_QPA_PLATFORM=offscreen PYTHONPATH=$PWD/tools python3 -m pytest tests/ --collect-only -q | tail -1
+   # 177 tests collected; periksa angkanya, jangan hanya status OK
    ```
 3. **Lihat UI-nya sebelum mengubahnya:**
    ```bash
