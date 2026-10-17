@@ -46,12 +46,10 @@ berada di `zzluxora_v10/memory/memlog.db`, sehingga log tidak terpakai dari
 folder project lain dan satu pemanggil sempat membuat `memlog.db` kosong di
 tempat lain.
 
-**Skripnya juga di luar repo:** `~/ANDREAS/scripts/` memuat `memlog.py`,
-`hindsight_to_memlog.py`, dan `create_backup.py`. Ketiganya saling mengimpor
-(`create_backup` ke `hindsight_to_memlog` ke `memlog`), jadi harus tetap satu
-folder. Dipisahkan dari repo supaya alat memori tidak ikut hilang atau tersalin
-saat repo berpindah laptop. Versi lama di `zzluxora_v10/scripts/` sudah dihapus;
-`check-anti-slop.js` dan `contrast-check.py` tetap di repo karena khas per-repo.
+**Skripnya di luar repo:** `~/ANDREAS/scripts/memlog.py`, satu berkas, nol
+dependensi. Dipisahkan dari repo supaya alat memori tidak ikut hilang atau
+tersalin saat repo berpindah laptop. `check-anti-slop.js` dan
+`contrast-check.py` tetap di repo karena khas per-repo.
 
 Untuk pemakaian terisolasi (uji, percobaan), set `MEMLOG_DB`:
 
@@ -60,43 +58,25 @@ MEMLOG_DB=/tmp/percobaan.db python3 ~/ANDREAS/scripts/memlog.py list
 ```
 
 
-## Mengarsipkan hindsight (kalau ingin memperbarui)
+## Hindsight sudah DIHAPUS (17 Okt 2026)
 
-Skrip ini mengekspor seluruh bank hindsight, mengunduh arsipnya, lalu mengonversinya ke memlog. Perlu API hindsight hidup; kalau API mati, skrip memberi tahu cara menyalakannya.
+`hindsight-api`, direktori `~/ANDREAS/hindsight/` (1,1 GB), dan venv
+`~/ANDREAS/.venv-hindsight/` (6,4 GB) sudah dihapus, bersama skrip
+`hindsight_to_memlog.py` dan `create_backup.py` yang hanya berguna selagi
+hindsight hidup. Ruang yang dibebaskan sekitar **7,5 GB**.
 
-```bash
-# 1. nyalakan hindsight (butuh ~800 MB RAM, hentikan sesi lain dulu)
-cd ~/ANDREAS/hindsight
-set -a && . ./.env.local/hindsight.env && set +a
-nohup ~/ANDREAS/.venv-hindsight/bin/hindsight-api > /tmp/hs.log 2>&1 &
+Data tidak hilang. Tersimpan di tiga tempat:
 
-# 2. tunggu sampai menjawab
-until curl -sf -o /dev/null http://127.0.0.1:8888/health; do sleep 5; done
+| Lokasi | Isi |
+|---|---|
+| `~/ANDREAS/memory/memlog.db` | 143 entri hidup, 4 bank, pencarian penuh |
+| `~/ANDREAS/memory-backup/<bank>-bank.zip` | arsip transfer asli hindsight, 3 bank, ~268 item |
+| `~/ANDREAS/memory-backup/memlog-before-shared-20261017.db` | cadangan DB sebelum migrasi ke lokasi bersama |
 
-# 3. arsipkan + konversi
-cd ~/ANDREAS/zzluxora_v10
-python3 ~/ANDREAS/scripts/create_backup.py
-
-# 4. opsional: hentikan hindsight untuk membebaskan RAM
-pkill -f hindsight-api
-```
-
-Kalau arsip sudah ada dan hanya ingin mengonversi ulang:
-
-```bash
-python3 ~/ANDREAS/scripts/create_backup.py --skip-hindsight
-```
-
-Arsip asli tersimpan di `../memory-backup/<bank>-bank.zip`, jadi data tetap dapat dipulihkan ke hindsight nanti bila diperlukan.
-
-## Pemulihan ke hindsight
-
-Arsip `<bank>-bank.zip` adalah format transfer resmi hindsight. Untuk memulihkan:
-
-```bash
-curl -X POST "http://127.0.0.1:8888/v1/default/banks/<bank>/transfer/import" \
-     -F "file=@../memory-backup/<bank>-bank.zip"
-```
+Arsip `<bank>-bank.zip` memakai format transfer resmi hindsight, jadi bila
+nantinya ingin menghidupkan hindsight lagi, arsipnya masih dapat diimpor ke
+instance baru. Namun pemulihan itu perlu memasang ulang hindsight; tidak ada
+prosedur siap pakai di repo ini karena tidak direncanakan.
 
 ## Keterbatasan yang diketahui
 
@@ -109,7 +89,5 @@ curl -X POST "http://127.0.0.1:8888/v1/default/banks/<bank>/transfer/import" \
 | Berkas | Fungsi |
 |---|---|
 | `~/ANDREAS/scripts/memlog.py` | alat memori: tambah, cari, lihat, sunting, hapus, ekspor, impor |
-| `~/ANDREAS/scripts/hindsight_to_memlog.py` | konverter arsip hindsight ke memlog |
-| `~/ANDREAS/scripts/create_backup.py` | arsipkan semua bank hindsight lalu konversi |
-| `memory/memlog.db` | basis data catatan |
+| `~/ANDREAS/memory/memlog.db` | basis data catatan |
 | `../memory-backup/*.zip` | arsip asli hindsight |

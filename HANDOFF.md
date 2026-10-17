@@ -381,15 +381,16 @@ python3 ~/ANDREAS/scripts/memlog.py list --limit 20
 
 Tidak bisa diringankan: 9router punya 40 model tetapi **0 embedding**, dan reranker tidak punya opsi mati.
 
-Data lama **sudah diarsipkan** ke `~/ANDREAS/memory-backup/*.zip` (18 dokumen + 99 fakta dari 3 bank) dan dikonversi ke memlog. Panduan lengkap: `markdowns/MEMORY.md`.
+### Hindsight sudah DIHAPUS (17 Okt 2026)
+`~/ANDREAS/hindsight/` (1,1 GB), `~/ANDREAS/.venv-hindsight/` (6,4 GB), dan dua
+skrip yang hanya berguna selagi hindsight hidup (`hindsight_to_memlog.py`,
+`create_backup.py`) sudah dihapus. Total sekitar **7,5 GB** dibebaskan.
 
-Kalau perlu memperbarui arsip hindsight, API harus hidup (~800 MB RAM, hentikan sesi lain dulu):
-```bash
-cd ~/ANDREAS/hindsight && set -a && . ./.env.local/hindsight.env && set +a
-nohup ~/ANDREAS/.venv-hindsight/bin/hindsight-api > /tmp/hs.log 2>&1 &
-until curl -sf -o /dev/null http://127.0.0.1:8888/health; do sleep 5; done
-cd ~/ANDREAS/zzluxora_v10 && python3 ~/ANDREAS/scripts/create_backup.py
-```
+Data tidak hilang, tersimpan tiga lapis: `~/ANDREAS/memory/memlog.db` (143 entri
+hidup), `~/ANDREAS/memory-backup/<bank>-bank.zip` (arsip transfer resmi
+hindsight, 3 bank, ~268 item), dan
+`~/ANDREAS/memory-backup/memlog-before-shared-20261017.db`. Jangan menulis
+prosedur "perbarui arsip hindsight" lagi: tidak ada instance untuk diperbarui.
 
 ### Pelajaran dari sesi lalu
 Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang sedang bekerja, padahal ia tidak menjalankan aplikasi. Itu mengganggu dan membingungkan. **Selalu pakai wrapper berpengaman**; kalau menulis skrip probe sendiri, impor `_autodialog_guard` sebagai baris pertama dengan `PYTHONPATH=<repo>/tools`.
