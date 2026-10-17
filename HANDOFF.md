@@ -28,7 +28,7 @@ Dokumen ini untuk agent yang melanjutkan pekerjaan ZZLUXORA. Baca ini dulu sebel
 |---|---|
 | Software `zzdree/zzluxora-v10` | HEAD **`30b1037`**, working tree **bersih**, sinkron `origin/main` |
 | Naskah `zzdree/script` | HEAD **`9febd7b`**, bersih, sinkron (koreksi naskah §2b + feedback v4 §11-14) |
-| Test suite | **177 lulus** (149 unittest + 30 pytest), exit 0 · jumlah wajib diperiksa, lihat §2c |
+| Test suite | **177 test unik lulus** (146 unittest + 31 pytest), exit 0 · jumlah wajib diperiksa, lihat §2c |
 | Anti-slop | **173 berkas, 0 error, 0 warning** |
 | Audit | FASE 8 (18 defect) + audit adversarial 16 Okt (7 defect) + audit mendalam 17 Okt (9 defect), lihat §2, §2b, §2d |
 
@@ -45,7 +45,7 @@ PYTHONPATH=$PWD/tools python3 -c "
 import sys; sys.path.insert(0,'tools'); import _autodialog_guard
 import unittest
 print(unittest.TestLoader().discover('tests', pattern='test_*.py').countTestCases())"
-# harus >= 136. Kalau turun mendadak, ada berkas test gagal diimpor.
+# 177 test unik. Kalau turun mendadak, ada berkas test gagal diimpor.
 
 # anti-slop
 node scripts/check-anti-slop.js --summary
@@ -195,7 +195,7 @@ Audit workflow multi-agen pada permukaan yang belum tersentuh FASE 8 maupun audi
 dua lensa (refutasi + reproduksi) dan dinyatakan kukuh hanya bila keduanya gagal
 membantah.
 
-**Delapan defect diperbaiki** (suite 163 → **177 test**):
+**Sembilan defect aplikasi + satu defect runner diperbaiki** (suite 163 → **177 test unik**):
 
 1. **`core/audio_loader.py`**: `except Exception: pass` menelan `PermissionError`,
    `IsADirectoryError`, dan kegagalan decode lain dari jalur `soundfile`, lalu
@@ -235,6 +235,14 @@ membantah.
 9. **`ui/panels/result_tab.py::_on_song_row_selected()`**: tanpa `else`, memilih
    lagu **belum dianalisis** menyisakan metrik lagu sebelumnya dan Export tetap
    aktif. Kini `_show_no_analysis()` membersihkan kartu seperti keadaan awal.
+10. **`tools/run_tests_guarded.py`**: fase unittest memakai
+    `discover("tests", "test_*.py")` **tanpa** mengecualikan berkas gaya-pytest,
+    sementara fase pytest juga menjalankannya. `test_suite_hygiene.py` memuat
+    kelas `TestCase`, jadi test-nya berjalan **dua kali**. Akibat lanjut: angka
+    "179 test" menghitung tiga test itu dua kali; angka unik sebenarnya **177**
+    (diverifikasi `pytest tests/ --collect-only`). Kini ada
+    `_is_pytest_module()` + `collect_unittest_modules()` yang dapat diuji, dan
+    penjaga `test_guarded_runner_does_not_run_pytest_modules_twice`.
 
 **Dua pembersihan minor:** sinyal mati `MixerTab.blackout_triggered` dihapus;
 nama factory `create_alien_al36`/`create_kumastb_stl47` diselaraskan ke standar
@@ -420,7 +428,7 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
    import sys; sys.path.insert(0,'tools'); import _autodialog_guard
    import unittest
    print(unittest.TestLoader().discover('tests', pattern='test_*.py').countTestCases())"
-   # harus >= 136
+   # 177 test unik; periksa angkanya, jangan hanya status OK
    ```
 3. **Lihat UI-nya sebelum mengubahnya:**
    ```bash
