@@ -363,14 +363,17 @@ terbunuh bila available RAM < 1 GB.
 ## 5. Memori
 
 ### Lokasi catatan
-- **Memori Claude** (otomatis): `~/.claude/projects/-home-zzdree-ANDREAS/memory/`: 22 berkas, indeks di `MEMORY.md`.
-- **Memlog** (SQLite, **pengganti hindsight**): `~/ANDREAS/zzluxora_v10/memory/memlog.db`: lihat `list --limit 1` untuk jumlah terkini.
+- **Memori Claude** (otomatis): `~/.claude/projects/-home-zzdree-ANDREAS/memory/` (indeks di `MEMORY.md`).
+- **Memlog** (SQLite, **pengganti hindsight**): `~/ANDREAS/memory/memlog.db`, **satu basis data untuk semua project**, dipisah kolom `bank` (`zzluxora`, `zzluxora_v10`, `script`, `gia-deliksari-web`). Dulu berada di `zzluxora_v10/memory/` sehingga tidak terpakai dari folder lain; kini dipindah dan lama tetap disalin di `~/ANDREAS/memory-backup/`.
 
 ```bash
-cd ~/ANDREAS/zzluxora_v10
-python3 scripts/memlog.py search "kata kunci"
-python3 scripts/memlog.py add --bank zzluxora --title "..." --tag ... --body "..."
-python3 scripts/memlog.py list --limit 20
+# boleh dipanggil dari folder mana pun
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py search "kata kunci"            # lintas semua project
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py search "kata kunci" --bank zzluxora
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py add --bank zzluxora --title "..." --tag ... --body "..."
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py list --limit 20
+
+# pemakaian terisolasi (uji): MEMLOG_DB=/tmp/coba.db python3 .../memlog.py list
 ```
 
 ### Kenapa bukan hindsight lagi

@@ -16,29 +16,40 @@ Konsekuensi yang diterima: pencarian leksikal lemah pada parafrase jauh. Untuk c
 
 ## Perintah harian
 
-```bash
-cd ~/ANDREAS/zzluxora_v10
+Satu basis data dipakai **semua project** di mesin ini (`zzluxora_v10`, `script`,
+`gia-deliksari-web`, dan seterusnya), dipisah oleh kolom `bank`. Skripnya boleh
+dipanggil dari folder mana pun dengan path absolut.
 
+```bash
 # simpan catatan
-python3 scripts/memlog.py add --bank zzluxora --title "Judul singkat" \
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py add --bank zzluxora --title "Judul singkat" \
     --tag desain --body "Isi catatan yang ingin diingat."
 
-# cari (sintaks FTS5: AND, OR, NOT, "frasa", prefix*)
-python3 scripts/memlog.py search "tombol netral"
-python3 scripts/memlog.py search '"blok penuh"' --bank zzluxora
+# cari lintas SEMUA project (tanpa --bank)
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py search "jebakan"
+# batasi ke satu project
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py search '"blok penuh"' --bank zzluxora
 
 # lihat, daftar, sunting, hapus
-python3 scripts/memlog.py show 12
-python3 scripts/memlog.py list --bank zzluxora --limit 20
-python3 scripts/memlog.py edit 12 --body "Isi baru"
-python3 scripts/memlog.py delete 12
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py show 12
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py list --bank zzluxora --limit 20
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py edit 12 --body "Isi baru"
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py delete 12
 
 # pindahkan isi basis data
-python3 scripts/memlog.py export /tmp/memlog.json
-python3 scripts/memlog.py import /tmp/memlog.json
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py export /tmp/memlog.json
+python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py import /tmp/memlog.json
 ```
 
-Basis data berada di `memory/memlog.db`.
+**Basis data:** `~/ANDREAS/memory/memlog.db` (lokasi bersama). Dulu file ini
+berada di `zzluxora_v10/memory/memlog.db`, sehingga log tidak terpakai dari
+folder project lain dan satu pemanggil sempat membuat `memlog.db` kosong di
+tempat lain. Untuk pemakaian terisolasi (uji, percobaan), set `MEMLOG_DB`:
+
+```bash
+MEMLOG_DB=/tmp/percobaan.db python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py list
+```
+
 
 ## Mengarsipkan hindsight (kalau ingin memperbarui)
 

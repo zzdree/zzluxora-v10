@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -39,6 +40,21 @@ from pathlib import Path
 from typing import Optional
 
 DEFAULT_DB = Path(__file__).resolve().parent.parent / "memory" / "memlog.db"
+
+# The memory log spans every project on this machine, so the corpus lives in one
+# shared file rather than inside a single repository. Keeping it here made the
+# log unusable from another project directory: the script could not even be
+# found, and one caller ended up creating an empty memlog.db somewhere else.
+# MEMLOG_DB overrides the location for a one-off run or an isolated test.
+SHARED_DB = Path.home() / "ANDREAS" / "memory" / "memlog.db"
+
+
+def resolve_db_path() -> Path:
+    """Database file to use, honouring MEMLOG_DB when it is set."""
+    override = os.environ.get("MEMLOG_DB")
+    if override:
+        return Path(override).expanduser()
+    return SHARED_DB
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS notes (
@@ -315,7 +331,13 @@ def cmd_import(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Memori agen ringan berbasis SQLite FTS5.")
-    parser.add_argument("--db", type=Path, default=DEFAULT_DB, help=f"berkas basis data (bawaan: {DEFAULT_DB})")
+    resolved = resolve_db_path()
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=resolved,
+        help=f"berkas basis data (bawaan: {resolved}; diatur oleh MEMLOG_DB bila diset)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_add = sub.add_parser("add", help="simpan catatan baru")
