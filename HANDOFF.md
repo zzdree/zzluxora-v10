@@ -50,7 +50,7 @@ QT_QPA_PLATFORM=offscreen PYTHONPATH=$PWD/tools python3 -m pytest tests/ --colle
 node scripts/check-anti-slop.js --summary
 
 # memori
-python3 scripts/memlog.py search "kata kunci"
+python3 ~/ANDREAS/scripts/memlog.py search "kata kunci"
 
 # TANGKAP LAYAR UI untuk penilaian visual (tanpa perlu layar sungguhan)
 QT_QPA_PLATFORM=offscreen PYTHONPATH=$PWD/tools python3 tools/shoot_ui.py --outdir /tmp/zz_shots
@@ -368,10 +368,10 @@ terbunuh bila available RAM < 1 GB.
 
 ```bash
 # boleh dipanggil dari folder mana pun
-python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py search "kata kunci"            # lintas semua project
-python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py search "kata kunci" --bank zzluxora
-python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py add --bank zzluxora --title "..." --tag ... --body "..."
-python3 ~/ANDREAS/zzluxora_v10/scripts/memlog.py list --limit 20
+python3 ~/ANDREAS/scripts/memlog.py search "kata kunci"            # lintas semua project
+python3 ~/ANDREAS/scripts/memlog.py search "kata kunci" --bank zzluxora
+python3 ~/ANDREAS/scripts/memlog.py add --bank zzluxora --title "..." --tag ... --body "..."
+python3 ~/ANDREAS/scripts/memlog.py list --limit 20
 
 # pemakaian terisolasi (uji): MEMLOG_DB=/tmp/coba.db python3 .../memlog.py list
 ```
@@ -388,7 +388,7 @@ Kalau perlu memperbarui arsip hindsight, API harus hidup (~800 MB RAM, hentikan 
 cd ~/ANDREAS/hindsight && set -a && . ./.env.local/hindsight.env && set +a
 nohup ~/ANDREAS/.venv-hindsight/bin/hindsight-api > /tmp/hs.log 2>&1 &
 until curl -sf -o /dev/null http://127.0.0.1:8888/health; do sleep 5; done
-cd ~/ANDREAS/zzluxora_v10 && python3 scripts/create_backup.py
+cd ~/ANDREAS/zzluxora_v10 && python3 ~/ANDREAS/scripts/create_backup.py
 ```
 
 ### Pelajaran dari sesi lalu
@@ -412,7 +412,7 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
 | `core/song_library.py` | satu daftar lagu bersama Analyze/Result/Perform |
 | `tests/test_suite_hygiene.py` | penjaga agar test tidak lolos tanpa dijalankan |
 | `scripts/check-anti-slop.js` | pemindai mutu |
-| `scripts/memlog.py` | memori agen |
+| `~/ANDREAS/scripts/memlog.py` | memori agen (di luar repo, lintas project) |
 | `../script/notes/feedback_v4.md` | **lembar acuan tunggal.** Bagian 1-10 (6 Okt) + bagian 11-14 (17 Okt) |
 | `../script/markdowns/script_plans.md` | status naskah skripsi |
 | `../script/markdowns/script_konsultasi_pembimbing.md` | agenda konsultasi dospem |
@@ -434,7 +434,7 @@ Skrip probe pernah memunculkan popup `QMessageBox` berulang di layar owner yang 
    QT_QPA_PLATFORM=offscreen PYTHONPATH=$PWD/tools python3 tools/shoot_ui.py --outdir /tmp/zz_shots
    ```
    lalu baca PNG di `/tmp/zz_shots/`.
-4. Cari konteks relevan: `python3 scripts/memlog.py search "<topik>"`.
+4. Cari konteks relevan: `python3 ~/ANDREAS/scripts/memlog.py search "<topik>"`.
 5. **Tanya owner mau lanjut ke mana.** Pilihan yang tersedia:
    **(a)** uji drag fixture dengan mouse sungguhan (sisa v5, §3),
    **(b)** kerjakan naskah Bab 4/5 dan keputusan audio,
