@@ -22,8 +22,45 @@ if not _autodialog_guard.GUARDED:
     print("warning: dialog guard could not be installed", file=sys.stderr)
 
 
+def _is_pytest_module(path) -> bool:
+    """True for a test module written for pytest rather than unittest.
+
+    The marker is a module-level ``import pytest``, which every pytest-style
+    module in this repository carries.
+    """
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    return "import pytest" in text
+
+
+def collect_unittest_modules(tests_dir) -> list[str]:
+    """Test module names the unittest phase should run.
+
+    Excludes the pytest-style modules so no file is executed twice. Kept as its
+    own function so the rule can be tested directly instead of being inferred
+    from a full suite run.
+    """
+    from pathlib import Path
+
+    return [
+        f"{Path(tests_dir).name}.{path.stem}"
+        for path in sorted(Path(tests_dir).glob("test_*.py"))
+        if not _is_pytest_module(path)
+    ]
+
+
 def run_unittest_suite() -> bool:
-    suite = unittest.TestLoader().discover("tests", pattern="test_*.py")
+    """Run the unittest-style modules, leaving pytest-style ones to pytest.
+
+    Discovery used to sweep every test_*.py file, so the classes inside the
+    pytest-style modules ran here as well as under pytest. test_suite_hygiene.py
+    holds a TestCase class, so its tests executed twice and its module was
+    imported twice, adding wall-clock time for no extra coverage. Filter them out
+    so each test runs exactly once, matching what the pytest step's docstring
+    already claimed.
+    """
+    from pathlib import Path
+
+    suite = unittest.TestLoader().loadTestsFromNames(collect_unittest_modules(Path("tests")))
     return unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful()
 
 
@@ -37,8 +74,7 @@ def run_pytest_suite() -> bool:
     from pathlib import Path
 
     for path in sorted(Path("tests").glob("test_*.py")):
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        if "import pytest" in text:
+        if _is_pytest_module(path):
             pytest_modules.append(str(path))
 
     if not pytest_modules:

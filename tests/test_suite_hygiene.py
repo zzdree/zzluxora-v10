@@ -121,3 +121,41 @@ class TestSuiteHygiene(unittest.TestCase):
             "discovery menemukan terlalu sedikit test; kemungkinan ada berkas test "
             "yang gagal diimpor dan diam-diam terlewat",
         )
+
+    def test_guarded_runner_does_not_run_pytest_modules_twice(self):
+        """Berkas gaya pytest harus dijalankan pytest saja, bukan juga unittest.
+
+        Regresi: run_unittest_suite memakai discover("tests", "test_*.py") tanpa
+        kecuali, sementara run_pytest_suite juga menjalankan berkas yang
+        mengimpor pytest. Berkas berisi kelas TestCase (test_suite_hygiene.py)
+        karena itu dijalankan DUA kali. Docstring runner sendiri sudah menyatakan
+        maksud sebaliknya.
+
+        Diuji dari PERILAKU runner: jalankan fase unittest-nya pada direktori test
+        sungguhan dan periksa modul apa saja yang benar-benar dikumpulkan. Memeriksa
+        helper _is_pytest_module saja akan tetap lulus walau filternya dicabut.
+        """
+        import importlib.util
+
+        runner_path = TESTS_DIR.parent / "tools" / "run_tests_guarded.py"
+        self.assertTrue(runner_path.is_file(), f"runner tidak ditemukan: {runner_path}")
+
+        spec = importlib.util.spec_from_file_location("_guarded_runner_probe", runner_path)
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+
+        collected = runner.collect_unittest_modules(TESTS_DIR)
+        names = {name.rsplit(".", 1)[-1] for name in collected}
+
+        pytest_modules = {
+            path.stem for path in self._test_files() if runner._is_pytest_module(path)
+        }
+        self.assertTrue(pytest_modules, "harus ada minimal satu berkas gaya pytest")
+
+        overlap = names & pytest_modules
+        self.assertEqual(
+            overlap, set(),
+            "berkas ini akan dijalankan dua kali (unittest lalu pytest): " + ", ".join(sorted(overlap)),
+        )
+        self.assertGreater(len(names), 5, "fase unittest harus tetap mengumpulkan berkas")
+
